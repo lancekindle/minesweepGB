@@ -14,9 +14,18 @@ include "sprite.inc"
 
 
 ;IRQs
+; whenever one of these IRQs is triggered, three things happen:
+; 1) SP is loaded with the address of the interrupted instruction
+; 2) interrupts are disabled (You can return and enable IRQs with "reti")
+; 3) execution jumps here, to the appropriate section.
+;
+; you can control which IRQs are enabled by writing the appropriate bits
+; to rIE  (register Interrupt Enable). Search gbhw.inc for interrupt
+; to see what flags are available  (i.e. IEF_SERIAL, IEF_VBLANK, IEF_TIMER)
 section "Vblank", HOME[$0040]
 						; trickery. Since dma returns and enables interrupts
 						; we can just jp to the dma code immediately
+						; this saves on number of returns (and cpu cycles)
 	jp DMACODELOC		; DMACODE copies data from _RAM / $100 to OAMDATA
 section "LCDC", HOME[$0048]
 	reti
@@ -44,6 +53,7 @@ section "start", HOME[$0100]
 ; has been laid out
 include "joypad.asm"
 include "memory.asm"
+include "lcd.asm"
 ; write the rom header
 
 
@@ -61,14 +71,14 @@ screen_init:
 	; OR ldh sets address to nn BUT sets 2nd byte to ff
 	ret
 
-clear_sprite_table:
+ClearSpriteTable:
 	ld a, 0
 	ld hl, OAMDATALOC
 	ld bc, OAMDATALENGTH
 	call mem_Set
 	ret
 
-clear_background:
+ClearBackground:
 	; sets background tiles to empty space
 	ld a, 32
 	ld hl, _SCRN0
@@ -76,7 +86,7 @@ clear_background:
 	call mem_SetVRAM
 	ret
 
-load_words:
+LoadWords:
 	ld hl, Title
 	ld de, _SCRN0 + SCRN_VX_B * 5
 	ld bc, TitleEnd - Title
@@ -98,17 +108,17 @@ begin:
 	ld sp, $ffff  ; init stack pointer to be at top of memory
 	call initdma
 	call screen_init
-	call StopLCD
-	call load_font
-	call clear_sprite_table
-	call clear_background
-	call BeginLCD
-	call load_words
+	call lcd_Stop
+	call LoadFont
+	call ClearSpriteTable
+	call ClearBackground
+	call lcd_Begin
+	call LoadWords
 	;call mem_InitDMA ; this'll need to be revised later (it's hard-coded to
 					 ; copy from a specific location)
 	call SpriteSetup
-	call EnableSprites
-	call EnableVBlankInterrupt
+	call lcd_ShowSprites
+	call lcd_EnableVBlankInterrupt
 .mainloop:
 	call jpad_GetKeys  ; loads keys into register a
 	; MoveIf* are macros from sprite.inc
@@ -116,7 +126,7 @@ begin:
 	MoveIfRight Sprite0, 1
 	MoveIfDown Sprite0, 1
 	MoveIfUp Sprite0, 1
-	call wait4vblank
+	call lcd_Wait4Vblank
 	jr .mainloop; jr is Jump Relative (it's quicker than jp)
 
 
@@ -125,7 +135,7 @@ ASCII_TILES_LOC:
 	chr_IBMPC1 1,8  ; arguments 1,8 cause all 256 characters to be loaded
 ASCII_TILES_END:
 
-load_font:
+LoadFont:
 	ld hl, ASCII_TILES_LOC
 	ld de, _VRAM
 	ld bc, ASCII_TILES_END - ASCII_TILES_LOC
@@ -154,42 +164,3 @@ dma_wait:
 	pop af
 	reti
 dmaend:
-
-wait4vblank
-	ld a, [rLY]
-	cp 145			; are we at line 145 yet?  (finished drawing screen then)
-	jr nz, wait4vblank
-	ret
-
-StopLCD:
-	ld a, [rLCDC]  ; LCD-Controller
-	rlca		; rotate. IF LCD is On, bit 7 will carry (into carry flag)
-	ret nc		; return if LCD is already off (carry-flag was 0)
-	call wait4vblank
-.stopLCD
-	ld a, [rLCDC]
-	xor LCDCF_ON	; XOR lcd-on bit with lcd control bits. (toggles LCD off)
-	ld [rLCDC], a   ; `a` holds result of XOR operation
-	ret
-
-; AUGH. Objects were NOT turned on within the LCD, so my object never showed up
-BeginLCD:
-	ld a, LCDCF_ON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_BGON
-	ld [rLCDC], a	; we really go all out here....turning on so much stuff
-	ret
-
-; modify sprite lcd options to enable sprites of 8bit size
-; LCDCF_OBJ16 and LCDCF_OBJ8 control which objects get displayed
-; LCDCF_OBJON / LCDCF_OBJOFF control if objects get displayed at all
-EnableSprites:
-	ld a, [rLCDC]  ; load current LCD config|LCDCF_OBJ8|LCDCF_OBJON
-	or LCDCF_OBJON   ; add the "OBJECTS ON" option
-	or LCDCF_OBJ8    ; add the "Obj 8-bit" option
-	ld [rLCDC], a  ; push the new LCD config
-	ret
-
-EnableVBlankInterrupt:
-	ld a, IEF_VBLANK
-	ld [rIE], a             ; config to only allow V-blank interrupts
-	ei						; actually enable interrupts
-	ret
