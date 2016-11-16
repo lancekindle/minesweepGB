@@ -13,6 +13,7 @@ JOYPAD_INC  SET     1
 ; order: A, B, Start, Select, Up, Down, Left, Right  (unsure)
 jpad_GetKeys:
 	; get action buttons: A, B, Start / Select
+	push bc  ; we overwrite b. So here we store it for later poppiiing
 	ld a, JOYPAD_BUTTONS		; choose bit that'll give us action button info
 	ld [rJOYPAD], a		; write to joypad, telling it we'd like button info
 	ld a, [rJOYPAD]		; gameboy will write (back in address) joypad info
@@ -33,6 +34,32 @@ jpad_GetKeys:
 	cpl				; take compliment
 	and $0f			; keep lower nibble
 	or b			; combine action and direction keys  (result is in a)
+	pop bc
 	ret
+
+
+; code to wait for keypress (of any kind)
+jpad_WaitForKeypress:	MACRO
+	push	bc
+	ld	b,20
+.WaitForKeypress\@
+	call	GetKeys
+	jr	z,.WaitForKeypress\@
+	dec	b
+	jr	nz,.WaitForKeypress\@
+	pop	bc
+	ENDM
+
+; wait until all keys are released. yikes.
+jpad_WaitForKeyrelease:	MACRO
+	push	bc
+	ld	b,20
+.WaitForKeyrelease\@
+	call	GetKeys
+	jr	nz,.WaitForKeyrelease\@
+	dec	b
+	jr	nz,.WaitForKeyrelease\@
+	pop	bc
+	ENDM
 
     ENDC  ; end defining JOYPAD STUFF
