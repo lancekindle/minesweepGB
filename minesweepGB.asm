@@ -100,7 +100,7 @@ SpriteSetup:
 	ld [Sprite0TileNum], a
 	ld a, %00000000
 	ld [Sprite0Flags], a
-	call DMACODELOC
+	call DMACODELOC   ; we should make sure interrupts are disabled before this
 	ret
 
 begin:
@@ -117,6 +117,7 @@ begin:
 	;call mem_InitDMA ; this'll need to be revised later (it's hard-coded to
 					 ; copy from a specific location)
 	call SpriteSetup
+	call lcd_ShowBackground
 	call lcd_ShowSprites
 	call lcd_EnableVBlankInterrupt
 .mainloop:
@@ -126,7 +127,7 @@ begin:
 	MoveIfRight Sprite0, 1
 	MoveIfDown Sprite0, 1
 	MoveIfUp Sprite0, 1
-	call lcd_Wait4Vblank
+	call lcd_Wait4VBlank
 	jr .mainloop; jr is Jump Relative (it's quicker than jp)
 
 

@@ -29,10 +29,10 @@ include "gbhw.inc"
 ;======================= (end reference) ====================================
 
 
-lcd_Wait4Vblank
+lcd_Wait4VBlank
 	ld a, [rLY]
 	cp 145			; are we at line 145 yet?  (finished drawing screen then)
-	jr nz, lcd_Wait4Vblank
+	jr nz, lcd_Wait4VBlank
 	ret
 
 lcd_Stop:
@@ -51,8 +51,17 @@ lcd_Stop:
 
 ; AUGH. Objects were NOT turned on within the LCD, so my object never showed up
 lcd_Begin:
-	ld a, LCDCF_ON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_BGON
-	ld [rLCDC], a	; we really go all out here....turning on so much stuff
+	ld a, LCDCF_ON
+	ld [rLCDC], a
+	ret
+
+; enable all backgrounds
+lcd_ShowBackground:
+	ld a, [rLCDC]
+	or LCDCF_BG8000
+	or LCDCF_BG9800
+	or LCDCF_BGON
+	ld [rLCDC], a
 	ret
 
 ; modify sprite lcd options to enable sprites of 8bit size
