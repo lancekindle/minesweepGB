@@ -81,11 +81,11 @@ MoveIfLeft: MACRO
 	; IF Left key was pressed, will move left by second argument
 	push af
 	and PADF_LEFT
-	jr z, .skipLeft  ; return (do nothing) if left was not pressed
+	jr z, .skipLeft\@  ; return (do nothing) if left was not pressed
 	GetSpriteXAddr \1
 	sub \2
 	PutSpriteXAddr \1, a
-.skipLeft:
+.skipLeft\@
 	pop af
 	ENDM
 
@@ -94,11 +94,11 @@ MoveIfRight: MACRO
 	; IF Right key was pressed, will move right by second argument
 	push af
 	and PADF_RIGHT
-	jr z, .skipRight  ; return (do nothing) if key was not pressed
+	jr z, .skipRight\@  ; return (do nothing) if key was not pressed
 	GetSpriteXAddr \1
 	add \2
 	PutSpriteXAddr \1, a
-.skipRight:
+.skipRight\@
 	pop af
 	ENDM
 
@@ -107,11 +107,11 @@ MoveIfUp: MACRO
 	; IF Up key was pressed, will move right by second argument
 	push af
 	and PADF_UP
-	jr z, .skipUp  ;do nothing if key was not pressed
+	jr z, .skipUp\@  ;do nothing if key was not pressed
 	GetSpriteYAddr \1
 	sub \2
 	PutSpriteYAddr \1, a
-.skipUp:
+.skipUp\@
 	pop af
 	ENDM
 
@@ -120,11 +120,11 @@ MoveIfDown: MACRO
 	; IF Down key was pressed, will move right by second argument
 	push af
 	and PADF_DOWN
-	jr z, .skipDown ; return (do nothing) if key was not pressed
+	jr z, .skipDown\@ ; return (do nothing) if key was not pressed
 	GetSpriteYAddr \1
 	add \2
 	PutSpriteYAddr \1, a
-.skipDown:
+.skipDown\@
 	pop af
 	ENDM
 
