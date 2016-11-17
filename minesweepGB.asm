@@ -23,10 +23,10 @@ include "sprite.inc"
 ; to rIE  (register Interrupt Enable). Search gbhw.inc for interrupt
 ; to see what flags are available  (i.e. IEF_SERIAL, IEF_VBLANK, IEF_TIMER)
 section "Vblank", HOME[$0040]
-						; trickery. Since dma returns and enables interrupts
-						; we can just jp to the dma code immediately
-						; this saves on number of returns (and cpu cycles)
-	jp DMACODELOC		; DMACODE copies data from _RAM / $100 to OAMDATA
+		; trickery. Since dma returns and enables interrupts
+		; we can just jp to the dma code immediately
+		; this saves on number of returns (and cpu cycles)
+	jp DMACODELOC	; DMACODE copies data from _RAM / $100 to OAMDATA
 section "LCDC", HOME[$0048]
 	reti
 section "Timer_Overflow", HOME[$0050]
@@ -59,76 +59,76 @@ include "lcd.asm"
 
 ; align screen to X, Y of (0, 0)
 screen_init:
-	ld a, 0
-	ld [rSCX], a
-	ld [rSCY], a
+	ld	a, 0
+	ld	[rSCX], a
+	ld	[rSCY], a
 	; setup pallette colors
-	ld a, %11100100
-	ld [rBGP], a  ; set background pallet
-	ld [rOBP0], a ; set sprite/obj pallete 0  (can choose 1 or 0)
-	ld [rOBP1], a ; set sprite/ obj pallete 1
+	ld	a, %11100100
+	ld	[rBGP], a  ; set background pallet
+	ld	[rOBP0], a ; set sprite/obj pallete 0  (can choose 1 or 0)
+	ld	[rOBP1], a ; set sprite/ obj pallete 1
 	; lh   vs.   ldh.    ldh sets address to $ff00 and then adds (?) nn
 	; OR ldh sets address to nn BUT sets 2nd byte to ff
 	ret
 
 ClearSpriteTable:
-	ld a, 0
-	ld hl, OAMDATALOC
-	ld bc, OAMDATALENGTH
-	call mem_Set
+	ld	a, 0
+	ld	hl, OAMDATALOC
+	ld	bc, OAMDATALENGTH
+	call	mem_Set
 	ret
 
 ClearBackground:
 	; sets background tiles to empty space
-	ld a, 32
-	ld hl, _SCRN0
-	ld bc, SCRN_VX_B * SCRN_VY_B
-	call mem_SetVRAM
+	ld	a, 32
+	ld	hl, _SCRN0
+	ld	bc, SCRN_VX_B * SCRN_VY_B
+	call	mem_SetVRAM
 	ret
 
 LoadWords:
-	ld hl, Title
-	ld de, _SCRN0 + SCRN_VX_B * 5
-	ld bc, TitleEnd - Title
-	call mem_CopyVRAM
+	ld	hl, Title
+	ld	de, _SCRN0 + SCRN_VX_B * 5
+	ld	bc, TitleEnd - Title
+	call	mem_CopyVRAM
 	ret
 
 SpriteSetup:
 	PutSpriteYAddr	Sprite0, 0
 	PutSpriteXAddr	Sprite0, 0
-	ld a, 1
-	ld [Sprite0TileNum], a
-	ld a, %00000000
-	ld [Sprite0Flags], a
-	call DMACODELOC   ; we should make sure interrupts are disabled before this
+	ld	a, 1
+	ld	[Sprite0TileNum], a
+	ld	a, %00000000
+	ld	[Sprite0Flags], a
+	call	DMACODELOC   ; we should make sure interrupts are disabled before this
 	ret
 
 begin:
 	di    ; disable interrupts
-	ld sp, $ffff  ; init stack pointer to be at top of memory
-	call initdma
-	call screen_init
-	call lcd_Stop
-	call LoadFont
-	call ClearSpriteTable
-	call ClearBackground
-	call lcd_Begin
-	call LoadWords
-	;call mem_InitDMA ; this'll need to be revised later (it's hard-coded to
-					 ; copy from a specific location)
-	call SpriteSetup
-	call lcd_ShowBackground
-	call lcd_ShowSprites
-	call lcd_EnableVBlankInterrupt
+	ld	sp, $ffff  ; init stack pointer to be at top of memory
+	call	initdma
+	call	screen_init
+	call	lcd_Stop
+	call	LoadFont
+	call	ClearSpriteTable
+	call	ClearBackground
+	call	lcd_Begin
+	call	LoadWords
+	; call mem_InitDMA ; this'll need to be revised later (it's hard-coded
+	; to copy from a specific location)
+	call	SpriteSetup
+	call	lcd_ShowBackground
+	call	lcd_ShowSprites
+	call	lcd_EnableVBlankInterrupt
 .mainloop:
-	call jpad_GetKeys  ; loads keys into register a
+	call	jpad_GetKeys  ; loads keys into register a
 	; MoveIf* are macros from sprite.inc
-	MoveIfLeft Sprite0, 1
-	MoveIfRight Sprite0, 1
-	MoveIfDown Sprite0, 1
-	MoveIfUp Sprite0, 1
-	call lcd_Wait4VBlank
-	jr .mainloop; jr is Jump Relative (it's quicker than jp)
+	MoveIfLeft	Sprite0, 1
+	MoveIfRight	Sprite0, 1
+	MoveIfDown	Sprite0, 1
+	MoveIfUp	Sprite0, 1
+	call	lcd_Wait4VBlank
+	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
 
 
 ; makes use of include "ibmpc1.inc"
@@ -137,31 +137,31 @@ ASCII_TILES_LOC:
 ASCII_TILES_END:
 
 LoadFont:
-	ld hl, ASCII_TILES_LOC
-	ld de, _VRAM
-	ld bc, ASCII_TILES_END - ASCII_TILES_LOC
-	call mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
+	ld	hl, ASCII_TILES_LOC
+	ld	de, _VRAM
+	ld	bc, ASCII_TILES_END - ASCII_TILES_LOC
+	call	mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
 	ret
 
 
 Title:  ; using (:) will save ROM address so that you can reference it in code
-	DB "abcdefghijklmnopqrstuvwxyz"
+	DB	"abcdefghijklmnopqrstuvwxyz"
 TitleEnd:
 
 initdma:
-	ld de, DMACODELOC
-	ld hl, dmacode
-	ld bc, dmaend - dmacode
+	ld	de, DMACODELOC
+	ld	hl, dmacode
+	ld	bc, dmaend - dmacode
 	call	mem_CopyVRAM
 	ret
 dmacode:
-	push af
-	ld a, OAMDATALOCBANK
-	ldh [rDMA], a
-	ld a, $28
+	push	af
+	ld	a, OAMDATALOCBANK
+	ldh	[rDMA], a
+	ld	a, $28
 dma_wait:
-	dec a
-	jr nz, dma_wait
-	pop af
+	dec	a
+	jr	nz, dma_wait
+	pop	af
 	reti
 dmaend:

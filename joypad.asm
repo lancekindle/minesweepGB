@@ -2,7 +2,7 @@
 
 include "gbhw.inc"
 
-    IF  !DEF(JOYPAD_INC)
+	IF  !DEF(JOYPAD_INC)
 JOYPAD_INC  SET     1
 
 ; gbhw.inc defines the down, up, left, right, start, select, B, etc. as...
@@ -10,31 +10,32 @@ JOYPAD_INC  SET     1
 
 
 ; gets currently pressed keys. Register A will hold keys in the following
-; order: A, B, Start, Select, Up, Down, Left, Right  (unsure)
+; order: MSB --> LSB (Most Significant Bit --> Least Significant Bit)
+; Down, Up, Left, Right, Start, Select, B, A
 jpad_GetKeys:
 	; get action buttons: A, B, Start / Select
-	push bc  ; we overwrite b. So here we store it for later poppiiing
-	ld a, JOYPAD_BUTTONS		; choose bit that'll give us action button info
-	ld [rJOYPAD], a		; write to joypad, telling it we'd like button info
-	ld a, [rJOYPAD]		; gameboy will write (back in address) joypad info
-	ld a, [rJOYPAD]
-	cpl				; take compliment
-	and $0f			; look at first 4 bits only  (lower nibble)
-	swap a			; place lower nibble into upper nibble
-	ld b, a			; store keys in b
+	push	bc  ; we overwrite b. So here we store it for later poppiiing
+	ld	a, JOYPAD_BUTTONS; choose bit that'll give us action button info
+	ld	[rJOYPAD], a; write to joypad, telling it we'd like button info
+	ld	a, [rJOYPAD]; gameboy will write (back in address) joypad info
+	ld	a, [rJOYPAD]
+	cpl		; take compliment
+	and	$0f	; look at first 4 bits only  (lower nibble)
+	swap	a	; place lower nibble into upper nibble
+	ld	b, a	; store keys in b
 	; get directional keys
-	ld a, JOYPAD_ARROWS
-	ld [rJOYPAD], a ; write to joypad, selecting direction keys
-	ld a, [rJOYPAD]
-	ld a, [rJOYPAD]
-	ld a, [rJOYPAD]
-	ld a, [rJOYPAD]
-	ld a, [rJOYPAD]
-	ld a, [rJOYPAD]		; delay to reliablly read keys
-	cpl				; take compliment
-	and $0f			; keep lower nibble
-	or b			; combine action and direction keys  (result is in a)
-	pop bc
+	ld	a, JOYPAD_ARROWS
+	ld	[rJOYPAD], a ; write to joypad, selecting direction keys
+	ld	a, [rJOYPAD]
+	ld	a, [rJOYPAD]
+	ld	a, [rJOYPAD]
+	ld	a, [rJOYPAD]
+	ld	a, [rJOYPAD]
+	ld	a, [rJOYPAD]	; delay to reliablly read keys
+	cpl			; take compliment
+	and	$0f		; keep lower nibble
+	or	b		; combine action & direction keys (result in a)
+	pop	bc
 	ret
 
 
@@ -62,4 +63,4 @@ jpad_WaitForKeyrelease:	MACRO
 	pop	bc
 	ENDM
 
-    ENDC  ; end defining JOYPAD STUFF
+        ENDC  ; end defining JOYPAD STUFF

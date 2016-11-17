@@ -182,8 +182,6 @@ mem_CopyVRAM::
 	jr	nz,.loop
 	ret
 
-        ENDC    ;MEMORY1_ASM
-
 ;***************************************************************************
 ;*
 ;* mem_InitDMA - Copy DMA code to high-memory. You can call / initiate the
@@ -221,3 +219,5 @@ dma_src:
 	pop	af
 	ret
 dma_src_end:
+
+        ENDC    ;MEMORY_ASM
