@@ -57,20 +57,6 @@ include "lcd.asm"
 ; write the rom header
 
 
-; align screen to X, Y of (0, 0)
-screen_init:
-	ld	a, 0
-	ld	[rSCX], a
-	ld	[rSCY], a
-	; setup pallette colors
-	ld	a, %11100100
-	ld	[rBGP], a  ; set background pallet
-	ld	[rOBP0], a ; set sprite/obj pallete 0  (can choose 1 or 0)
-	ld	[rOBP1], a ; set sprite/ obj pallete 1
-	; lh   vs.   ldh.    ldh sets address to $ff00 and then adds (?) nn
-	; OR ldh sets address to nn BUT sets 2nd byte to ff
-	ret
-
 ClearSpriteTable:
 	ld	a, 0
 	ld	hl, OAMDATALOC
@@ -107,15 +93,13 @@ begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	initdma
-	call	screen_init
+	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	call	LoadFont
 	call	ClearSpriteTable
 	call	ClearBackground
-	call	lcd_Begin
+	call	lcd_On
 	call	LoadWords
-	; call mem_InitDMA ; this'll need to be revised later (it's hard-coded
-	; to copy from a specific location)
 	call	SpriteSetup
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
