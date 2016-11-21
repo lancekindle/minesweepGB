@@ -20,6 +20,7 @@ LoByteVar:	MACRO
 LoRamBase	SET	LoRamBase+1
 		ENDM
 
+		printt  "From Sprite.inc\n"
 		printv	OAMDATALOCBANK
 		printt	"TEXT!!!!\n"
 		
@@ -76,16 +77,42 @@ GetSpriteYAddr:	MACRO
 		sub	16
 		ENDM
 
+MoveLeft: MACRO
+	; move sprite (\1) to the left by x (\2)
+	GetSpriteXAddr \1  ; loads x into a
+	sub \2
+	PutSpriteXAddr \1, a
+	ENDM
+
 MoveIfLeft: MACRO
 	; load keys in a, and pass spriteName as argument
 	; IF Left key was pressed, will move left by second argument
 	push af
 	and PADF_LEFT
 	jr z, .skipLeft\@  ; return (do nothing) if left was not pressed
-	GetSpriteXAddr \1
-	sub \2
-	PutSpriteXAddr \1, a
+	MoveLeft \1, \2
 .skipLeft\@
+	pop af
+	ENDM
+
+MoveOnceIfLeft: MACRO
+	; only moves once per depressed key. Waits for key to be released
+	; and then re-pressed to move again
+	push af
+	and PADF_LEFT
+	jr z, .resetOnceLeft\@  ; return (do nothing) if left was not pressed
+	jr nz, .leftHeld\@  ; reset variable that determines if left pushed
+.resetOnceLeft\@
+	ld a, 0
+	ld [VAR_LEFT], a
+	jr .skipOnceLeft\@
+.leftHeld\@
+	add [VAR_LEFT], $100
+	ld a, [VAR_LEFT]
+	cp $100
+	jr nz, .skipOnceLeft\@   ; if [VAR_LEFT] != $100, then we already pressed LEFT
+	MoveLeft \1, \2
+.skipOnceLeft\@
 	pop af
 	ENDM
 

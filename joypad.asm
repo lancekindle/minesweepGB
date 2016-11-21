@@ -1,13 +1,24 @@
 ; these are methods for joypads taken from gameboy examples
 
 include "gbhw.inc"
+include "vars.asm"	; for setting jpad variables
 
 	IF  !DEF(JOYPAD_INC)
 JOYPAD_INC  SET     1
 
 ; gbhw.inc defines the down, up, left, right, start, select, B, etc. as...
-; PADF_DOWN, PADF_UP, PADF_LEFT, PADF_RIGHT, PADF_START, PADF_SELECT, PADF_B
+; PADF_DOWN, PADF_UP, PADF_LEFT, PADF_RIGHT, PADF_START, PADF_SELECT, PADF_B..
 
+; define our own joypad variables for keeping track of when a button was last
+; pressed
+	var_LowRamByte var_DOWN
+	var_LowRamByte var_UP
+	var_LowRamByte var_LEFT
+	var_LowRamByte var_RIGHT
+	var_LowRamByte var_START
+	var_LowRamByte var_SELECT
+	var_LowRamByte var_B
+	var_LowRamByte var_A
 
 ; gets currently pressed keys. Register A will hold keys in the following
 ; order: MSB --> LSB (Most Significant Bit --> Least Significant Bit)
