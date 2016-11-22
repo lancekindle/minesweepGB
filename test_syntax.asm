@@ -119,19 +119,21 @@ begin:
 	call	lcd_ShowSprites
 	call	lcd_EnableVBlankInterrupt
 .mainloop:
-	if_ get_true, call lcd_Wait4VBlank
-	if_ get_true, MoveIfDown Sprite0, 1
-	if_not get_false, call jpad_GetKeys
-
-	;call	jpad_GetKeys  ; loads keys into register a
+	; TESTING
+	; if everything works right, smily face is controllable
+	; but doesn't move on his own.
+	; down is 2x speed. left moves once per push
+	if_ get_true, call lcd_Wait4VBlank	; test if_ (and get_true)
+	if_not get_false, call jpad_GetKeys	; test if_not (and get_false)
+	if_ get_true, MoveIfDown Sprite0, 1	; test argument expansion
 
 	; MoveIf* are macros from sprite.inc
-	preserve	af, call TrashAF
+	preserve	af, call TrashAF	; test preserve fxn
 	MoveOnceIfLeft	Sprite0, 8
 	MoveIfRight	Sprite0, 1
 	MoveIfDown	Sprite0, 1
 	MoveIfUp	Sprite0, 1
-	; testing out the return syntax
+	; testing out the return syntax (it's just fun)
 	ld hl, .mainloop
 	push hl
 	ret_false

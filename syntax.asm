@@ -55,14 +55,14 @@ get_false:
 if_: MACRO
 	call \1
 	jr nc, .end_if_\@
-	run_2nd_arg_cmd
+	run_arg2_cmd
 .end_if_\@
 	ENDM
 
 if_not: MACRO
 	call \1
 	jr c, .end_if_not\@
-	run_2nd_arg_cmd
+	run_arg2_cmd
 .end_if_not\@
 	ENDM
 
@@ -101,24 +101,32 @@ if_not: MACRO
 ; IF _NARG == 3
 ; 	\2, \3
 ; ENDC
-arg1	EQUS	"IF _NARG==2\n \\2\nENDC\n"
-arg2	EQUS	"IF _NARG==3\n \\2,\\3\nENDC\n"
-arg3	EQUS	"IF _NARG==4\n \\2,\\3,\\4\nENDC\n"
-arg4	EQUS	"IF _NARG==5\n \\2,\\3,\\4,\\5\nENDC\n"
-arg5	EQUS	"IF _NARG==6\n \\2,\\3,\\4,\\5,\\6\nENDC\n"
-arg6	EQUS	"IF _NARG==7\n \\2,\\3,\\4,\\5,\\6,\\7\nENDC\n"
-arg7	EQUS	"IF _NARG==8\n \\2,\\3,\\4,\\5,\\6,\\7,\\8\nENDC\n"
-arg8	EQUS	"IF _NARG==9\n \\2,\\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
+a1	EQUS	"IF _NARG==2\n \\2\nENDC\n"
+a2	EQUS	"IF _NARG==3\n \\2,\\3\nENDC\n"
+a3	EQUS	"IF _NARG==4\n \\2,\\3,\\4\nENDC\n"
+a4	EQUS	"IF _NARG==5\n \\2,\\3,\\4,\\5\nENDC\n"
+a5	EQUS	"IF _NARG==6\n \\2,\\3,\\4,\\5,\\6\nENDC\n"
+a6	EQUS	"IF _NARG==7\n \\2,\\3,\\4,\\5,\\6,\\7\nENDC\n"
+a7	EQUS	"IF _NARG==8\n \\2,\\3,\\4,\\5,\\6,\\7,\\8\nENDC\n"
+a8	EQUS	"IF _NARG==9\n \\2,\\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
 
-run_2nd_arg_cmd	EQUS	"{arg1}{arg2}{arg3}{arg4}{arg5}{arg6}{arg7}{arg8}"
+run_arg2_cmd	EQUS	"{a1}{a2}{a3}{a4}{a5}{a6}{a7}{a8}"
 
+b2	EQUS	"IF _NARG==3\n \\3\nENDC\n"
+b3	EQUS	"IF _NARG==4\n \\3,\\4\nENDC\n"
+b4	EQUS	"IF _NARG==5\n \\3,\\4,\\5\nENDC\n"
+b5	EQUS	"IF _NARG==6\n \\3,\\4,\\5,\\6\nENDC\n"
+b6	EQUS	"IF _NARG==7\n \\3,\\4,\\5,\\6,\\7\nENDC\n"
+b7	EQUS	"IF _NARG==8\n \\3,\\4,\\5,\\6,\\7,\\8\nENDC\n"
+b8	EQUS	"IF _NARG==9\n \\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
+
+run_arg3_cmd	EQUS	"{b2}{b3}{b4}{b5}{b6}{b7}{b8}"
 
 ; preserve & restore register pair after fxn call. \1 can be: af, bc, de, hl
-; \2 is FULL command. such as CALL xyz or a macro. BUT you can only pass 1
-; argument into macro due to a limitation (cannot use commas (,) in 2nd arg)
+; \2 is FULL command. such as CALL xyz or a macro. 
 preserve: MACRO
 	push \1
-	run_2nd_arg_cmd
+	run_arg2_cmd
 	pop \1
 	ENDM
 
