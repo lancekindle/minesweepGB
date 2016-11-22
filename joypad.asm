@@ -19,13 +19,15 @@ JOYPAD_INC  SET     1
 	var_LowRamByte var_SELECT
 	var_LowRamByte var_B
 	var_LowRamByte var_A
+	var_LowRamByte jpad_rKeys		; holds current value of keys
+	var_LowRamByte jpad_rEdge	; holds which buttons were pressed
+									; since last time this GetKeys was used
 
 ; gets currently pressed keys. Register A will hold keys in the following
 ; order: MSB --> LSB (Most Significant Bit --> Least Significant Bit)
 ; Down, Up, Left, Right, Start, Select, B, A
 jpad_GetKeys:
 	; get action buttons: A, B, Start / Select
-	push	bc  ; we overwrite b. So here we store it for later poppiiing
 	ld	a, JOYPAD_BUTTONS; choose bit that'll give us action button info
 	ld	[rJOYPAD], a; write to joypad, telling it we'd like button info
 	ld	a, [rJOYPAD]; gameboy will write (back in address) joypad info
@@ -46,7 +48,24 @@ jpad_GetKeys:
 	cpl			; take compliment
 	and	$0f		; keep lower nibble
 	or	b		; combine action & direction keys (result in a)
-	pop	bc
+
+	; now calculate edge (which keys have been pressed since last time
+	ld	b, a			; store current keys in b
+	ld	a, [jpad_rKeys]		; load keys from last time
+	xor	a, b
+	and	a, b
+	ld	[jpad_rEdge], a		; store newly calculated edges
+	ld	a, b
+	ld	[jpad_rKeys], a		; store keys
+	push	af
+	
+	ld	a, P1F_5|P1F_4
+	ld	[rP1], a		; does this... reset joypad???
+
+	ld	a, [jpad_rEdge]
+	ld	b, a
+	pop af
+	; done calculating edges
 	ret
 
 
