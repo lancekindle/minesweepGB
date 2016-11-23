@@ -3,22 +3,16 @@
 ; updates:
 ;  2008-03-23: added conditional so it is not interpreted by the assembler 2x
 
+include "syntax.asm"
+
         IF      !DEF(HELLO_SPRITE_INC)
 HELLO_SPRITE_INC  SET  1
 
 SPEED		EQU	$0fff
 
-DMACODELOC	EQU	$ff80
 OAMDATALOC	EQU	_RAM				; must be multiple of $100
 OAMDATALOCBANK	EQU	OAMDATALOC/$100 
 OAMDATALENGTH	EQU	$A0
-
-LoRamBase       SET     OAMDATALOC + OAMDATALENGTH	; low area of RAM for storing variables
-
-LoByteVar:	MACRO
-\1		EQU	LoRamBase
-LoRamBase	SET	LoRamBase+1
-		ENDM
 
 		printt  "From Sprite.inc\n"
 		printv	OAMDATALOCBANK
@@ -26,11 +20,11 @@ LoRamBase	SET	LoRamBase+1
 		
 		RSSET	OAMDATALOC
 
-; RSSET and RB are macros / compiler stuff that increments a value called __RS
-; so let's talk about __RS. It's a compiler-tracked byte. 
-; RSSET 100        ; sets the __RS value to 100
-; X		RB  25     ; sets X to 100 (current value of __RS) then adds 25 to __RS
-; Y		RB  14     ; sets Y to 125 (current value of __RS) then adds 14 to __RS
+; RSSET and RB are macros / compiler stuff that increments a value called _RS
+; so let's talk about _RS. It's a compiler-tracked byte. 
+; RSSET 100        ; sets the _RS value to 100
+; X		RB  25     ; sets X to 100 (current value of _RS) then adds 25 to _RS
+; Y		RB  14     ; sets Y to 125 (current value of _RS) then adds 14 to _RS
 
 ; since SpriteAttr is called right after __RS is set to OAMDATALOC,
 ; then RB 1 is assigning an OAMDATA location to each value and then
@@ -84,6 +78,27 @@ MoveLeft: MACRO
 	PutSpriteXAddr \1, a
 	ENDM
 
+MoveRight: MACRO
+	; move sprite (\1) to the right by x (\2)
+	GetSpriteXAddr \1  ; loads x into a
+	add \2
+	PutSpriteXAddr \1, a
+	ENDM
+
+MoveUp: MACRO
+	; move sprite (\1) upwards by y (\2)
+	GetSpriteYAddr \1  ; loads y into a
+	sub \2
+	PutSpriteYAddr \1, a
+	ENDM
+
+MoveDown: MACRO
+	; move sprite (\1) downwards by y (\2)
+	GetSpriteYAddr \1  ; loads y into a
+	add \2
+	PutSpriteYAddr \1, a
+	ENDM
+
 MoveIfLeft: MACRO
 	; load keys in a, and pass spriteName as argument
 	; IF Left key was pressed, will move left by second argument
@@ -98,19 +113,54 @@ MoveIfLeft: MACRO
 MoveOnceIfLeft: MACRO
 	; only moves once per depressed key. Waits for key to be released
 	; and then re-pressed to move again
+	if_not	jpad_ActiveLeft,	jr .skipOnceLeft\@
+	if_not	jpad_EdgeLeft,		jr .skipOnceLeft\@
+	MoveLeft \1, \2
+.skipOnceLeft\@
+	ENDM
+
+MoveOnceIfRight: MACRO
+	; only moves once per depressed key. Waits for key to be released
+	; and then re-pressed to move again
+	if_not	jpad_ActiveRight,	jr .skipOnceRight\@
+	if_not	jpad_EdgeRight,		jr .skipOnceRight\@
+	MoveRight \1, \2
+.skipOnceRight\@
+	ENDM
+
+MoveOnceIfUp: MACRO
+	; only moves once per depressed key. Waits for key to be released
+	; and then re-pressed to move again
+	if_not	jpad_ActiveUp,	jr .skipOnceUp\@
+	if_not	jpad_EdgeUp,		jr .skipOnceUp\@
+	MoveUp \1, \2
+.skipOnceUp\@
+	ENDM
+
+MoveOnceIfDown: MACRO
+	; only moves once per depressed key. Waits for key to be released
+	; and then re-pressed to move again
+	if_not	jpad_ActiveDown,	jr .skipOnceDown\@
+	if_not	jpad_EdgeDown,		jr .skipOnceDown\@
+	MoveDown \1, \2
+.skipOnceDown\@
+	ENDM
+
+MoveRepeatIfLeft: MACRO
+	; moves every ~1/3rd of a second while left is pressed
 	push af
 	and PADF_LEFT
-	jr z, .resetOnceLeft\@  ; return (do nothing) if left was not pressed
-	jr nz, .leftHeld\@  ; reset variable that determines if left pushed
+	jr nz, .leftHeld\@
 .resetOnceLeft\@
 	ld a, 0
-	ld [VAR_LEFT], a
+	ld [var_LEFT], a
 	jr .skipOnceLeft\@
 .leftHeld\@
-	add [VAR_LEFT], $100
-	ld a, [VAR_LEFT]
-	cp $100
-	jr nz, .skipOnceLeft\@   ; if [VAR_LEFT] != $100, then we already pressed LEFT
+	ld a, [var_LEFT]
+	add $10
+	ld [var_LEFT], a		; store var_LEFT
+	cp $10
+	jr nz, .skipOnceLeft\@   ; if [var_LEFT] != $10, then we already pressed LEFT
 	MoveLeft \1, \2
 .skipOnceLeft\@
 	pop af
@@ -152,6 +202,16 @@ MoveIfDown: MACRO
 	add \2
 	PutSpriteYAddr \1, a
 .skipDown\@
+	pop af
+	ENDM
+
+
+IfLeft: MACRO
+	push af
+	AND PADF_LEFT
+	jr z, .skipIfLeft\@
+	run_2nd_arg_cmd
+@.skipIfLeft\@
 	pop af
 	ENDM
 

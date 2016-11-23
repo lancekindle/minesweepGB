@@ -28,25 +28,23 @@
 SYNTAX_ASM	SET	1
 
 
+; simple macros to set/return true or false. Use these everywhere!
 ret_true: MACRO
-	SCF     ; set carry flag
+	set_true
+	ret
+	ENDM
+ret_false: MACRO
+	set_false
 	ret
 	ENDM
 
-ret_false: MACRO
+set_true: MACRO
+	SCF     ; set carry flag
+	ENDM
+set_false: MACRO
 	SCF
 	CCF     ; compliment carry flag. (toggle it's value)
-	ret
 	ENDM
-
-
-; functions to get true/false, rather than the macros
-; this allows you to CALL get_true, whereas you'd just run ret_true
-get_true:
-	ret_true
-
-get_false:
-	ret_false
 
 
 ; if_* MACROs take 2 arguments.
@@ -55,22 +53,22 @@ get_false:
 if_: MACRO
 	call \1
 	jr nc, .end_if_\@
-	run_arg2_cmd
+	expand_arg2_cmd
 .end_if_\@
 	ENDM
 
 if_not: MACRO
 	call \1
 	jr c, .end_if_not\@
-	run_arg2_cmd
+	expand_arg2_cmd
 .end_if_not\@
 	ENDM
 
 
 ; first of all, let me apologize that this mess below is nearly the first thing
-; you see in this file. But it plays an integral part to my macros. The args2-9
-; are one-line macros that get joined into the overall one-line macro
-; `run_2nd_arg_cmd`. This is responsible for handling all command arguments
+; you see in this file. But it plays an integral part to my macros. The a2-a9
+; strings are one-line macros that get joined into the overall one-line macro
+; `expand_arg2_cmd`. This is responsible for handling all command arguments
 ; passed into other macros. In general, this means it'll handle arguments
 ; \2 - \9 (if that many exist). This allows the user to specify some pretty
 ; complex commands, like calling another macro with multiple arguments if an
@@ -97,7 +95,7 @@ if_not: MACRO
 ; This is where _NARG comes into play.
 ; _NARG tells us Number of ARGuments passed into a macro. So we have to check
 ; for a matching set of arguments and then run the appropriate command.
-; For clarity, I'll show you what args2 looks like in it's exanded form
+; For clarity, a2 looks like this in it's exanded form:
 ; IF _NARG == 3
 ; 	\2, \3
 ; ENDC
@@ -110,7 +108,7 @@ a6	EQUS	"IF _NARG==7\n \\2,\\3,\\4,\\5,\\6,\\7\nENDC\n"
 a7	EQUS	"IF _NARG==8\n \\2,\\3,\\4,\\5,\\6,\\7,\\8\nENDC\n"
 a8	EQUS	"IF _NARG==9\n \\2,\\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
 
-run_arg2_cmd	EQUS	"{a1}{a2}{a3}{a4}{a5}{a6}{a7}{a8}"
+expand_arg2_cmd	EQUS	"{a1}{a2}{a3}{a4}{a5}{a6}{a7}{a8}"
 
 b2	EQUS	"IF _NARG==3\n \\3\nENDC\n"
 b3	EQUS	"IF _NARG==4\n \\3,\\4\nENDC\n"
@@ -120,17 +118,31 @@ b6	EQUS	"IF _NARG==7\n \\3,\\4,\\5,\\6,\\7\nENDC\n"
 b7	EQUS	"IF _NARG==8\n \\3,\\4,\\5,\\6,\\7,\\8\nENDC\n"
 b8	EQUS	"IF _NARG==9\n \\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
 
-run_arg3_cmd	EQUS	"{b2}{b3}{b4}{b5}{b6}{b7}{b8}"
+expand_arg3_cmd	EQUS	"{b2}{b3}{b4}{b5}{b6}{b7}{b8}"
+
 
 ; preserve & restore register pair after fxn call. \1 can be: af, bc, de, hl
 ; \2 is FULL command. such as CALL xyz or a macro. 
 preserve: MACRO
 	push \1
-	run_arg2_cmd
+	expand_arg2_cmd
 	pop \1
 	ENDM
 
 
+; an attempt to allow outside access to this macro
+expand_arg2: MACRO
+	expand_arg2_cmd
+	ENDM
+
+
+; setvar variable, value
+; uses a register. So preserve if necessary
+setvar: MACRO
+	ld a, \2
+	ld [\1], a
+	ENDM
+;getvar is simply ld a, [var]
 
 
 	ENDC  ; end syntax file

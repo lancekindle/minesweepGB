@@ -21,6 +21,7 @@ JOYPAD_INC  SET     1
 	var_LowRamByte var_A
 	var_LowRamByte jpad_rKeys		; holds current value of keys
 	var_LowRamByte jpad_rEdge	; holds which buttons were pressed
+	var_LowRamByte	sacrificial
 									; since last time this GetKeys was used
 
 ; gets currently pressed keys. Register A will hold keys in the following
@@ -52,8 +53,8 @@ jpad_GetKeys:
 	; now calculate edge (which keys have been pressed since last time
 	ld	b, a			; store current keys in b
 	ld	a, [jpad_rKeys]		; load keys from last time
-	xor	a, b
-	and	a, b
+	xor	b
+	and	b
 	ld	[jpad_rEdge], a		; store newly calculated edges
 	ld	a, b
 	ld	[jpad_rKeys], a		; store keys
@@ -68,6 +69,66 @@ jpad_GetKeys:
 	; done calculating edges
 	ret
 
+
+; \1 is PADF_ left, up down right, a, b, start, select
+; returns true if button has changed state since last frame
+jpad_Edge: MACRO
+	ld	a, [jpad_rEdge]
+	and	\1
+	jr	z, .inactiveEdge\@
+	ret_true
+.inactiveEdge\@
+	ret_false
+	ENDM		; was active
+	
+; \1 is PADF_ left, up down right, a, b, start, select
+; returns true if specified button is active (is pressed)
+jpad_Active: MACRO
+	ld	a, [jpad_rKeys]
+	and	\1
+	add	$FF	; carry flag is set if key is active
+	ret
+	ENDM
+
+
+; functions which return true if the button has changed since previous frame
+; (hence why it's called edge - if input has changed, signal went from 0-1
+; or 1-0, which introduces an edge in the signal)
+jpad_EdgeLeft:
+	jpad_Edge PADF_LEFT
+jpad_EdgeRight:
+	jpad_Edge PADF_RIGHT
+jpad_EdgeUp:
+	jpad_Edge PADF_UP
+jpad_EdgeDown:
+	jpad_Edge PADF_DOWN
+jpad_EdgeA:
+	jpad_Edge PADF_A
+jpad_EdgeB:
+	jpad_Edge PADF_B
+jpad_EdgeStart:
+	jpad_Edge PADF_START
+jpad_EdgeSelect:
+	jpad_Edge PADF_SELECT
+
+
+; functions which return true if the button is currently pressed
+jpad_ActiveLeft:
+	jpad_Active PADF_LEFT
+jpad_ActiveRight:
+	jpad_Active PADF_RIGHT
+jpad_ActiveUp:
+	jpad_Active PADF_UP
+jpad_ActiveDown:
+	jpad_Active PADF_DOWN
+jpad_ActiveA:
+	jpad_Active PADF_A
+jpad_ActiveB:
+	jpad_Active PADF_B
+jpad_ActiveStart:
+	jpad_Active PADF_START
+jpad_ActiveSelect:
+	jpad_Active PADF_SELECT
 
 ; code to wait for keypress (of any kind)
 jpad_WaitForKeypress:	MACRO

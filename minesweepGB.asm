@@ -13,6 +13,7 @@ include "sprite.inc"
 
 
 
+DMACODELOC	EQU	$ff80
 ;IRQs
 ; whenever one of these IRQs is triggered, three things happen:
 ; 1) SP is loaded with the address of the interrupted instruction
@@ -54,6 +55,7 @@ section "start", HOME[$0100]
 include "joypad.asm"
 include "memory.asm"
 include "lcd.asm"
+include "syntax.asm"
 ; write the rom header
 
 
@@ -78,6 +80,17 @@ LoadWords:
 	ld	bc, TitleEnd - Title
 	call	mem_CopyVRAM
 	ret
+
+SPIN: MACRO
+	; the sole purpose is to "spin its wheels" and waste cpu cycles
+	push af
+	push bc
+	ld a, 5
+	ld b, 6
+	ld c, 7
+	pop bc
+	pop af
+	ENDM
 
 SpriteSetup:
 	PutSpriteYAddr	Sprite0, 0
@@ -105,14 +118,19 @@ begin:
 	call	lcd_ShowSprites
 	call	lcd_EnableVBlankInterrupt
 .mainloop:
-	call	jpad_GetKeys  ; loads keys into register a
-	; MoveIf* are macros from sprite.inc
-	MoveIfLeft	Sprite0, 1
-	MoveIfRight	Sprite0, 1
-	MoveIfDown	Sprite0, 1
-	MoveIfUp	Sprite0, 1
 	call	lcd_Wait4VBlank
+	call	jpad_GetKeys  ; loads keys into register a
+
+	; MoveIf* are macros from sprite.inc
+	MoveOnceIfLeft	Sprite0, 8
+	MoveOnceIfRight	Sprite0, 8
+	MoveOnceIfDown	Sprite0, 8
+	MoveOnceIfUp	Sprite0, 8
 	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
+	PRINTV	jpad_rKeys
+	PRINTT	"\n"
+	PRINTV	jpad_rEdge
+	PRINTT	"\n"
 
 
 ; makes use of include "ibmpc1.inc"
