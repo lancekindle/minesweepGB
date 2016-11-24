@@ -64,6 +64,43 @@ if_not: MACRO
 .end_if_not\@
 	ENDM
 
+; first argument is a flag condition, such as z, nz, c, nc
+; second argument is a command to run if flag is NOT set
+if_not_flag: MACRO
+	jr \1, .end_if_not_flag\@
+	expand_arg2_cmd
+.end_if_not_flag\@
+	ENDM
+
+; first two arguments are flag condition, 3rd argument is command to run
+if_not_flags: MACRO
+	jr \1, .end_if_not_flags\@
+	jr \2, .end_if_not_flags\@
+	expand_arg3_cmd
+.end_if_not_flags\@
+	ENDM
+
+; between the two, if_not_flag is faster than if_flag.
+; but readability counts, man. Use if_flag when that's what you're checking for
+; Later, when revising for speed, you can switch to if_not_flag
+
+
+; first argument is a flag condition, such as z, nz, c, nc
+; second argument is a command to run if flag IS SET
+if_flag: MACRO
+	if_not_flag	\1, jr .end_if_flag\@
+	expand_arg2_cmd
+.end_if_flag\@
+	ENDM
+
+if_flags: MACRO
+	if_not_flag	\1, jr .end_if_flags\@
+	if_not_flag	\2, jr .end_if_flags\@
+	expand_arg3_cmd
+.end_if_flags\@
+	ENDM
+
+
 
 ; first of all, let me apologize that this mess below is nearly the first thing
 ; you see in this file. But it plays an integral part to my macros. The a2-a9
