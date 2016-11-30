@@ -3,32 +3,12 @@
 ;   Original from <github.com/lancekindle/minesweepGB>
 ;   Licensed under GNU GPL v3 <http://www.gnu.org/licenses/>
 ;---------------------------------------------------------------------------
-
-; this file has some features testing the syntax. I'd like to keep it as
-; sort of a way to verify the features are working correctly
+; Newest Test is on bottom of file
 include "gbhw.inc"
 include "ibmpc1.inc"
-include "sprite.inc"
 
-; create Sprite0
-	SpriteAttr	Sprite0
-
-
-
-;IRQs
-; whenever one of these IRQs is triggered, three things happen:
-; 1) SP is loaded with the address of the interrupted instruction
-; 2) interrupts are disabled (You can return and enable IRQs with "reti")
-; 3) execution jumps here, to the appropriate section.
-;
-; you can control which IRQs are enabled by writing the appropriate bits
-; to rIE  (register Interrupt Enable). Search gbhw.inc for interrupt
-; to see what flags are available  (i.e. IEF_SERIAL, IEF_VBLANK, IEF_TIMER)
 section "Vblank", HOME[$0040]
-		; trickery. Since dma returns and enables interrupts
-		; we can just jp to the dma code immediately
-		; this saves on number of returns (and cpu cycles)
-	jp DMACODELOC	; DMACODE copies data from _RAM / $100 to OAMDATA
+	reti
 section "LCDC", HOME[$0048]
 	reti
 section "Timer_Overflow", HOME[$0050]
@@ -37,35 +17,42 @@ section "Serial", HOME[$0058]
 	reti
 section "joypad_p1_p4", HOME[$0060]
 	reti
-
-;gb_header
-
 section "start", HOME[$0100]
 	nop
 	jp begin
 
-; apparently the difference between defining a macro and calling one is
-; the indent. If indented, we are calling the macro. If not, we are defining it
-; UGH. After any macro call / command, DO NOT INCLUDE A COMMA! Commas only
-; separate 2+ arguments. First argument doesn't have a comma separating it.
 	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
 
-; include .asm files here (asm includes actual code. inc just defines stuff)
-; we need to add it here after all the critical address-specific code
-; has been laid out
 include "joypad.asm"
 include "memory.asm"
 include "lcd.asm"
 include "syntax.asm"
-; write the rom header
 
+begin:
+	di    ; disable interrupts
+	ld	sp, $ffff  ; init stack pointer to be at top of memory
+	call	lcd_Stop
+	call	lcd_ScreenInit	; set up pallete and (x,y)=(0,0)
+	call	LoadFont
+	call	ClearBackground
+	call	lcd_On
+	call	lcd_ShowBackground
+	call	test_01_lda
+	call	test_02_preserve
+	call	test_03_preserve2
+	call	test_04_if
+	call	test_05_if_not
+	call	test_06_if_flag
+	call	test_07_if_not_flag
+	call	test_08_truefalse
+	call	test_09_ifa
+	call	test_0A_test_flags_testing
+.mainloop:
+	halt
+	nop
+	jr	.mainloop
+	
 
-ClearSpriteTable:
-	ld	a, 0
-	ld	hl, OAMDATALOC
-	ld	bc, OAMDATALENGTH
-	call	mem_Set
-	ret
 
 ClearBackground:
 	; sets background tiles to empty space
@@ -75,74 +62,31 @@ ClearBackground:
 	call	mem_SetVRAM
 	ret
 
-LoadWords:
-	ld	hl, Title
-	ld	de, _SCRN0 + SCRN_VX_B * 5
-	ld	bc, TitleEnd - Title
-	call	mem_CopyVRAM
-	ret
 
-SPIN: MACRO
-	; the sole purpose is to "spin its wheels" and waste cpu cycles
-	push af
-	push bc
-	ld a, 5
-	ld b, 6
-	ld c, 7
-	pop bc
-	pop af
-	ENDM
-
-SpriteSetup:
-	PutSpriteYAddr	Sprite0, 0
-	PutSpriteXAddr	Sprite0, 0
-	ld	a, 1
-	ld	[Sprite0TileNum], a
-	ld	a, %00000000
-	ld	[Sprite0Flags], a
-	call	DMACODELOC   ; we should make sure interrupts are disabled before this
-	ret
-
-begin:
-	di    ; disable interrupts
-	ld	sp, $ffff  ; init stack pointer to be at top of memory
-	call	initdma
-	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
-	call	lcd_Stop
-	call	LoadFont
-	call	ClearSpriteTable
-	call	ClearBackground
-	call	lcd_On
-	call	LoadWords
-	call	SpriteSetup
-	call	lcd_ShowBackground
-	call	lcd_ShowSprites
-	call	lcd_EnableVBlankInterrupt
-.mainloop:
-	; TESTING
-	; if everything works right, smily face is controllable
-	; but doesn't move on his own.
-	; down is 2x speed. left moves once per push
-	if_ get_true, call lcd_Wait4VBlank	; test if_ (and get_true)
-	if_not get_false, call jpad_GetKeys	; test if_not (and get_false)
-	if_ get_true, MoveIfDown Sprite0, 1	; test argument expansion
-
-	; MoveIf* are macros from sprite.inc
-	preserve	af, call TrashAF	; test preserve fxn
-	MoveOnceIfLeft	Sprite0, 8
-	MoveIfRight	Sprite0, 1
-	MoveIfDown	Sprite0, 1
-	MoveIfUp	Sprite0, 1
-	; testing out the return syntax (it's just fun)
-	ld hl, .mainloop
-	push hl
+get_true:
+	ret_true
+get_false:
 	ret_false
-	;jr	.mainloop; jr is Jump Relative (it's quicker than jp)
 
+SetRegs:
+	ld	a, 1
+	ld	b, 2
+	ld	c, 3
+	ld	d, 4
+	ld	e, 5
+	ld	h, 6
+	ld	l, 7
+	ret
 
-TrashAF:
-	ld a, 9
-	cp 5
+TrashRegs:
+	ld a, 7
+	cp 9
+	ld b, 31
+	ld c, 13
+	ld d, 22
+	ld e, 55
+	ld h, 66
+	ld l, 25
 	ret
 
 
@@ -160,24 +104,215 @@ LoadFont:
 	ret
 
 
-Title:  ; using (:) will save ROM address so that you can reference it in code
-	DB	"abcdefghijklmnopqrstuvwxyz"
-TitleEnd:
+Letters:  ; using (:) will save ROM address so that you can reference it in code
+	DB	"-123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-initdma:
-	ld	de, DMACODELOC
-	ld	hl, dmacode
-	ld	bc, dmaend - dmacode
-	call	mem_CopyVRAM
-	ret
-dmacode:
-	push	af
-	ld	a, OAMDATALOCBANK
-	ldh	[rDMA], a
-	ld	a, $28
-dma_wait:
-	dec	a
-	jr	nz, dma_wait
-	pop	af
-	reti
-dmaend:
+
+
+
+
+;======================= [Tests (newest on bottom) ]=======================
+; a indicates success. ==0, fails. >0, pass
+; if the test did NOT pass, a=0
+; \1 is actual test #, regardless of pass
+TestResult: MACRO
+	; sets background tiles to empty space
+	cp	0	; compare a to 0. Z is set if test failed
+	ld	hl, Letters + \1
+	ld	a, [hl]
+	jr	nz, .passed\@
+	ld	hl, Letters
+	ld	a, [hl]
+.passed\@
+	ld	hl, _SCRN0 -1 + \1
+	ld	bc, $0001
+	call	mem_SetVRAM
+	ret	; cause test function to return
+	ENDM
+
+
+; test lda
+test_01_lda:
+	ld	a, 0
+	lda	1  ; test if macro will load a with 1
+	TestResult	1
+
+; test preserve2
+test_03_preserve2:
+	ld	a, 1
+	ld	b, 3
+	preserve2	af, bc, call TrashRegs
+	cp	1
+	jp	nz, .failed03
+	lda	b
+	cp 3
+	jp	nz, .failed03
+	TestResult	3
+.failed03
+	lda	0
+	TestResult	3
+
+;test preserve
+test_02_preserve:
+	ld	a, 1
+	preserve	af, ld a, 0
+	cp	1
+	jp	nz, .failed02
+	call	SetRegs
+	preserve	all, call TrashRegs
+	cp	1  ; verify a
+	jr	nz, .failed02
+	lda	b
+	cp	2 ; verify b
+	jr	nz, .failed02
+	lda	c
+	cp	3 ; verify c
+	jr	nz, .failed02
+	lda	d
+	cp	4 ; verify d
+	jr	nz, .failed02
+	lda	e
+	cp	5 ; verify e
+	jr	nz, .failed02
+	lda	h
+	cp	6 ; verify h
+	jr	nz, .failed02
+	lda	l
+	cp	7 ; verify l
+	jr	nz, .failed02
+	TestResult	2
+.failed02
+	lda	0
+	TestResult	2
+
+
+; test the if_ syntax
+test_04_if:
+	ld	a, 0
+	if_	get_true, ld a, 1
+	if_	get_false, ld a, 0
+	if_	get_true, preserve af, preserve bc, call TrashRegs  ; test arg unpacking
+	TestResult	4
+
+; test the if_not syntax
+test_05_if_not:
+	ld	a, 0
+	if_not	get_false, ld a, 1
+	if_not	get_true, ld a, 0
+	if_not	get_false, preserve af, preserve bc, call TrashRegs  ; test arg unpacking
+	TestResult	5
+
+
+; test the if_flag syntax
+test_06_if_flag:
+	lda	0
+	cp	0
+	if_flag	z, lda 2
+	cp	1
+	if_flag	c, lda 0
+	if_flag	z, lda 0
+	TestResult	6
+
+; test the if_not_flag syntax
+test_07_if_not_flag:
+	lda	0
+	cp	0
+	if_not_flag	c, lda 2
+	cp	3
+	if_not_flag	c, lda 0
+	cp	2
+	if_not_flag	z, lda 0
+	TestResult	7
+
+
+; test true/false macros for setting and returning
+test_08_truefalse:
+	ld	a, 1
+	ld	hl, .tf1
+	push	hl
+	ret_true
+.tf1
+	jr	nc, .failed08
+	ld	hl, .tf2
+	push	hl
+	ret_false
+.tf2
+	jr	c, .failed08
+	TestResult	8
+.failed08
+	ld	a, 0
+	TestResult	8
+
+; test ifa macro (which compares numbers to register a)
+test_09_ifa:
+	lda	1
+	ifa	>=, 2, jp .failed_09 
+	ifa	<=, 0, jp .failed_09
+	ifa	<, 1, jp .failed_09
+	ifa	>, 1, jp .failed_09
+	ifa	==, 0, jp .failed_09
+	ifa	<>, 1, jp .failed_09
+	ifa	!=, 1, jp .failed_09
+	; now test positive matches
+	lda	5
+.ifa0
+	ifa	>=, 4, jp .ifa1		; test >  (part of >=)
+	jp	.failed_09
+.ifa1
+	ifa	>=, 5, jp .ifa2		; test =  (part of >=)
+	jp	.failed_09
+.ifa2
+	ifa	<=, 6, jp .ifa3		; test <  (part of <=)
+	jp	.failed_09
+.ifa3
+	ifa	<=, 5, jp .ifa4		; test =  (part of <=)
+	jp	.failed_09
+.ifa4
+	ifa	>, 4, jp .ifa5		; test > (but only >)
+	jp	.failed_09
+.ifa5
+	ifa	<, 6, jp .ifa6		; test < (but only <)
+	jp	.failed_09
+.ifa6
+	ifa	==, 5, jp .ifa7		; test ==
+	jp	.failed_09
+.ifa7
+	ifa	<>, 6, jp .ifa8		; test <>
+	jp	.failed_09
+.ifa8
+	ifa	!=, 4, jp .ifa9		; test !=
+	jp	.failed_09
+.ifa9
+	TestResult	9
+.failed_09
+	lda	0
+	TestResult	9
+
+; test if_flags and if_not_flags syntax
+test_0A_test_flags_testing:
+	lda	5
+	cp	5	; C=0, Z=1
+	if_flags	nc, nz, jp .failed_0A
+	if_flags	c, z, jp .failed_0A
+	SCF	; set carry flag (c=1 and z=1)
+	if_flags	c, nz, jp .failed_0A
+	if_flags	z, c, jp .ifflags0
+	jp .failed_0A
+.ifflags0
+	lda	5
+	cp	5	; C=0, Z=1
+	if_not_flags	c, z, jp .failed_0A
+	if_not_flags	nz, nc, jp .failed_0A
+	if_not_flags	z, z, jp .failed_0A
+	SCF	; set carry flag (now C=1 and Z=1)
+	if_not_flags	c, z, jp .failed_0A
+	if_not_flags	nc, nz, jp .ifflags1
+	jp .failed_0A
+.ifflags1
+	TestResult	10
+.failed_0A
+	lda	0
+	TestResult	10
+
+
+
