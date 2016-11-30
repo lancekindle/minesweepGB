@@ -121,12 +121,13 @@ begin:
 	call	lcd_Wait4VBlank
 	call	jpad_GetKeys  ; loads keys into register a
 
+
 	; MoveIf* are macros from sprite.inc
 	MoveOnceIfLeft	Sprite0, 8
 	MoveOnceIfRight	Sprite0, 8
 	MoveOnceIfDown	Sprite0, 8
 	MoveOnceIfUp	Sprite0, 8
-	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
+	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
 	PRINTV	jpad_rKeys
 	PRINTT	"\n"
 	PRINTV	jpad_rEdge

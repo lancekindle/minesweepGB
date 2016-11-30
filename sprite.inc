@@ -113,7 +113,6 @@ MoveIfLeft: MACRO
 MoveOnceIfLeft: MACRO
 	; only moves once per depressed key. Waits for key to be released
 	; and then re-pressed to move again
-	if_not	jpad_ActiveLeft,	jr .skipOnceLeft\@
 	if_not	jpad_EdgeLeft,		jr .skipOnceLeft\@
 	MoveLeft \1, \2
 .skipOnceLeft\@
@@ -122,7 +121,6 @@ MoveOnceIfLeft: MACRO
 MoveOnceIfRight: MACRO
 	; only moves once per depressed key. Waits for key to be released
 	; and then re-pressed to move again
-	if_not	jpad_ActiveRight,	jr .skipOnceRight\@
 	if_not	jpad_EdgeRight,		jr .skipOnceRight\@
 	MoveRight \1, \2
 .skipOnceRight\@
@@ -131,7 +129,6 @@ MoveOnceIfRight: MACRO
 MoveOnceIfUp: MACRO
 	; only moves once per depressed key. Waits for key to be released
 	; and then re-pressed to move again
-	if_not	jpad_ActiveUp,	jr .skipOnceUp\@
 	if_not	jpad_EdgeUp,		jr .skipOnceUp\@
 	MoveUp \1, \2
 .skipOnceUp\@
@@ -140,7 +137,6 @@ MoveOnceIfUp: MACRO
 MoveOnceIfDown: MACRO
 	; only moves once per depressed key. Waits for key to be released
 	; and then re-pressed to move again
-	if_not	jpad_ActiveDown,	jr .skipOnceDown\@
 	if_not	jpad_EdgeDown,		jr .skipOnceDown\@
 	MoveDown \1, \2
 .skipOnceDown\@

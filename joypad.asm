@@ -2,6 +2,7 @@
 
 include "gbhw.inc"
 include "vars.asm"	; for setting jpad variables
+include "syntax.asm"
 
 	IF  !DEF(JOYPAD_INC)
 JOYPAD_INC  SET     1
@@ -27,6 +28,8 @@ JOYPAD_INC  SET     1
 ; gets currently pressed keys. Register A will hold keys in the following
 ; order: MSB --> LSB (Most Significant Bit --> Least Significant Bit)
 ; Down, Up, Left, Right, Start, Select, B, A
+; Register B will hold values representing which buttons were JUST pressed
+; in the same order as Register A
 jpad_GetKeys:
 	; get action buttons: A, B, Start / Select
 	ld	a, JOYPAD_BUTTONS; choose bit that'll give us action button info
@@ -53,8 +56,8 @@ jpad_GetKeys:
 	; now calculate edge (which keys have been pressed since last time
 	ld	b, a			; store current keys in b
 	ld	a, [jpad_rKeys]		; load keys from last time
-	xor	b
-	and	b
+	xor	b			; find change in keys
+	and	b			; only keep "just pressed" changes
 	ld	[jpad_rEdge], a		; store newly calculated edges
 	ld	a, b
 	ld	[jpad_rKeys], a		; store keys
@@ -71,7 +74,7 @@ jpad_GetKeys:
 
 
 ; \1 is PADF_ left, up down right, a, b, start, select
-; returns true if button has changed state since last frame
+; returns true if button has just been pressed
 jpad_Edge: MACRO
 	ld	a, [jpad_rEdge]
 	and	\1
@@ -91,9 +94,8 @@ jpad_Active: MACRO
 	ENDM
 
 
-; functions which return true if the button has changed since previous frame
-; (hence why it's called edge - if input has changed, signal went from 0-1
-; or 1-0, which introduces an edge in the signal)
+; functions which return true if the button has JUST been pressed
+; (hence why it's called edge - if input has changed, signal went from 0-1)
 jpad_EdgeLeft:
 	jpad_Edge PADF_LEFT
 jpad_EdgeRight:
