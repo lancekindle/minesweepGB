@@ -49,10 +49,11 @@ lcd_Stop:
 	ld	[rLCDC], a   ; `a` holds result of XOR operation
 	ret
 
-; minimally turn on lcd. No extra frills. No Backgrounds, sprites enabled
+; minimally turn on lcd. Preserve any Previous settings turned on
 ; AUGH. Objects were NOT turned on within the LCD, so my object never showed up
 lcd_On:
-	ld	a, LCDCF_ON
+	ld	a, [rLCDC]
+	or	LCDCF_ON
 	ld	[rLCDC], a
 	ret
 
