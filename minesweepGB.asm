@@ -53,9 +53,15 @@ section "start", HOME[$0100]
 ; we need to add it here after all the critical address-specific code
 ; has been laid out
 include "joypad.asm"
+	PRINTT	"jpad_rKeys @"
+	PRINTV	jpad_rKeys
+	PRINTT	"\njpad_rEdge @"
+	PRINTV	jpad_rEdge
+	PRINTT	"\n"
 include "memory.asm"
 include "lcd.asm"
 include "syntax.asm"
+include "math.asm"
 ; write the rom header
 
 
@@ -80,17 +86,6 @@ LoadWords:
 	ld	bc, TitleEnd - Title
 	call	mem_CopyVRAM
 	ret
-
-SPIN: MACRO
-	; the sole purpose is to "spin its wheels" and waste cpu cycles
-	push af
-	push bc
-	ld a, 5
-	ld b, 6
-	ld c, 7
-	pop bc
-	pop af
-	ENDM
 
 SpriteSetup:
 	PutSpriteYAddr	Sprite0, 0
@@ -119,19 +114,77 @@ begin:
 	call	lcd_EnableVBlankInterrupt
 .mainloop:
 	call	lcd_Wait4VBlank
-	call	jpad_GetKeys  ; loads keys into register a
+	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	call	move_sprite_within_screen_bounds
+.past_operation:
+	lda	[jpad_rEdge]
+	and	PADF_B
+	if_flag	nz,	call toggle_flag
 
-
-	; MoveIf* are macros from sprite.inc
-	MoveOnceIfLeft	Sprite0, 8
-	MoveOnceIfRight	Sprite0, 8
-	MoveOnceIfDown	Sprite0, 8
-	MoveOnceIfUp	Sprite0, 8
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
-	PRINTV	jpad_rKeys
-	PRINTT	"\n"
-	PRINTV	jpad_rEdge
-	PRINTT	"\n"
+
+
+get_true:
+	ret_true
+
+
+
+; press keyboard_A to toggle flag
+; this places a character @ location of sprite (x, y)
+toggle_flag:
+	; store (x, y) @ (b, c)
+	; sprite coordinates are (0,0) up to (160,144)
+	; background coordinates are (0,0) up to (20,18)
+	; 160 / 8 == 20
+	; so to translate from sprite coordinates to background coordinates,
+	; we divide by 8.
+	; divide by 8 easily gets us memory offset from _SCRN0 for X
+	; but Y is technicallly SCRN_VX_B * Y, as far as location in VRAM
+	; is concerned. So to get memory offset for Y, we must divide by 8,
+	; then multiply by 32 (SCRN_VX_B). So, we really need to multiply
+	; by 4
+	GetSpriteYAddr	Sprite0		; Y is loaded in a
+	math_Mult	a, 4	; Y * 4 result is in HL
+	; essentially we just got SCRN_VX_B * Y in register hl
+	ld	bc, _SCRN0
+	add	hl, bc		; add (0,0) _SCRN0 address to hl
+
+	GetSpriteXAddr	Sprite0		; get X component
+	; we want to divide by 8 b shifting bits
+	SRL	a	; shift right, filling with zero on bit 7
+	SRL	a
+	SRL	a	; 3 right-shifts = divide by 8
+			; X has been divided by 8. Needed for grid position
+			; of background
+	ld	c, a
+	ld	b, 0
+	; now bc holds x-component
+	add	hl, bc	; add x-component to screen address
+	; place flag graphic at location hl
+	ld	c, 1	; set bc to $0001. only set one VRAM byte
+	ld	a, 2	; flag icon
+	call	mem_SetVRAM	; set character (reg_a) at sprite position
+	ret
+
+
+move_sprite_within_screen_bounds:
+	; MoveIf* are macros from sprite.inc
+	; Only move if NOT on borders
+	GetSpriteXAddr	Sprite0
+	push af
+	ifa	<, SCRN_X - 8,  MoveOnceIfRight Sprite0, 8
+	pop af
+	push af
+	ifa	>, 0,		MoveOnceIfLeft	Sprite0, 8
+	pop af
+	GetSpriteYAddr	Sprite0
+	push af
+	ifa	<, SCRN_Y - 8,  MoveOnceIfDown	Sprite0, 8
+	pop af
+	push af
+	ifa	>, 0,		MoveOnceIfUp	Sprite0, 8
+	pop af
+	ret
 
 
 ; makes use of include "ibmpc1.inc"
