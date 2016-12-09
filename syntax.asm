@@ -16,8 +16,9 @@
 ; If you know macros well, you understand that technically
 ;>>> preserve	af, MoveXY 1, 1
 ; has three arguments: \1 == `af`. \2 == `MoveXY 1`, and \3 == `1`
-; nonetheless, arguments 2-9 are treated as one command such that the macro
-; MoveXY is called with both arguments.
+; Nonetheless, arguments 2-9 are treated as one command such that the macro
+; MoveXY is called with both arguments like so:
+;>>> 	MoveXY 1, 1
 
 ; some abbreviations I may use:
 ; arg = argument  (passed parameter)
@@ -267,5 +268,61 @@ setvar: MACRO
 	ld [\1], a
 	ENDM
 ;getvar is simply ld a, [var]
+
+; shift register(s) left, with carry-over to preceding register
+; essentially treating 1,2,3, or 4 registers as one register when shifting.
+; extremely useful for multiplication whereby a register pair can hold
+; a 16-bit number
+; shift_left	a	; a * 2 with no overflow
+; shift_left	b, c	; B*2, then C*2, overflowing into B
+; shift_left	a, b, c	; A*2,B*2 overflows into A,C*2 overflows into B
+shift_left: MACRO
+	IF _NARG >= 5	; I could support more. I don't think I'll ever need to
+		FAIL "shift_left supports max of 4 registers"
+	ENDC
+	IF _NARG == 4
+		SLA	\4	; shift left, into carry-flag. Bit 0 becomes 0
+		RL	\3	; rotate left, bit7 into carry-flag.
+		RL	\2	; carry-flag rotates into bit0
+		RL	\1
+	ENDC
+	IF _NARG == 3
+		SLA	\3
+		RL	\2
+		RL	\1
+	ENDC
+	IF _NARG == 2
+		SLA	\2
+		RL	\1
+	ENDC
+	IF _NARG == 1
+		SLA	\1
+	ENDC
+	ENDM
+
+; same thing as shift left, just in the opposite direction
+; register 1 overflows into register 2, which overflows into register 3, etc.
+; of course, you can pass 1 to 4 registers to shift_right
+shift_right: MACRO
+	IF _NARG >= 5	; I could support more. I don't think I'll ever need to
+		FAIL "shift_right supports max of 4 registers"
+	ENDC
+	SRL	\1	; shift right, into carry-flag. Bit 7 becomes 0
+	IF _NARG == 4
+		RR	\2	; rotate right, bit0 into carry-flag.
+		RR	\3	; carry-flag rotates into bit7
+		RR	\4
+	ENDC
+	IF _NARG == 3
+		RR	\2
+		RR	\3
+	ENDC
+	IF _NARG == 2
+		RR	\2
+	ENDC
+	ENDM
+	
+	
+
 
 	ENDC  ; end syntax file
