@@ -151,12 +151,10 @@ toggle_flag:
 
 	GetSpriteXAddr	Sprite0		; get X component
 	; we want to divide by 8 b shifting bits
-	SRL	a	; shift right, filling with zero on bit 7
-	SRL	a
-	SRL	a	; 3 right-shifts = divide by 8
-			; X has been divided by 8. Needed for grid position
-			; of background
 	ld	c, a
+	ld	b, 8
+	call math_Divide_C_by_B
+	ld	c, d	; result in D
 	ld	b, 0
 	; now bc holds x-component
 	add	hl, bc	; add x-component to screen address
