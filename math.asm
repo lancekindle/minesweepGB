@@ -24,28 +24,28 @@ math_MultiplyAC:
 	; then we multiply C by 2 (shift bc left)
 	; do that 8 times, and you'll have multiplied 
 	RRA	; 1
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 2
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 3
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 4
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 5
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 6
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 7
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	shift_left	b, c
 	RRA	; 8
-	if_flag	c, add	hl, bc
+	if_flag	c,	add	hl, bc
 	; Lastly, set carry flag if HL > 255
 	ld	a, %11111111
 	add	h	; will set carry flag if H > 0
@@ -57,7 +57,7 @@ math_MultiplyAC:
 ; CANNOT CALL WITH TWO REGISTERS. 2nd argument must be a hard-coded integer
 ; if you wish to use two registers, load in A & C, and call math_MultiplyAC
 math_Mult: MACRO
-	IF (STRCMP(STRUPR("\1"), STRLWR("\1")) == 0)
+	IF_ARG2_IS_REGISTER
 		FAIL	"2nd arg must be hard-coded #. Use math_MultiplyAC"
 	ENDC
 	IF (STRCMP("\2", "32") == 0) || (STRCMP("\2", "16") == 0) || (STRCMP("\2", "8") == 0) || (STRCMP("\2", "4") == 0) || (STRCMP("\2", "2") == 0)
@@ -84,6 +84,13 @@ math_Mult: MACRO
 		shift_left	h, l
 		shift_left	h, l
 	ENDC
+	IF STRCMP("\2", "64") == 0	; to x64, only shift 5 times more
+		shift_left	h, l
+		shift_left	h, l
+		shift_left	h, l
+		shift_left	h, l
+		shift_left	h, l
+	ENDC
 	; set carry-flag if H > 0
 	ld	a, %11111111
 	add	h
@@ -97,20 +104,26 @@ math_Mult: MACRO
 	ENDC
 	ENDM
 
-; in order to divide, we sample the most-significant-bit (MSB) of C,
-; and compare to A. If A is larger, we sample the first 2 significant bits
-; of C, and compare to A. Once A is <= sampled MSBs of C, then we subtract
-; A from that sampled bits. The remainder stays, and we shift C over one again,
-; and once again compare to A
+; 17/8   ==>   17 is NUMERATOR. 8 is DENOMINATOR
+; division requires sampling the MSB (one extra bit at a time) from the
+; numerator, and subtracting the denominator from the current sample only
+; once the sample is >= denominator.
+; we continue this process, adding MSBs to the remainder, until we've
+; fully-divided the numerator.
+; Register A is the remainder (and sampled MSB's).
+; Register B is the denominator
+; Register C is the numerator
+; Register D holds the result. Every time we shift a MSB into A, we shift D
+; because we are looking at another power of 2 division.
 math_Divide_C_by_B:
 	ld	a, 0	; we will be shifting MSB's of C into A
 	ld	d, 0	; we will store division result in D
-	ld	e, 8	; # of times I will divide. Rounded-Down Integer
+	ld	e, 9	; # of times I will divide + 1. Rounded-Down Integer
 .start_divide_C_by_A:
 	dec	e
 	jr	z, .done_dividingCB
 	shift_left	a, c	; take first MSB sample from C, place in A
-	ifa	>=, b, jp .subtract_B_from_A
+	ifa	>=, b, jr .subtract_B_from_A
 	SLA	d	; sampled bits still too small for B, we have not yet
 			; divided the remainder by B
 	jr .start_divide_C_by_A
@@ -122,13 +135,10 @@ math_Divide_C_by_B:
 			; To indicate we've done this, shift and store 1 in D
 	jr .start_divide_C_by_A
 .done_dividingCB:
+	ret
 
 
 
 
-
-; 
-math_Div: MACRO
-	ENDM
 
 	ENDC	; end math.asm defines
