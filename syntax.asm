@@ -255,12 +255,6 @@ preserve2: MACRO
 	ENDM
 
 
-; an attempt to allow outside access to this macro
-expand_arg2: MACRO
-	unpack_arg2_cmd
-	ENDM
-
-
 ; setvar variable, value
 ; uses  registers. So preserve if necessary
 setvar: MACRO
@@ -302,7 +296,7 @@ shift_left: MACRO
 
 ; same thing as shift left, just in the opposite direction
 ; register 1 overflows into register 2, which overflows into register 3, etc.
-; of course, you can pass 1 to 4 registers to shift_right
+; You can pass 1-4 registers to this macro
 shift_right: MACRO
 	IF _NARG >= 5	; I could support more. I don't think I'll ever need to
 		FAIL "shift_right supports max of 4 registers"
@@ -323,6 +317,34 @@ shift_right: MACRO
 	ENDM
 	
 	
+
+; ==========================[ Condition Fail Checkers ]====================
+; use these for checking variables at compile-time.
+; They replace the standard IF macro but still require an ENDC,
+; like the example below:
+;
+; IF_ARG2_IS_REGISTER
+;	FAIL	"arg2 must be a #, not a register"
+; ENDC
+;
+; Use these where you need to verify pre-conditions in a MACRO to ensure
+; it's not being abused. Often, for example, I want a macro to accept #
+; arguments, not a register containing the #. This allows me to check-for,
+; and fail, if the user is passing a hard-coded #
+
+; enters conditional, if argument 1 is a register such as a, b, c...
+IF_ARG1_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\1\")>=1)"
+IF_ARG1_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\1\")>=1)"
+; enters conditional, if argument 2 is a register such as a, b, c...
+IF_ARG2_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\2\")>=1)"
+IF_ARG2_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\2\")>=1)"
+; enters conditional, if argument 3 is a register such as a, b, c...
+IF_ARG3_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\3\")>=1)"
+IF_ARG3_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\3\")>=1)"
+; enters conditional, if argument 4 is a register such as a, b, c...
+IF_ARG4_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\4\")>=1)"
+IF_ARG4_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\4\")>=1)"
+
 
 
 	ENDC  ; end syntax file
