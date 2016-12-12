@@ -54,12 +54,9 @@ math_MultiplyAC:
 ; call this to write more readable "multiply" code
 ; math_Mult	a, 8
 ; result will reside in HL
-; CANNOT CALL WITH TWO REGISTERS. 2nd argument must be a hard-coded integer
-; if you wish to use two registers, load in A & C, and call math_MultiplyAC
+; if you want to pass in register values, arg1 must be A (or a #),
+; and arg2 must be C (or a #)
 math_Mult: MACRO
-	IF_ARG2_IS_REGISTER
-		FAIL	"2nd arg must be hard-coded #. Use math_MultiplyAC"
-	ENDC
 	IF (STRCMP("\2", "32") == 0) || (STRCMP("\2", "16") == 0) || (STRCMP("\2", "8") == 0) || (STRCMP("\2", "4") == 0) || (STRCMP("\2", "2") == 0)
 	; I'd like to instead call an optimization of shifting register \1
 	; instead of multiplying if arg2 is a common power of 2: 2,4,8,16
@@ -98,8 +95,8 @@ math_Mult: MACRO
 	; below ELSE is for if \2 is not a common power of 2. NOT 2,4,8, or 16
 	; then we call the general multiplication form
 	ELSE
-		ld	c, \1
-		ld	a, \2
+		load	a, \1, "first byte of multiplication"
+		load	c, \2, "second byte of multiplication"
 		call math_MultiplyAC
 	ENDC
 	ENDM

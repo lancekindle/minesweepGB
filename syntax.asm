@@ -28,6 +28,7 @@
 	IF	!DEF(SYNTAX_ASM)
 SYNTAX_ASM	SET	1
 
+
 ; simple macros to set/return true or false. Use these everywhere!
 ret_true: MACRO
 	set_true
@@ -255,6 +256,30 @@ preserve2: MACRO
 	ENDM
 
 
+; loadin is designed to be used by other macros for enforcing arguments.
+; calling loadin yyy, xxx
+; will fail at compile time if xxx isn't register yyy, or a hard-coded #.
+; (if arg2 matches arg1, this macro will create no instructions, since the
+; value is already in the desired register)
+; an optional arg3 will be printed before failure if necessary
+; loading allows argument enforcement with the flexibility to pass either
+; the desired register or a #. An example may be:
+; loadin	a, \2, "movement"
+load:	MACRO
+	IF STRIN("abcdehlABCDEHL","\1")==0
+		FAIL	"\nfirst argument must be register (a, b, c...)\n"
+	ENDC
+	IF STRIN("abcdehlABCDEHL","\2")>=1
+		IF STRCMP("\1", "\2") != 0
+			IF _NARG == 3
+				PRINTT	"\3 \n"
+			ENDC
+			FAIL	"\narg2 must be \1 or hard-coded #. Got \2 \n"
+		ENDC
+	ENDC
+	ld	\1, \2
+	ENDM
+
 ; setvar variable, value
 ; uses  registers. So preserve if necessary
 setvar: MACRO
@@ -316,35 +341,6 @@ shift_right: MACRO
 	ENDC
 	ENDM
 	
-	
-
-; ==========================[ Condition Fail Checkers ]====================
-; use these for checking variables at compile-time.
-; They replace the standard IF macro but still require an ENDC,
-; like the example below:
-;
-; IF_ARG2_IS_REGISTER
-;	FAIL	"arg2 must be a #, not a register"
-; ENDC
-;
-; Use these where you need to verify pre-conditions in a MACRO to ensure
-; it's not being abused. Often, for example, I want a macro to accept #
-; arguments, not a register containing the #. This allows me to check-for,
-; and fail, if the user is passing a hard-coded #
-
-; enters conditional, if argument 1 is a register such as a, b, c...
-IF_ARG1_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\1\")>=1)"
-IF_ARG1_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\1\")>=1)"
-; enters conditional, if argument 2 is a register such as a, b, c...
-IF_ARG2_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\2\")>=1)"
-IF_ARG2_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\2\")>=1)"
-; enters conditional, if argument 3 is a register such as a, b, c...
-IF_ARG3_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\3\")>=1)"
-IF_ARG3_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\3\")>=1)"
-; enters conditional, if argument 4 is a register such as a, b, c...
-IF_ARG4_IS_REGISTER	EQUS	"IF (STRIN(\"abcdehlABCDEHL\",\"\\4\")>=1)"
-IF_ARG4_IS_REGISTER_PAIR	EQUS	"IF (STRIN(\"afbcdehlAFBCDEHL\",\"\\4\")>=1)"
-
 
 
 	ENDC  ; end syntax file
