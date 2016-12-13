@@ -8,7 +8,10 @@ VARS_ASM        SET     1
 include "gbhw.inc"
 
 LowRamBase      SET     _RAM + $A0      ; available ram after OAM data
-LowRamLimit     SET     LowRamBase + $ff ; 256 bytes (variables) available
+; (OAM data is the $A0 added to _RAM)
+LowRamLimit     SET     LowRamBase + $1FF ; 512 bytes (variables) available
+MidRamBase      SET     LowRamLimit
+MidRamLimit     SET     MidRamBase + $0FFF ; 4096 bytes (var+space) available
 ; OAM data is just a holding place where you can modify it. The OAM data
 ; will then get copied to OAM location in Video-Ram [$FE00 - $FEA0)
 
@@ -21,8 +24,25 @@ LowRamLimit     SET     LowRamBase + $ff ; 256 bytes (variables) available
 var_LowRamByte:     MACRO
 \1      EQU     LowRamBase      ; NOTICE I can't put a space before \1
 LowRamBase       Set     LowRamBase + 1
-        IF (LowRamBase == LowRamLimit)
+        IF (LowRamBase >= LowRamLimit)
                 FAIL    "too many variables declared"
+        ENDC
+        ENDM
+
+
+; call var_MidRamBytes to allocate memory space for a variable.
+; argument 1 is the variable name
+; argument 2 is the size of the variable
+var_MidRamBytes: MACRO
+\1      EQU     MidRamBase
+        IF _NARG == 1
+                FAIL    "var_MidRamBytes requires a size argument"
+        ENDC
+MidRamBase      Set     MidRamBase + \2
+        IF (MidRamBase >= MidRamLimit)
+                PRINTT  "\n$"
+                PRINTV  MidRamBase
+                FAIL    "\nMidRam space depleted"
         ENDC
         ENDM
 
