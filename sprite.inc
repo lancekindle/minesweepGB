@@ -19,6 +19,7 @@ OAMDATALENGTH	EQU	$A0
 		printt	"TEXT!!!!\n"
 		
 		RSSET	OAMDATALOC
+sprite_RS	SET OAMDATALOC
 
 ; RSSET and RB are macros / compiler stuff that increments a value called _RS
 ; so let's talk about _RS. It's a compiler-tracked byte. 
@@ -31,10 +32,12 @@ OAMDATALENGTH	EQU	$A0
 ; incrementing __RS, Thus giving Y, X Addr, Tilenum, & Flags a unique OAM data
 ; location.
 SpriteAttr:	MACRO
+	RSSET	sprite_RS
 \1YAddr		RB	1
 \1XAddr		RB	1
 \1TileNum	RB	1
 \1Flags		RB	1
+sprite_RS	SET	_RS  ; keep backup of _RS, because _RS will change
 		ENDM
 
 ;set XAddr of sprite.
