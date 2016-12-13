@@ -6,10 +6,6 @@
 
 include "gbhw.inc"
 include "ibmpc1.inc"
-include "sprite.inc"
-
-; create Sprite0
-	SpriteAttr	Sprite0
 
 
 
@@ -47,11 +43,16 @@ section "start", HOME[$0100]
 ; the indent. If indented, we are calling the macro. If not, we are defining it
 ; UGH. After any macro call / command, DO NOT INCLUDE A COMMA! Commas only
 ; separate 2+ arguments. First argument doesn't have a comma separating it.
+; write the rom header
 	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
 
 ; include .asm files here (asm includes actual code. inc just defines stuff)
 ; we need to add it here after all the critical address-specific code
 ; has been laid out
+
+include "sprite.inc"
+; create Sprite0
+	SpriteAttr	Sprite0
 include "joypad.asm"
 	PRINTT	"jpad_rKeys @"
 	PRINTV	jpad_rKeys
@@ -62,7 +63,11 @@ include "memory.asm"
 include "lcd.asm"
 include "syntax.asm"
 include "math.asm"
-; write the rom header
+include "vars.asm"
+include "matrix.asm"
+
+
+	mat_Create	blah, 6, 8
 
 
 ClearSpriteTable:
@@ -114,8 +119,15 @@ begin:
 	call	lcd_EnableVBlankInterrupt
 .mainloop:
 	call	lcd_Wait4VBlank
-	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	call	move_sprite_within_screen_bounds
+	mat_SetYX	blah, 1, 3, 67
+	mat_SetYX	blah, 3, 3, 75
+	mat_SetYX	blah, 0, 3, 90
+	mat_GetYX	blah, 0, 3
+	ifa	==, 90, call	jpad_GetKeys
+	mat_GetYX	blah, 1, 3
+	ifa	==, 67, call	move_sprite_within_screen_bounds
+	;call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	;call	move_sprite_within_screen_bounds
 .past_operation:
 	lda	[jpad_rEdge]
 	and	PADF_B
@@ -126,7 +138,6 @@ begin:
 
 get_true:
 	ret_true
-
 
 
 ; press keyboard_A to toggle flag
