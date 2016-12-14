@@ -47,6 +47,8 @@ begin:
 	call	test_08_truefalse
 	call	test_09_ifa
 	call	test_0A_test_flags_testing
+	call	test_shifts
+; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
 	nop
@@ -112,9 +114,15 @@ Letters:  ; using (:) will save ROM address so that you can reference it in code
 
 
 ;======================= [Tests (newest on bottom) ]=======================
-; a indicates success. ==0, fails. >0, pass
+; register A indicates success status.   ==0, fails.    >0, pass
 ; if the test did NOT pass, a=0
 ; \1 is actual test #, regardless of pass
+
+; call this macro to essentially print to screen the test ID (if it passed)
+; or it will print "-" to the screen if it failed. You must pass one thing
+; to this macro: the test # (integer only).
+; If Register A > 0, success! your test ID is printed on-screen
+; if Register A ==0, Booo! "-" is printed where that test ID should have been
 TestResult: MACRO
 	; sets background tiles to empty space
 	cp	0	; compare a to 0. Z is set if test failed
@@ -315,4 +323,32 @@ test_0A_test_flags_testing:
 	TestResult	10
 
 
-
+; shift_left and shift_right should shift one register into the next,
+; in the direction specified. For example, "shift_left a, b" will treat
+; a & b as a 16bit register, ab. Then it shifts it left. So the 8th bit
+; from b would arrive in the 1st bit in a. The last bit in a is
+; discarded. "shift_right a,b" will shift ab to the right. "a" gets
+; shifted first, and its 1st bit gets shifted into B's 8th bit-place.
+test_shifts:
+	ld	a, 0
+	ld	b, %10101010
+	inc	a	; x= %00000001
+	shift_right	a, b
+	ifa	>, 0, jr	.failed_0B
+	shift_left	a, b
+	ifa	<>, 1, jr	.failed_0B
+	shift_left	a, b
+	ifa	<>, %00000011, jr	.failed_0B
+	shift_left	a, b
+	ifa	<>, %00000110, jr	.failed_0B
+	ld	c, 0
+	shift_right	a, c	; a=00000011, c=00000000
+	shift_right	a, c	; a=00000001, c=10000000
+	shift_right	a, c	; a=00000000, c=11000000
+	ifa	>, 0, jr	.failed_0B
+	lda	c
+	ifa	<>, %11000000, jr	.failed_0B
+	TestResult	11	; will print B if a >0
+.failed_0B
+	ld	a, 0
+	TestResult	11	; will print B if a > 0
