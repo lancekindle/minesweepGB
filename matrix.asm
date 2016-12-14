@@ -6,8 +6,11 @@
 
 include "syntax.asm"
 include "vars.asm"
+include "math.asm"
 
 
+	IF !DEF(MATRIX_ASM)
+MATRIX_ASM	SET	1
 ; max matrix dimension allowed is 255
 
 ; create a matrix named `arg1` of Y, X size (arg2 and arg3, respectively)
@@ -26,18 +29,16 @@ mat_Create: MACRO
 ; Y in register A, X in register E
 ; because register E doesn't get squashed by math_Mult
 ; this macro squashes all registers (sorry)
-; this can be optimized later. The idea is that the matrix X dimension
-; \1_X can tell us if the multiply operation can be optimized
-; that can offer speed benefits for an optimized matrix width
 mat_AddressYX: MACRO
-	load	a, \2
+	load	a, \2, "mat_* arg2 is Y-coordinate"
 	load	d, 0
-	load	e, \3	; \3 is X addr. So we setup DE == $0X
+	; \3 is X addr. So we setup DE equal to $0X  (where X is X-coordinate)
+	load	e, \3, "mat_* arg3 is X-coordinate"
 	push	de
 	math_Mult	a, \1_X	; calculate Y mem offset (into HL)
 	pop	de
 	add	hl, de	; add X mem offset to HL
-	ld	bc, \1
+	load	bc, \1
 	add	hl, bc	; add matrix address to HL offset
 	ENDM
 
@@ -48,7 +49,7 @@ mat_AddressYX: MACRO
 ; mat_GetYX squashes all registers (sorry)
 ; make sure you use the matrix variable name here
 mat_GetYX: MACRO
-	load	d, \2
+	load	d, \2, "mat_GetYX arg2 is Y-coordinate in matrix"
 	ld	a, d	; swap Y into register A
 	mat_AddressYX	\1, a, \3
 	ld	a, [HL]	; load matrix@YX into a
@@ -60,13 +61,14 @@ mat_GetYX: MACRO
 ; X is either a # or register E
 ; value is either a # or register A
 mat_SetYX: MACRO
-	load	a, \4	;this MUST happen first (aka... what if we pass a?)
-	load	d, \2
+	; load'ing of vars MUST happen first (aka... what if we pass a?)
+	load	a, \4, "arg4 of mat_SetYX is value to set in matrix"
+	load	d, \2, "mat_SetYX arg2 is Y-coordinate in matrix"
 	push af
 	ld	a, d	; swap Y into register A
 	mat_AddressYX	\1, a, \3
 	pop af
-	ld	[HL], a
+	ld	[HL], a		; load value (a) into matrix@Y,X
 	ENDM
 
 
