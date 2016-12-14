@@ -106,10 +106,15 @@ math_PowerA2B_Plus_A2BC:
 ; result will reside in HL
 ; if you want to pass in register values, arg1 must be A (or a #),
 ; and arg2 must be C (or a #)
+; if you want the benefit of fast-multiplication (based on a hard-coded #)
+; then pass that # as 2nd argument
 math_Mult: MACRO
+	load	a, \1, "first byte of multiplication"; preload arg1
+	; now we just need to check what kind of argument \2 is, and perform
+	; the correct (and preferably fast) procedure
 	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
 	; looks like the user passed a register / register pair
-		load	a, \1, "first byte of multiplication"
+		PRINTT	"performing register axc multiplication"
 		load	c, \2, "second byte of multiplication"
 		call	math_MultiplyAC
 	ELSE
@@ -117,15 +122,15 @@ math_Mult: MACRO
 	; these multipliers are in the form 2^B + 2^(B+C), where B,C = 0-8
 	IF (\2 == 6) || (\2 == 12)
 		PRINTT "\n strange power of 2 though... \2..."
-		math_MultiplyComplicatedPowerOf2	\1, \2
+		math_MultiplyComplicatedPowerOf2	a, \2
 	ELSE
 		; check if arg2 is a power of 2 for shortcut multiplication
 		IF (\2 == 256) || (\2 == 128) || (\2 == 64) || (\2 == 32) || (\2 == 16) || (\2 == 8) || (\2 == 4) || (\2 == 2) || (\2 == 1)
-			math_MultiplyPowerOf2	\1, \2
+			math_MultiplyPowerOf2	a, \2
 		; below ELSE is for if \2 is not a quickly-calculable #
 		; then we call the general multiplication form
 		ELSE
-			load	a, \1, "first byte of multiplication"
+			PRINTT "\nwe will be doing general multiplication for \2"
 			load	c, \2, "second byte of multiplication"
 			call	math_MultiplyAC
 		ENDC
@@ -134,13 +139,13 @@ math_Mult: MACRO
 	ENDM
 
 
-; run this macro if arg2 is a power of 2
+; run this macro if arg2 is a power of 2 (only works with hard-coded #'s)
 ; 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
 math_MultiplyPowerOf2: MACRO
 	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
 		FAIL	"\n cannot pass register into this macro. Got \2\n"
 	ENDC
-	load	a, \1
+	load	a, \1	; already assume A is loaded
 	IF \2 == 1
 		load	c, 0	; 2^0 = 1x
 		call	math_PowerA2C
@@ -189,8 +194,7 @@ math_MultiplyPowerOf2: MACRO
 
 ; use this macro if arg2 is a hard-coded number that can be formed by this:
 ; arg2 = 2^B + 2^(B+C)
-; where B and C are any integer 0-16
-; (but there's no way I can code all those combinations by hand)
+; where B and C are any integer 0-8
 ; some examples:
 ; B=0, C=2.... arg2=5		(2^0 + 2^(0+2)) => (2^0 + 2^2) => (1 + 4)
 ; B=1, C=2.... arg2=10		(2^1 + 2^(1+2)) => (2^1 + 2^3) => (2 + 8)
