@@ -120,17 +120,21 @@ math_Mult: MACRO
 	ELSE
 	; check if \2 is a multiplier that can be done fast computationallly
 	; these multipliers are in the form 2^B + 2^(B+C), where B,C = 0-8
-	IF (\2 == 6) || (\2 == 12)
-		PRINTT "\n strange power of 2 though... \2..."
+	; basically, check if \2 is one of these numbers:
+	; 3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33, 34, 36, 40, 48, 65, 66,
+	; 68, 72, 80, 96,
+	IF (\2 == 3) || (\2 == 5) || (\2 == 6) || (\2 == 9) || (\2 == 10) || (\2 == 12) || (\2 == 17) || (\2 == 18) || (\2 == 20) || (\2 == 24) || (\2 == 33) || (\2 == 34) || (\2 == 36) || (\2 == 40) || (\2 == 48) || (\2 == 65) || (\2 == 66) || (\2 == 68) || (\2 == 72) || (\2 == 80) || (\2 == 96)
+		PRINTT "\nUsing ComplexPowerOf2 multiplication for \1 * \2\n"
 		math_MultiplyComplicatedPowerOf2	a, \2
 	ELSE
 		; check if arg2 is a power of 2 for shortcut multiplication
 		IF (\2 == 256) || (\2 == 128) || (\2 == 64) || (\2 == 32) || (\2 == 16) || (\2 == 8) || (\2 == 4) || (\2 == 2) || (\2 == 1)
+			PRINTT "\nUsing PowerOf2 multiplication for \1 * \2\n"
 			math_MultiplyPowerOf2	a, \2
 		; below ELSE is for if \2 is not a quickly-calculable #
 		; then we call the general multiplication form
 		ELSE
-			PRINTT "\nwe will be doing general multiplication for \2"
+			PRINTT "\nUsing general multiplication for \1 * \2\n"
 			load	c, \2, "second byte of multiplication"
 			call	math_MultiplyAC
 		ENDC
@@ -207,107 +211,107 @@ math_MultiplyPowerOf2: MACRO
 ; 129, 130, 132, 136, 144, 160, 192	<= I haven't yet coded this last row
 math_MultiplyComplicatedPowerOf2: MACRO
 	load	a, \1		; we already assume A is loaded
-	IF (\2 - 3 == 0)
+	IF (\2 == 3)
 		ld	b, 0	;   Ax1
 		ld	c, 1	; + Ax2
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 5 == 0)
+	IF (\2 == 5)
 		ld	b, 0	;   Ax1
 		ld	c, 2	; + Ax4
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 6 == 0)
+	IF (\2 == 6)
 		ld	b, 1	;   Ax2
 		ld	c, 1	; + Ax4
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 9 == 0)
+	IF (\2 == 9)
 		ld	b, 0	;   Ax1
 		ld	c, 3	; + Ax8
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 10 == 0)
+	IF (\2 == 10)
 		ld	b, 1	;   Ax2
 		ld	c, 2	; + Ax8
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 12 == 0)
+	IF (\2 == 12)
 		ld	b, 2	;   Ax4
 		ld	c, 1	; + Ax8
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 17 == 0)
+	IF (\2 == 17)
 		ld	b, 0	;   Ax1
 		ld	c, 4	; + Ax16
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 18 == 0)
+	IF (\2 == 18)
 		ld	b, 1	;   Ax2
 		ld	c, 3	; + Ax16
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 20 == 0)
+	IF (\2 == 20)
 		ld	b, 2	;   Ax4
 		ld	c, 2	; + Ax16
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 24 == 0)
+	IF (\2 == 24)
 		ld	b, 3	;   Ax8
 		ld	c, 1	; + Ax16
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 33 == 0)
+	IF (\2 == 33)
 		ld	b, 0	;   Ax1
 		ld	c, 5	; + Ax32
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 34 == 0)
+	IF (\2 == 34)
 		ld	b, 1	;   Ax2
 		ld	c, 4	; + Ax32
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 36 == 0)
+	IF (\2 == 36)
 		ld	b, 2	;   Ax4
 		ld	c, 3	; + Ax32
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 40 == 0)
+	IF (\2 == 40)
 		ld	b, 3	;   Ax8
 		ld	c, 2	; + Ax32
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 48 == 0)
+	IF (\2 == 48)
 		ld	b, 4	;   Ax16
 		ld	c, 1	; + Ax32
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 65 == 0)
+	IF (\2 == 65)
 		ld	b, 0	;   Ax1
 		ld	c, 6	; + Ax64
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 66 == 0)
+	IF (\2 == 66)
 		ld	b, 1	;   Ax2
 		ld	c, 5	; + Ax64
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 68 == 0)
+	IF (\2 == 68)
 		ld	b, 2	;   Ax4
 		ld	c, 4	; + Ax64
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 72 == 0)
+	IF (\2 == 72)
 		ld	b, 3	;   Ax8
 		ld	c, 3	; + Ax64
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 80 == 0)
+	IF (\2 == 80)
 		ld	b, 4	;   Ax16
 		ld	c, 2	; + Ax64
 		call	math_PowerA2B_then_2C
 	ENDC
-	IF (\2 - 96 == 0)
+	IF (\2 == 96)
 		ld	b, 5	;   Ax32
 		ld	c, 1	; + Ax64
 		call	math_PowerA2B_then_2C
