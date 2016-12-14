@@ -67,8 +67,17 @@ include "vars.asm"
 include "matrix.asm"
 
 
-	mat_Create	blah, 6, 8
+	mat_Create	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
+	; we'll now be able to use mat_GetYX and mat_SetYX on _SCRN0
+	; meaning we can address the background tiles like a 32x32 matrix
+	; SCRN_VY_B == 32 == SCRN_VX_B
 
+Blank:
+	DB	" "
+Mine:
+	DB	"*"
+Flag:
+	DB	"/"
 
 ClearSpriteTable:
 	ld	a, 0
@@ -119,15 +128,8 @@ begin:
 	call	lcd_EnableVBlankInterrupt
 .mainloop:
 	call	lcd_Wait4VBlank
-	mat_SetYX	blah, 1, 3, 67
-	mat_SetYX	blah, 3, 3, 75
-	mat_SetYX	blah, 0, 3, 90
-	mat_GetYX	blah, 0, 3
-	ifa	==, 90, call	jpad_GetKeys
-	mat_GetYX	blah, 1, 3
-	ifa	==, 67, call	move_sprite_within_screen_bounds
-	;call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	;call	move_sprite_within_screen_bounds
+	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	call	move_sprite_within_screen_bounds
 .past_operation:
 	lda	[jpad_rEdge]
 	and	PADF_B
@@ -139,40 +141,25 @@ begin:
 get_true:
 	ret_true
 
-
 ; press keyboard_A to toggle flag
 ; this places a character @ location of sprite (x, y)
 toggle_flag:
-	; store (x, y) @ (b, c)
 	; sprite coordinates are (0,0) up to (160,144)
 	; background coordinates are (0,0) up to (20,18)
 	; 160 / 8 == 20
 	; so to translate from sprite coordinates to background coordinates,
 	; we divide by 8.
-	; divide by 8 easily gets us memory offset from _SCRN0 for X
-	; but Y is technicallly SCRN_VX_B * Y, as far as location in VRAM
-	; is concerned. So to get memory offset for Y, we must divide by 8,
-	; then multiply by 32 (SCRN_VX_B). So, we really need to multiply
-	; by 4
 	GetSpriteYAddr	Sprite0		; Y is loaded in a
-	math_Mult	a, 4	; Y * 4 result is in HL
-	; essentially we just got SCRN_VX_B * Y in register hl
-	ld	bc, _SCRN0
-	add	hl, bc		; add (0,0) _SCRN0 address to hl
-
-	GetSpriteXAddr	Sprite0		; get X component
-	; we want to divide by 8 b shifting bits
-	ld	c, a
-	ld	b, 8
-	call math_Divide_C_by_B
-	ld	c, d	; result in D
-	ld	b, 0
-	; now bc holds x-component
-	add	hl, bc	; add x-component to screen address
-	; place flag graphic at location hl
-	ld	c, 1	; set bc to $0001. only set one VRAM byte
-	ld	a, 2	; flag icon
-	call	mem_SetVRAM	; set character (reg_a) at sprite position
+	shift_right	a
+	shift_right	a
+	shift_right	a	; A>>3 == A/8
+	ld	d, a	; Y coordinate should be in D
+	GetSpriteXAddr	Sprite0		; X is loaded in a
+	shift_right	a
+	shift_right	a
+	shift_right	a	; A>>3 == A/8
+	ld	e, a	; X coordinate should be in E
+	mat_SetYX	_SCRN0, d, e, 4
 	ret
 
 
