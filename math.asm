@@ -130,7 +130,7 @@ math_Mult: MACRO
 		math_MultiplyComplicatedPowerOf2	a, \2
 	ELSE
 		; check if arg2 is a power of 2 for shortcut multiplication
-		IF (\2 == 256) || (\2 == 128) || (\2 == 64) || (\2 == 32) || (\2 == 16) || (\2 == 8) || (\2 == 4) || (\2 == 2) || (\2 == 1)
+		IF (\2 == 512) ||(\2 == 256) || (\2 == 128) || (\2 == 64) || (\2 == 32) || (\2 == 16) || (\2 == 8) || (\2 == 4) || (\2 == 2) || (\2 == 1)
 			PRINTT "\nUsing PowerOf2 multiplication for \1 * \2\n"
 			math_MultiplyPowerOf2	a, \2
 		; below ELSE is for if \2 is not a quickly-calculable #
@@ -145,52 +145,85 @@ math_Mult: MACRO
 	ENDM
 
 
+; multiply HL by 8
+math_Multiply8HL: MACRO
+	add	hl, hl	; x2
+	add	hl, hl	; x4
+	add	hl, hl	; x8. Done
+	ENDM
+
+
 ; run this macro if arg2 is a power of 2 (only works with hard-coded #'s)
-; 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
+; 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
 math_MultiplyPowerOf2: MACRO
 	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
 		FAIL	"\n cannot pass register into this macro. Got \2\n"
 	ENDC
 	load	a, \1	; already assume A is loaded
-	IF \2 == 1
-		load	c, 0	; 2^0 = 1x
-		call	math_PowerA2C
+	IF \2 == 1	; 2^0 = 1x  (so it technically is a power of 2)
+		ld	h, 0
+		ld	l, a	; HL = A. DONE.
 	ENDC
 	IF \2 == 2
-		load	c, 1	; 2^1 = 2x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL = A*2. DONE.
 	ENDC
 	IF \2 == 4
-		load	c, 2	; 2^2 = 4x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL = A*2
+		add	hl, hl	; HL = A*4. DONE.
 	ENDC
 	IF \2 == 8
-		load	c, 3	; 2^3 = 8x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8. Done.
 	ENDC
-	IF \2 == 16	; to x16, only shift 4 times
-		load	c, 4	; 2^4 = 16x
-		call	math_PowerA2C
+	IF \2 == 16
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		add	hl, hl		; HL = A*16. DONE.
 	ENDC
 	IF \2 == 32
-		load	c, 5	; 2^5 = 32x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		add	hl, hl		; HL = A*16
+		add	hl, hl		; HL = A*32. Done
 	ENDC
 	IF \2 == 64
-		load	c, 6	; 2^6 = 64x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		math_Multiply8HL	; HL = A*64. Done
 	ENDC
-	IF \2 == 128	; to x128, only shift 7 times
-		load	c, 7	; 2^7 = 128x
-		call	math_PowerA2C
+	IF \2 == 128
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		math_Multiply8HL	; HL = A*64
+		add	hl, hl		; HL = A*128. Done
 	ENDC
 	IF \2 == 256
-		load	c, 8	; 2^8 = 256x
-		call	math_PowerA2C
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		math_Multiply8HL	; HL = A*64
+		add	hl, hl		; HL = A*128
+		add	hl, hl		; HL = A*256. Done
 	ENDC
-	IF \2 == 512	; to x512, only shift 9 times
-		load	c, 9	; 2^9 = 512x
-		call	math_PowerA2C
+	IF \2 == 512
+		ld	h, 0
+		ld	l, a		; HL = A
+		math_Multiply8HL	; HL = A*8
+		math_Multiply8HL	; HL = A*64
+		math_Multiply8HL	; HL = A*512. Done
+	ENDC
+	IF \2 == 1024	; This isn't used. It's an example of set-up
+		ld	c, 10	;2^10 = 1024
+		call	math_PowerA2C_2
 	ENDC
 	; set carry-flag if H > 0
 	ld	a, %11111111
@@ -214,111 +247,193 @@ math_MultiplyPowerOf2: MACRO
 math_MultiplyComplicatedPowerOf2: MACRO
 	load	a, \1		; we already assume A is loaded
 	IF (\2 == 3)
-		ld	b, 0	;   Ax1
-		ld	c, 1	; + Ax2
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		add	hl, hl	; HL=A*2
+		add	hl, bc	; HL+A = A*3
 	ENDC
 	IF (\2 == 5)
-		ld	b, 0	;   Ax1
-		ld	c, 2	; + Ax4
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		add	hl, hl	; HL=A*2
+		add	hl, hl	; HL=A*4
+		add	hl, bc	; HL+A = A*5
 	ENDC
 	IF (\2 == 6)
-		ld	b, 1	;   Ax2
-		ld	c, 1	; + Ax4
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		ldpair	b,c,	h,l	; store value of 2A
+		add	hl, hl	; HL=4A
+		add	hl, bc	; HL+2A = 6A
 	ENDC
 	IF (\2 == 9)
-		ld	b, 0	;   Ax1
-		ld	c, 3	; + Ax8
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		math_Multiply8HL; HL=8A
+		add	hl, bc	; HL+A = 9A
 	ENDC
 	IF (\2 == 10)
-		ld	b, 1	;   Ax2
-		ld	c, 2	; + Ax8
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		ldpair	b,c,	h,l	; store value of 2A
+		add	hl, hl	; HL=4A
+		add	hl, hl	; HL=8A
+		add	hl, bc	; HL+2A = 10A
 	ENDC
 	IF (\2 == 12)
-		ld	b, 2	;   Ax4
-		ld	c, 1	; + Ax8
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		add	hl, hl	; HL=4A
+		ldpair	b,c,	h,l	; store value of 4A
+		add	hl, hl	; HL=8A
+		add	hl, bc	; HL+4A = 12A
 	ENDC
 	IF (\2 == 17)
-		ld	b, 0	;   Ax1
-		ld	c, 4	; + Ax16
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL=16A
+		add	hl, bc	; HL+A = 17A
 	ENDC
 	IF (\2 == 18)
-		ld	b, 1	;   Ax2
-		ld	c, 3	; + Ax16
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		ldpair	b,c,	h,l	; store value of 2A
+		math_Multiply8HL; HL=16A
+		add	hl, bc	; HL+2A = 18A
 	ENDC
 	IF (\2 == 20)
-		ld	b, 2	;   Ax4
-		ld	c, 2	; + Ax16
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		add	hl, hl	; HL=4A
+		ldpair	b,c,	h,l	; store value of 4A
+		add	hl, hl	; HL=8A
+		add	hl, hl	; HL=16A
+		add	hl, bc	; HL+4A = 20A
 	ENDC
 	IF (\2 == 24)
-		ld	b, 3	;   Ax8
-		ld	c, 1	; + Ax16
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		ldpair	b,c,	h,l	; store value of 8A
+		add	hl, hl	; HL=16A
+		add	hl, bc	; HL+8A = 24A
 	ENDC
 	IF (\2 == 33)
-		ld	b, 0	;   Ax1
-		ld	c, 5	; + Ax32
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL=16A
+		add	hl, hl	; HL=32A
+		add	hl, bc	; HL+A = 33A
 	ENDC
 	IF (\2 == 34)
-		ld	b, 1	;   Ax2
-		ld	c, 4	; + Ax32
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		ldpair	b,c,	h,l	; store value of 2A
+		math_Multiply8HL; HL=16A
+		add	hl, hl	; HL=32A
+		add	hl, bc	; HL+2A = 33A
 	ENDC
 	IF (\2 == 36)
-		ld	b, 2	;   Ax4
-		ld	c, 3	; + Ax32
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		add	hl, hl	; HL=4A
+		ldpair	b,c,	h,l	; store value of 4A
+		math_Multiply8HL; HL=32A
+		add	hl, bc	; HL+4A = 36A
 	ENDC
 	IF (\2 == 40)
-		ld	b, 3	;   Ax8
-		ld	c, 2	; + Ax32
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		ldpair	b,c,	h,l	; store value of 8A
+		add	hl, hl	; HL=16A
+		add	hl, hl	; HL=32A
+		add	hl, bc	; HL+8A = 40A
 	ENDC
 	IF (\2 == 48)
-		ld	b, 4	;   Ax16
-		ld	c, 1	; + Ax32
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL=16A
+		ldpair	b,c,	h,l	; store value of 16A
+		add	hl, hl	; HL=32A
+		add	hl, bc	; HL+16A = 48A
 	ENDC
 	IF (\2 == 65)
-		ld	b, 0	;   Ax1
-		ld	c, 6	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	b,c,	h,l	; store value of A
+		math_Multiply8HL; HL=8A
+		math_Multiply8HL; HL=64A
+		add	hl, bc	; HL+A = 65A
 	ENDC
 	IF (\2 == 66)
-		ld	b, 1	;   Ax2
-		ld	c, 5	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		ldpair	b,c,	h,l	; store value of 2A
+		math_Multiply8HL; HL=16A
+		add	hl, hl	; HL=32A
+		add	hl, hl	; HL=64A
+		add	hl, bc	; HL+2A = 66A
 	ENDC
 	IF (\2 == 68)
-		ld	b, 2	;   Ax4
-		ld	c, 4	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL=2A
+		add	hl, hl	; HL=4A
+		ldpair	b,c,	h,l	; store value of 4A
+		math_Multiply8HL; HL=32A
+		add	hl, hl	; HL=64A
+		add	hl, bc	; HL+4A = 68A
 	ENDC
 	IF (\2 == 72)
-		ld	b, 3	;   Ax8
-		ld	c, 3	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		ldpair	b,c,	h,l	; store value of 8A
+		math_Multiply8HL; HL=64A
+		add	hl, bc	; HL+8A = 72A
 	ENDC
 	IF (\2 == 80)
-		ld	b, 4	;   Ax16
-		ld	c, 2	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL=16A
+		ldpair	b,c,	h,l	; store value of 16A
+		add	hl, hl	; HL=32A
+		add	hl, hl	; HL=64A
+		add	hl, bc	; HL+16A = 80A
 	ENDC
 	IF (\2 == 96)
-		ld	b, 5	;   Ax32
-		ld	c, 1	; + Ax64
-		call	math_PowerA2B_then_2C
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL=16A
+		add	hl, hl	; HL=32A
+		ldpair	b,c,	h,l	; store value of 32A
+		add	hl, hl	; HL=64A
+		add	hl, bc	; HL+32A = 96A
 	ENDC
-
+	IF (\2 == 129)
+		ld	b, 0	;   Ax1
+		ld	c, 7	; + Ax128
+		call	math_PowerA2B_Plus_A2BC_2	; the procedure way
+	ENDC
 	ENDM
 ; 17/8   ==>   17 is NUMERATOR. 8 is DENOMINATOR
 ; division requires sampling the MSB (one extra bit at a time) from the
