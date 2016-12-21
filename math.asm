@@ -20,6 +20,8 @@ MATH_ASM	SET	1
 ; in that case, the L register would hold the number
 math_MultiplyAC:
 	ld	b, 0
+	ld	h, b
+	ld	l, b	; set HL to 0
 	; shift a to right by 1. In this case, RRA (rotate "a" right) is the
 	; same operation as SRA, but faster.
 	; If 1 was rotated into the carry-flag, then we add BC to HL
