@@ -107,6 +107,21 @@ ifa: MACRO
 .exec_if_a_cmd\@
 	unpack_arg3_cmd
 .skip_if_a\@
+	; we've completed ifa logic. Now we verify arguments are valid.
+	; hint: I've seen that passing a 16-bit value to ifa doesn't cause an
+	; error. We should detect that, and warn / fail
+	;IF (STRCMP("[hl]","\2")!=0) && (STRCMP("[HL]","\2")!=0) ; \2 != [hl]
+	;IF STRIN("ahflbdceAHFLBDCE", "\2") == 0	; \2 not an 8bit register
+	;PRINTT	"\2"
+	;IF ROUND(\2) > 255	; finally we check to see if value is > 8 bits
+	;	PRINTT	"\n\2 is not an 8-bit number. We can only compare 8bit"
+	;	PRINTT	" values, a single register, or [HL] to A. The value "
+	;	PRINTT	"of \2 is "
+	;	PRINTV	\2
+	;	PRINTT	"\n"
+	;ENDC
+	;ENDC
+	;ENDC
 	ENDM
 
 
@@ -140,6 +155,45 @@ if_flags: MACRO
 	jr_inverse	\2, .end_if_flags\@
 	unpack_arg3_cmd
 .end_if_flags\@
+	ENDM
+
+
+; 1st argument is a bit-position. (bit 0-7).
+; 2nd argument is register a,b,c,d,e,h,l or (hl)
+; if the bit position of 2nd argument is set (to 1), execute arg3+
+if_bit: MACRO
+	bit	\1, \2
+	jr	z, .end_if_bit\@
+	unpack_arg3_cmd
+.end_if_bit\@
+	ENDM
+
+; same thing but reversed. If bit \1 of \2 is 0, execute arg3+
+if_not_bit: MACRO
+	bit	\1, \2
+	jr	nz, .end_if_not_bit\@
+	unpack_arg3_cmd
+.end_if_not_bit\@
+	ENDM
+	
+
+if_bits: MACRO
+	bit	\1, \3
+	jr	z, .end_if_bits\@
+	bit	\2, \3
+	jr	z, .end_if_bits\@
+	unpack_arg4_cmd
+.end_if_bits\@
+	ENDM
+
+
+if_not_bits: MACRO
+	bit	\1, \3
+	jr	nz, .end_if_not_bits\@
+	bit	\2, \3
+	jr	nz, .end_if_not_bits\@
+	unpack_arg4_cmd
+.end_if_not_bits\@
 	ENDM
 
 
@@ -199,6 +253,16 @@ b8	EQUS	"IF _NARG==9\n \\3,\\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
 
 unpack_arg3_cmd	EQUS	"{b2}{b3}{b4}{b5}{b6}{b7}{b8}"
 
+; and of course, some macros need to expand arg4+, so here it is
+c2	EQUS	"IF _NARG==4\n \\4\nENDC\n"
+c3	EQUS	"IF _NARG==5\n \\4,\\5\nENDC\n"
+c4	EQUS	"IF _NARG==6\n \\4,\\5,\\6\nENDC\n"
+c5	EQUS	"IF _NARG==7\n \\4,\\5,\\6,\\7\nENDC\n"
+c6	EQUS	"IF _NARG==8\n \\4,\\5,\\6,\\7,\\8\nENDC\n"
+c7	EQUS	"IF _NARG==9\n \\4,\\5,\\6,\\7,\\8,\\9\nENDC\n"
+
+unpack_arg4_cmd	EQUS	"{c2}{c3}{c4}{c5}{c6}{c7}"
+
 
 ; jr_inverse is just like jr, except it tests for the opposite flag
 ; i.e. jr_inverse c, rDMA ==> jr nc, rDMA
@@ -256,26 +320,74 @@ preserve2: MACRO
 	ENDM
 
 
-; loadin is designed to be used by other macros for enforcing arguments.
-; calling loadin yyy, xxx
+; load is designed to be used by other macros for enforcing arguments.
+; calling load yyy, xxx
 ; will fail at compile time if xxx isn't register yyy, or a hard-coded #.
 ; (if arg2 matches arg1, this macro will create no instructions, since the
 ; value is already in the desired register)
 ; an optional arg3 will be printed before failure if necessary
 ; loading allows argument enforcement with the flexibility to pass either
 ; the desired register or a #. An example may be:
-; loadin	a, \2, "movement"
+; load	a, \2, "move_Character arg2"
+; The optional error message should be used to specify which argument is
+; failing (as that may not be always obvious), or what the argument is
+; supposed to contain conceptually.
+; If it does error-out, a default error message is always included that
+; tells the user which register should have been used
 load:	MACRO
 	IF STRIN("abcdehlABCDEHL","\1")==0
-		FAIL	"\nfirst argument must be register (a, b, c...)\n"
+		PRINTT "\n====================================\n"
+		PRINTT	"first argument must be register (a, b, c...)"
+		FAIL	"\n====================================\n"
 	ENDC
 	IF STRIN("abcdehlABCDEHL","\2")>=1
 		IF STRCMP("\1", "\2") != 0
+			PRINTT "\n====================================\n"
 			IF _NARG == 3
-				PRINTT	"\3 \n"
+				PRINTT	"\3"
 			ENDC
-			FAIL	"\narg2 must be \1 or hard-coded #. Got \2 \n"
+			PRINTT "\narg must be \1 or hard-coded #. Got \2 \n"
+			FAIL	"\n====================================\n"
 		ENDC
+	ENDC
+	IF STRIN("[hl][HL]", "\2") && STRIN("\2", "[") && STRIN("\2", "]")
+		WARN	"I don't think \2 will work. You should just pass hl"
+	ENDC
+	IF STRCMP("\1", "\2") != 0	; only load register / value IF
+		ld	\1, \2		; register 1 != register 2
+	ENDC				; (it'd be silly to   ld a, a
+	ENDM				; and a syntax error to   ld hl, hl)
+
+
+; use with macro to enforce the loading of a hard-coded #.
+; why use this? Say that you've created a macro that sets up a few registers,
+; then calls a procedure which trashes all the registers in its computation.
+; after that point, it needs to load a few more numbers and call another
+; procedure. If any arguments are loaded into a register at this point, keep
+; in mind that none of the registers contain any known value. You HAVE to
+; load a hard-coded #. For example:
+;do_stuff: MACRO
+; ld	b, \1
+; call	replace_all_registers_with_9
+; ld	a, \2				; if \2 is a register such as c....
+; ENDM					; c will hold 9, not the value that
+;					; c previously held at start of macro
+; at this point, you cannot "ld	a, \4" and expect it to work if \4 is any
+; register. Hence, ldhard gives you peace of mind that the programmer will
+; be unable to compile if he passes in a register where you've specified
+; a hard-coded # must be supplied
+ldhard: MACRO
+	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0
+		IF _NARG == 3
+			PRINTT	"\3"
+		ENDC
+		FAIL "arg1 should be a register / pair. Got \1 instead"
+	ENDC
+	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+		IF _NARG == 3
+			PRINTT	"\3"
+		ENDC
+		FAIL "arg2 should be a hard-coded #. Got \2 instead"
 	ENDC
 	ld	\1, \2
 	ENDM
@@ -358,7 +470,11 @@ shift_right: MACRO
 		RR	\2
 	ENDC
 	ENDM
-	
+
+
+
+
+
 
 
 	ENDC  ; end syntax file
