@@ -4,112 +4,9 @@
 ;   Licensed under GNU GPL v3 <http://www.gnu.org/licenses/>
 ;---------------------------------------------------------------------------
 ; Newest Test is on bottom of file
-include "gbhw.inc"
-include "ibmpc1.inc"
 
-section "Vblank", HOME[$0040]
-	reti
-section "LCDC", HOME[$0048]
-	reti
-section "Timer_Overflow", HOME[$0050]
-	reti
-section "Serial", HOME[$0058]
-	reti
-section "joypad_p1_p4", HOME[$0060]
-	reti
-section "start", HOME[$0100]
-	nop
-	jp begin
-
-	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
-
-include "joypad.asm"
-include "memory.asm"
-include "lcd.asm"
+include "test_includes.asm"
 include "syntax.asm"
-
-begin:
-	di    ; disable interrupts
-	ld	sp, $ffff  ; init stack pointer to be at top of memory
-	call	lcd_Stop
-	call	lcd_ScreenInit	; set up pallete and (x,y)=(0,0)
-	call	LoadFont
-	call	ClearBackground
-	call	lcd_On
-	call	lcd_ShowBackground
-	call	test_01_lda
-	call	test_02_preserve
-	call	test_03_preserve2
-	call	test_04_if
-	call	test_05_if_not
-	call	test_06_if_flag
-	call	test_07_if_not_flag
-	call	test_08_truefalse
-	call	test_09_ifa
-	call	test_0A_test_flags_testing
-	call	test_shifts
-; ===============================[ End calling tests ]====================
-.mainloop:
-	halt
-	nop
-	jr	.mainloop
-	
-
-
-ClearBackground:
-	; sets background tiles to empty space
-	ld	a, 32
-	ld	hl, _SCRN0
-	ld	bc, SCRN_VX_B * SCRN_VY_B
-	call	mem_SetVRAM
-	ret
-
-
-get_true:
-	ret_true
-get_false:
-	ret_false
-
-SetRegs:
-	ld	a, 1
-	ld	b, 2
-	ld	c, 3
-	ld	d, 4
-	ld	e, 5
-	ld	h, 6
-	ld	l, 7
-	ret
-
-TrashRegs:
-	ld a, 7
-	cp 9
-	ld b, 31
-	ld c, 13
-	ld d, 22
-	ld e, 55
-	ld h, 66
-	ld l, 25
-	ret
-
-
-
-; makes use of include "ibmpc1.inc"
-ASCII_TILES_LOC:
-	chr_IBMPC1 1,8  ; arguments 1,8 cause all 256 characters to be loaded
-ASCII_TILES_END:
-
-LoadFont:
-	ld	hl, ASCII_TILES_LOC
-	ld	de, _VRAM
-	ld	bc, ASCII_TILES_END - ASCII_TILES_LOC
-	call	mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
-	ret
-
-
-Letters:  ; using (:) will save ROM address so that you can reference it in code
-	DB	"-123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-
 
 
 
@@ -118,25 +15,6 @@ Letters:  ; using (:) will save ROM address so that you can reference it in code
 ; if the test did NOT pass, a=0
 ; \1 is actual test #, regardless of pass
 
-; call this macro to essentially print to screen the test ID (if it passed)
-; or it will print "-" to the screen if it failed. You must pass one thing
-; to this macro: the test # (integer only).
-; If Register A > 0, success! your test ID is printed on-screen
-; if Register A ==0, Booo! "-" is printed where that test ID should have been
-TestResult: MACRO
-	; sets background tiles to empty space
-	cp	0	; compare a to 0. Z is set if test failed
-	ld	hl, Letters + \1
-	ld	a, [hl]
-	jr	nz, .passed\@
-	ld	hl, Letters
-	ld	a, [hl]
-.passed\@
-	ld	hl, _SCRN0 -1 + \1
-	ld	bc, $0001
-	call	mem_SetVRAM
-	ret	; cause test function to return
-	ENDM
 
 
 ; test lda
@@ -166,7 +44,7 @@ test_02_preserve:
 	preserve	af, ld a, 0
 	cp	1
 	jp	nz, .failed02
-	call	SetRegs
+	call	SetRegs		; sets a,b,c,d,e,h,l   to    1,2,3,4,5,6,7
 	preserve	all, call TrashRegs
 	cp	1  ; verify a
 	jr	nz, .failed02
@@ -297,7 +175,7 @@ test_09_ifa:
 	TestResult	9
 
 ; test if_flags and if_not_flags syntax
-test_0A_test_flags_testing:
+test_0A_if_flags:
 	lda	5
 	cp	5	; C=0, Z=1
 	if_flags	nc, nz, jp .failed_0A
@@ -329,7 +207,7 @@ test_0A_test_flags_testing:
 ; from b would arrive in the 1st bit in a. The last bit in a is
 ; discarded. "shift_right a,b" will shift ab to the right. "a" gets
 ; shifted first, and its 1st bit gets shifted into B's 8th bit-place.
-test_shifts:
+test_0B_shifts:
 	ld	a, 0
 	ld	b, %10101010
 	inc	a	; x= %00000001
