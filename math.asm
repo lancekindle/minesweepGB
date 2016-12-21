@@ -63,11 +63,11 @@ math_PowerA2C:
 	ld	l, a	; store a in L. Now HL holds value of A
 	xor	a	; xors A unto itself. sets A=0. Faster than ld a, 0
 	or	c
-	ret	z	; return if power is 0. (in which case HL == A * 1)
-.shift_A_by_2C
-	shift_left	h, l
+	ret	z	; return if power (C) is 0. (which means HL == A * 1)
+.double_HL_per_C
+	add	hl, hl	; double value of HL
 	dec	c
-	jr	nz, .shift_A_by_2C
+	jr	nz, .double_HL_per_C
 	ret
 
 ; A is number to multiply by a power of 2. B is the power.
@@ -83,22 +83,22 @@ math_PowerA2B_Plus_A2BC:
 	xor	a	; xors A unto itself. sets A=0. Faster than ld a, 0
 	or	b	; check if B > 0
 	jr	z, .second_step_A2BC	;if B=0, move to 2nd step (HL == A)
-.shift_A_by_2B
-	shift_left	h, l	; each shift_left is HL * 2
+.double_HL_per_B
+	add	hl, hl	; HL = HL*2
 	dec	b
-	jr	nz, .shift_A_by_2B
+	jr	nz, .double_HL_per_B
 ; at this point, HL = A * 2^B
 .second_step_A2BC
 	xor	a	; again, set a=0
 	or	c
 	ret	z	; if C=0, return with current result (A * 2^B) in HL
 	push	hl	; store A * 2^B
-.shift_A_by_2BC
-	shift_left	h, l
+.double_HL_per_C
+	add	hl, hl	; HL = HL*2
 	dec	c
-	jr	nz, .shift_A_by_2BC
-; at this point, HL = A * 2^(B+C)
-	pop	bc	; get previously stored result: A * 2^(B+C)
+	jr	nz, .double_HL_per_C
+	; at this point, HL = A * 2^(B+C)
+	pop	bc	; get previously stored result: BC = A * 2^B
 	add	hl, bc	; HL = (A * 2^B) + (A * 2^(B+C))
 	ret
 
