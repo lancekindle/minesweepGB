@@ -48,6 +48,7 @@ begin:
 	call	test_0B_shifts
 	call	test_0C_math_MultiplyAC		; begin test_math.asm
 	call	test_0D_math_Mult_Shortcuts
+	call	test_0E_math_Divide_C_by_B
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
