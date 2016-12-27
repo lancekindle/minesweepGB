@@ -79,6 +79,7 @@ if_not: MACRO
 ; if A < x, Z=0, C=1
 ; this macro smartly determines what type of comparison you want, and uses only
 ; those instructions. So it's a sleek, fast and readable way to compare #s
+; just remember that ifa doesn't work with negative #'s or those >= 256
 ifa: MACRO
 	cp \2
 	IF (STRCMP("\1", "==") == 0) ; Z=1
@@ -468,6 +469,31 @@ shift_right: MACRO
 	ENDC
 	IF _NARG == 2
 		RR	\2
+	ENDC
+	ENDM
+
+
+; macro to increment a register pair.
+; we can't just call "inc hl" because the original gameboy trashes its
+; sprite ram if inc hl/de/bc is run while hl points to the sprite ram
+increment: MACRO
+	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
+		FAIL "\nincrement requires register pair. Got \1\n"
+	ENDC
+	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0	; didn't get a register pair
+		FAIL "\nincrement requires register pair. Got \1\n"
+	ENDC
+	IF STRIN("bcBC", "\1") >= 1
+		inc	C
+		if_flag	c, inc	B
+	ENDC
+	IF STRIN("deDE", "\1") >= 1
+		inc	E
+		if_flag	c, inc	D
+	ENDC
+	IF STRIN("hlHL", "\1") >= 1
+		inc	L
+		if_flag	c, inc	H
 	ENDC
 	ENDM
 
