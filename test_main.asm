@@ -30,6 +30,7 @@ include "syntax.asm"
 include "test_includes.asm"
 include "test_syntax.asm"
 include "test_math.asm"
+include "test_matrix.asm"
 
 begin:
 	di    ; disable interrupts
@@ -49,6 +50,7 @@ begin:
 	call	test_0C_math_MultiplyAC		; begin test_math.asm
 	call	test_0D_math_Mult_Shortcuts
 	call	test_0E_math_Divide_C_by_B
+	call	test_0F_matrix_DeclareInit	; begin test_matrix.asm
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
@@ -71,6 +73,7 @@ LoadFont:
 	ld	bc, ASCII_TILES_END - ASCII_TILES_LOC
 	call	mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
 	ret
+
 ClearBackground:
 	; sets background tiles to empty space
 	ld	a, 32
