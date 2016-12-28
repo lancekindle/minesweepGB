@@ -16,6 +16,20 @@ get_true:
 get_false:
 	ret_false
 
+
+; call this macro with # to compare, and 
+; jump address that'll get used IF HL != #  (which is loaded in BC)
+if_not_hl: MACRO
+	load	bc, \1
+	ld	a, b
+	cp	h	; compare B to H, and jump if they don't equal
+	jp	nz, \2
+	ld	a, c
+	cp	l	; compare C to L and jump if not equal
+	jp	nz, \2
+	ENDM
+
+
 SetRegs:
 	ld	a, 1
 	ld	b, 2

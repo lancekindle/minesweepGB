@@ -8,18 +8,6 @@ include "test_includes.asm"
 include "math.asm"
 
 
-; call this macro with # to compare, and 
-; jump address that'll get used IF HL != #  (which is loaded in BC)
-if_not_hl: MACRO
-	ld	bc, \1
-	ld	a, b
-	cp	h	; compare B to H, and jump if they don't equal
-	jp	nz, \2
-	ld	a, c
-	cp	l	; compare C to L and jump if not equal
-	jp	nz, \2
-	ENDM
-
 ; call this macro with the two numbers to be multiplied.
 ; the first two arguments will be loaded into a and c, respectively.
 ; Then the result in HL will be compared with the computated value of
