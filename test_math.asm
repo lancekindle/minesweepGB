@@ -26,7 +26,7 @@ math_MultiplyAC_Test: MACRO
 	ENDM
 
 ; test a whole lotta different numbers multiplied together
-test_0C_math_MultiplyAC:
+test_11_math_MultiplyAC:
 	math_MultiplyAC_Test	8, 8
 	math_MultiplyAC_Test	25, 25
 	math_MultiplyAC_Test	199, 17
@@ -37,10 +37,10 @@ test_0C_math_MultiplyAC:
 	math_MultiplyAC_Test	255, 255
 .passed_0C
 	ld	a, 1	; so that test passes
-	TestResult	12
+	TestResult	1, 1
 .failed_0C
 	ld	a, 0	; so that test fails
-	TestResult	12
+	TestResult	1, 1
 
 
 ; calls math_Mult macro with first two arguments.
@@ -62,7 +62,7 @@ math_Mult_Test: MACRO
 ; 34, 36, 40, 48, 65, 66, 68, 72, 80, 96,
 ; these methods will print to console during compile to notify you
 ; that "PowerOf2" or "ComplexPowerOf2" fast-compute methods will be used
-test_0D_math_Mult_Shortcuts:
+test_12_math_Mult_Shortcuts:
 	math_Mult_Test	50, 1
 	math_Mult_Test	50, 2
 	math_Mult_Test	50, 4, 200
@@ -98,10 +98,10 @@ test_0D_math_Mult_Shortcuts:
 	math_Mult_Test	50, 96
 .passed_0D
 	ld	a, 1
-	TestResult	13
+	TestResult	1, 2
 .failed_0D
 	ld	a, 0
-	TestResult	13
+	TestResult	1, 2
 
 
 
@@ -124,7 +124,7 @@ math_Divide_Test: MACRO
 ; test that division fxn behaves as expected. It should divide and
 ; return an integer result, rounded down
 ; currently only 8bit division is supported, and the result is in D
-test_0E_math_Divide_C_by_B:
+test_13_math_Divide_C_by_B:
 	math_Divide_Test	25, 5
 	math_Divide_Test	30, 6
 	math_Divide_Test	40, 8
@@ -138,7 +138,7 @@ test_0E_math_Divide_C_by_B:
 	math_Divide_Test	240, 250, 0
 .passed_0E
 	ld	a, 1
-	TestResult	14
+	TestResult	1, 3
 .failed_0E
 	ld	a, 0
-	TestResult	14
+	TestResult	1, 3

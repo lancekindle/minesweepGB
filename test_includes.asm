@@ -69,13 +69,22 @@ Letters:  ; using (:) will save ROM address so that you can reference it in code
 TestResult: MACRO
 	; sets background tiles to empty space
 	cp	0	; compare a to 0. Z is set if test failed
-	ld	hl, Letters + \1
+	IF _NARG == 2
+		ld	hl, Letters + \2
+	ELSE
+		ld	hl, Letters + \1
+	ENDC
 	ld	a, [hl]		; load test letter/# into a
 	jr	nz, .passed\@
 	ld	hl, Letters	; test failed here, so load "-" into a
 	ld	a, [hl]
 .passed\@
-	ld	hl, _SCRN0 -1 + \1	; set location to test# position
+	IF _NARG == 2
+		ld	hl, _SCRN0 -1 + (\1 * SCRN_VX_B) + \2
+		; set location to test# position (in row \1)
+	ELSE
+		ld	hl, _SCRN0 -1 + \1  ; set location to test# position
+	ENDC
 	ld	bc, $0001		; on-screen
 	call	mem_SetVRAM
 	ret	; cause test function to return

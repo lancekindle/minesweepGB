@@ -16,15 +16,15 @@ include "matrix.asm"
 ; the values defined at a location.
 ; Test that partially filling a matrix in Init (supplied data is not big
 ; enough) will fail (well, I'll test that it passes)
-test_0F_matrix_DeclareInit:
+test_21_matrix_DeclareInit:
 	if_not	matrix_initiated_with_single_value, jp .failed_0F
 	if_not	matrix_initated_with_preset_values, jp .failed_0F
 .passed_0F
 	lda	1
-	TestResult	15	; TestResult is a macro from test_includes.asm
+	TestResult	2, 1	; TestResult is a macro from test_includes.asm
 .failed_0F
 	lda	0
-	TestResult	15
+	TestResult	2, 1
 
 
 ; initialize a 4x4 matrix with the value 5. Iterate through all 9

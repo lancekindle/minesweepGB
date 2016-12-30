@@ -131,12 +131,14 @@ test_08_truefalse:
 
 ; test ifa macro (which compares numbers to register a)
 test_09_ifa:
+	; test failing matches first
 	lda	1
 	ifa	>=, 2, jp .failed_09 
 	ifa	<=, 0, jp .failed_09
 	ifa	<, 1, jp .failed_09
 	ifa	>, 1, jp .failed_09
 	ifa	==, 0, jp .failed_09
+	ifa	==, 2, jp .failed_09
 	ifa	<>, 1, jp .failed_09
 	ifa	!=, 1, jp .failed_09
 	; now test positive matches
@@ -230,3 +232,72 @@ test_0B_shifts:
 .failed_0B
 	ld	a, 0
 	TestResult	11	; will print B if a > 0
+
+
+; test increment and decrement. Pretty obvious. This macro is designed to
+; work only on hl
+test_increment: MACRO
+	ld	hl, \1
+	increment	hl
+	IF _NARG == 2
+		if_not_hl	\2, .failed
+	ELSE
+		if_not_hl	\1 + 1, .failed
+	ENDC
+	ENDM
+
+test_decrement: MACRO
+	ld	hl, \1
+	decrement	hl
+	IF _NARG == 2
+		if_not_hl	\2, .failed
+	ELSE
+		if_not_hl	\1 - 1, .failed
+	ENDC
+	ENDM
+
+; test and verify that increment / decrement correctly rolls over the
+; under/overflow into the MSB (more significant byte)
+test_0C_increment_decrement:
+	ld	bc, $00FF
+	increment	bc
+	ld	h, b
+	ld	l, c	; move bc to hl
+	if_not_hl	$0100, .failed
+	ld	de, $0FFF
+	increment	de
+	ld	h, d
+	ld	l, c	; move de to hl
+	if_not_hl	$1000, .failed
+	test_increment	$00FE, $00FF
+	test_increment	$F0FF, $F100
+	test_increment	$FFFF, $0000
+	test_increment	$2525, $2526
+	test_increment	$34FF, $3500
+	test_increment	$0000, $0001
+	test_increment	$0002, $0003
+	; test decrements
+	ld	bc, $0100
+	decrement	bc
+	ld	h, b
+	ld	l, c	; move bc to hl
+	if_not_hl	$00FF, .failed
+	ld	de, $1000
+	decrement	de
+	ld	h, d
+	ld	l, c	; move de to hl
+	if_not_hl	$0FFF, .failed
+	test_decrement	$0000, $FFFF
+	test_decrement	$FF00, $FEFF
+	test_decrement	$0025
+	test_decrement	$0026
+	test_decrement	$F3A9
+	test_decrement	$FE10
+	test_decrement	$0001, $0000
+.passed
+	lda	1
+	TestResult	12
+.failed
+	lda	0
+	TestResult	12
+
