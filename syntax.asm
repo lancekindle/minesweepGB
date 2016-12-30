@@ -476,28 +476,68 @@ shift_right: MACRO
 ; macro to increment a register pair.
 ; we can't just call "inc hl" because the original gameboy trashes its
 ; sprite ram if inc hl/de/bc is run while hl points to the sprite ram
+; if we increment the lower byte to zero, then we know we need to increment
+; the higher byte
+; increment sets the flags in the same fashion as INC
+; (Zero flag is set if register = 0, and doesn't change the carry-flag)
 increment: MACRO
 	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
 		FAIL "\nincrement requires register pair. Got \1\n"
 	ENDC
 	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0	; didn't get a register pair
-		FAIL "\nincrement requires register pair. Got \1\n"
+		FAIL "\nincrement requires register pair. Got \1, a single\n"
 	ENDC
 	IF STRIN("bcBC", "\1") >= 1
 		inc	C
-		if_flag	c, inc	B
+		if_flag	z, inc	B
 	ENDC
 	IF STRIN("deDE", "\1") >= 1
 		inc	E
-		if_flag	c, inc	D
+		if_flag	z, inc	D
 	ENDC
 	IF STRIN("hlHL", "\1") >= 1
 		inc	L
-		if_flag	c, inc	H
+		if_flag	z, inc	H
 	ENDC
 	ENDM
 
 
+; decrementing a register pair is a little trickier. We won't know if we've
+; just decremented from zero, because the carry flag doesn't get set by
+; a decrement operation. Instead, we check to see if the register is currently
+; zero by incrementing then decrementing, setting the value back to (possibly)
+; zero. If it is indeed zero, the Z flag will be set, and we'll know that
+; our next decrement will underflow the lower byte. So we decrement the higher
+; byte if our lower byte equals zero. Then, no matter what, we decrement
+; the lower byte.
+; decrement sets the flags in the same fashion as DEC
+; (Zero flag is set if register = 0, and doesn't change the carry-flag)
+decrement: MACRO
+	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
+		FAIL "\ndecrement requires register pair. Got \1\n"
+	ENDC
+	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0	; didn't get a register pair
+		FAIL "\ndecrement requires register pair. Got \1, a single\n"
+	ENDC
+	IF STRIN("bcBC", "\1") >= 1
+		inc	C
+		dec	C ; check to see if we are about to decrement from 0
+		if_flag	z, dec	B
+		dec	C
+	ENDC
+	IF STRIN("deDE", "\1") >= 1
+		inc	E
+		dec	E ; check to see if we are about to decrement from 0
+		if_flag	z, dec	D
+		dec	E
+	ENDC
+	IF STRIN("hlHL", "\1") >= 1
+		inc	L
+		dec	L ; check to see if we are about to decrement from 0
+		if_flag	z, dec	H
+		dec	L
+	ENDC
+	ENDM
 
 
 
