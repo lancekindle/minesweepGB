@@ -67,31 +67,21 @@ include "vars.asm"
 include "matrix.asm"
 
 
-	mat_Create	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
+	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
 	; we'll now be able to use mat_GetYX and mat_SetYX on _SCRN0
 	; meaning we can address the background tiles like a 32x32 matrix
 	; SCRN_VY_B == 32 == SCRN_VX_B
 
-Blank:
-	DB	" "
-Mine:
-	DB	"*"
-Flag:
-	DB	"/"
+Blank	SET	" "
+Mine	SET	"*"
+Flag	SET	"/"	; Blank, Mine, Flag are now variable constants
+
 
 ClearSpriteTable:
 	ld	a, 0
 	ld	hl, OAMDATALOC
 	ld	bc, OAMDATALENGTH
 	call	mem_Set
-	ret
-
-ClearBackground:
-	; sets background tiles to empty space
-	ld	a, 32
-	ld	hl, _SCRN0
-	ld	bc, SCRN_VX_B * SCRN_VY_B
-	call	mem_SetVRAM
 	ret
 
 LoadWords:
@@ -117,9 +107,9 @@ begin:
 	call	initdma
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
+	mat_Init	_SCRN0, Blank	; initialize screen background with " "
 	call	LoadFont
 	call	ClearSpriteTable
-	call	ClearBackground
 	call	lcd_On
 	call	LoadWords
 	call	SpriteSetup
@@ -159,7 +149,9 @@ toggle_flag:
 	shift_right	a
 	shift_right	a	; A>>3 == A/8
 	ld	e, a	; X coordinate should be in E
-	mat_SetYX	_SCRN0, d, e, 4
+	mat_SetYX	_SCRN0, d, e, Flag
+	ret
+
 	ret
 
 
