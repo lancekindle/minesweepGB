@@ -51,7 +51,7 @@ begin:
 	call	test_0D_ifa_not
 	call	test_11_math_MultiplyAC		; begin test_math.asm
 	call	test_12_math_Mult_Shortcuts
-	call	test_13_math_Divide_C_by_B
+	call	test_13_math_Divide_A_by_C
 	call	test_21_matrix_DeclareInit	; begin test_matrix.asm
 ; ===============================[ End calling tests ]====================
 .mainloop:

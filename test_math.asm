@@ -109,10 +109,9 @@ test_12_math_Mult_Shortcuts:
 ; then verify that result is expected (given rounding down)
 ; optional 3rd argument to specify expected result
 math_Divide_Test: MACRO
-	ld	c, \1
-	ld	b, \2
-	call	math_Divide_C_by_B
-	ld	a, d	; place result (from D) into A
+	ld	a, \1
+	ld	c, \2
+	call	math_Divide_A_by_C
 	IF _NARG == 3
 		ifa	<>, \3, jp .failed_0E
 	ELSE
@@ -124,7 +123,7 @@ math_Divide_Test: MACRO
 ; test that division fxn behaves as expected. It should divide and
 ; return an integer result, rounded down
 ; currently only 8bit division is supported, and the result is in D
-test_13_math_Divide_C_by_B:
+test_13_math_Divide_A_by_C:
 	math_Divide_Test	25, 5
 	math_Divide_Test	30, 6
 	math_Divide_Test	40, 8
