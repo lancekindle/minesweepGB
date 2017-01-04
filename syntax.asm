@@ -81,33 +81,33 @@ if_not: MACRO
 ; those instructions. So it's a sleek, fast and readable way to compare #s
 ; just remember that ifa doesn't work with negative #'s or those >= 256
 ifa: MACRO
-	cp \2
+	cp	\2
 	IF (STRCMP("\1", "==") == 0) ; Z=1
-	jr	nz, .skip_if_a\@
+	jr	nz, .skip_ifa\@
 	ENDC
 	IF (STRCMP("\1", ">=") == 0) ; C=0
-	jr	c, .skip_if_a\@
+	jr	c, .skip_ifa\@
 	ENDC
 	IF (STRCMP("\1", ">") == 0) ; C=0 & Z=0
-	jr	c, .skip_if_a\@
-	jr	z, .skip_if_a\@
+	jr	c, .skip_ifa\@
+	jr	z, .skip_ifa\@
 	ENDC
 	IF (STRCMP("\1", "<=") == 0) ; C=1 | Z=1
-	jr	c, .exec_if_a_cmd\@  ; immediately exec if C=1
-	jr	nz, .skip_if_a\@  ; fallthrough if Z=1. Otherwise, skip
+	jr	c, .exec_ifa_cmd\@  ; immediately exec if C=1
+	jr	nz, .skip_ifa\@  ; fallthrough if Z=1. Otherwise, skip
 	ENDC
 	IF (STRCMP("\1", "<") == 0) ; C=1
-	jr 	nc, .skip_if_a\@
+	jr 	nc, .skip_ifa\@
 	ENDC
 	IF (STRCMP("\1", "!=") == 0) ; Z=0
-	jr	z, .skip_if_a\@
+	jr	z, .skip_ifa\@
 	ENDC				; support both != and <>
 	IF (STRCMP("\1", "<>") == 0) ; Z=0
-	jr	z, .skip_if_a\@
+	jr	z, .skip_ifa\@
 	ENDC
-.exec_if_a_cmd\@
+.exec_ifa_cmd\@
 	unpack_arg3_cmd
-.skip_if_a\@
+.skip_ifa\@
 	; we've completed ifa logic. Now we verify arguments are valid.
 	; hint: I've seen that passing a 16-bit value to ifa doesn't cause an
 	; error. We should detect that, and warn / fail
@@ -123,6 +123,46 @@ ifa: MACRO
 	;ENDC
 	;ENDC
 	;ENDC
+	ENDM
+
+; just like ifa but reversed logic
+; ifa_not >=, 4, inc C
+; will increment C only if A is 3, 2, 1, 0 (basically if A < 4)
+ifa_not: MACRO
+	cp	\2
+	IF (STRCMP("\1", "==") == 0) ; Z = 1 if A==\2
+	; treat as ifa != x
+	jr	z, .skip_ifa_not\@; since this is reverse logic, we skip if Z=1
+	ENDC
+	IF (STRCMP("\1", ">=") == 0) ; C=0 if A>=\2
+	; ifa < x
+	jr	nc, .skip_ifa_not\@	; skip if C=0
+	ENDC
+	IF (STRCMP("\1", ">") == 0) ; C=0 & Z=0 if A>\2
+	; ifa <= x
+	jr	c, .exec_ifa_not_cmd\@	; reversed logic, execute if C=1
+	jr	nz, .skip_ifa_not\@		; reversed logic, skip if Z=0
+	ENDC
+	IF (STRCMP("\1", "<=") == 0) ; C=1 | Z=1
+	; ifa > x
+	jr	c, .skip_ifa_not\@  ; skip if C=1
+	jr	z, .skip_ifa_not\@  ; skip if Z=1
+	ENDC
+	IF (STRCMP("\1", "<") == 0) ; C=1 if A<\2
+	; ifa >= x
+	jr 	c, .skip_ifa_not\@
+	ENDC
+	IF (STRCMP("\1", "!=") == 0) ; Z=0
+	; ifa == x
+	jr	nz, .skip_ifa_not\@
+	ENDC				; support both != and <>
+	IF (STRCMP("\1", "<>") == 0) ; Z=0
+	; ifa == x
+	jr	nz, .skip_ifa_not\@
+	ENDC
+.exec_ifa_not_cmd\@
+	unpack_arg3_cmd
+.skip_ifa_not\@
 	ENDM
 
 
