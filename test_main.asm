@@ -48,6 +48,7 @@ begin:
 	call	test_0A_if_flags
 	call	test_0B_shifts
 	call	test_0C_increment_decrement
+	call	test_0D_ifa_not
 	call	test_11_math_MultiplyAC		; begin test_math.asm
 	call	test_12_math_Mult_Shortcuts
 	call	test_13_math_Divide_C_by_B

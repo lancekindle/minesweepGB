@@ -133,46 +133,46 @@ test_08_truefalse:
 test_09_ifa:
 	; test failing matches first
 	lda	1
-	ifa	>=, 2, jp .failed_09 
-	ifa	<=, 0, jp .failed_09
-	ifa	<, 1, jp .failed_09
-	ifa	>, 1, jp .failed_09
-	ifa	==, 0, jp .failed_09
-	ifa	==, 2, jp .failed_09
-	ifa	<>, 1, jp .failed_09
-	ifa	!=, 1, jp .failed_09
+	ifa	>=, 2, jp .failed 
+	ifa	<=, 0, jp .failed
+	ifa	<, 1, jp .failed
+	ifa	>, 1, jp .failed
+	ifa	==, 0, jp .failed
+	ifa	==, 2, jp .failed
+	ifa	<>, 1, jp .failed
+	ifa	!=, 1, jp .failed
 	; now test positive matches
 	lda	5
 .ifa0
 	ifa	>=, 4, jp .ifa1		; test >  (part of >=)
-	jp	.failed_09
+	jp	.failed
 .ifa1
 	ifa	>=, 5, jp .ifa2		; test =  (part of >=)
-	jp	.failed_09
+	jp	.failed
 .ifa2
 	ifa	<=, 6, jp .ifa3		; test <  (part of <=)
-	jp	.failed_09
+	jp	.failed
 .ifa3
 	ifa	<=, 5, jp .ifa4		; test =  (part of <=)
-	jp	.failed_09
+	jp	.failed
 .ifa4
 	ifa	>, 4, jp .ifa5		; test > (but only >)
-	jp	.failed_09
+	jp	.failed
 .ifa5
 	ifa	<, 6, jp .ifa6		; test < (but only <)
-	jp	.failed_09
+	jp	.failed
 .ifa6
 	ifa	==, 5, jp .ifa7		; test ==
-	jp	.failed_09
+	jp	.failed
 .ifa7
 	ifa	<>, 6, jp .ifa8		; test <>
-	jp	.failed_09
+	jp	.failed
 .ifa8
 	ifa	!=, 4, jp .ifa9		; test !=
-	jp	.failed_09
+	jp	.failed
 .ifa9
 	TestResult	9
-.failed_09
+.failed
 	lda	0
 	TestResult	9
 
@@ -301,3 +301,52 @@ test_0C_increment_decrement:
 	lda	0
 	TestResult	12
 
+
+; test that ifa_not works as expected.
+test_0D_ifa_not:
+	; test failing matches first (where A IS >=2, but we're testing that
+	; ifa_not will reverse that logic)
+	lda	1
+	ifa_not	<=, 2, jp .failed
+	ifa_not	>=, 0, jp .failed
+	ifa_not <=, 1, jp .failed
+	ifa_not	>=, 1, jp .failed
+	ifa_not	<, 2, jp .failed
+	ifa_not	>, 0, jp .failed
+	ifa_not	==, 1, jp .failed
+	ifa_not	<>, 2, jp .failed
+	ifa_not	<>, 0, jp .failed
+	ifa_not	!=, 2, jp .failed
+	; now test positive matches (where A ISN'T >=2, but we're testing
+	; that ifa_not will reverse that logic)
+	lda	5
+.ifa0
+	ifa_not	<=, 4, jp .ifa1		; test >
+	jp	.failed
+.ifa1
+	ifa_not	>=, 6, jp .ifa2		; test >=
+	jp	.failed
+.ifa2
+	ifa_not	>, 5, jp .ifa3		; test >
+	jp	.failed
+.ifa3
+	ifa_not	<>, 5, jp .ifa4		; test ==
+	jp	.failed
+.ifa4
+	ifa_not	>, 6, jp .ifa5		; test >
+	jp	.failed
+.ifa5
+	ifa_not	<, 5, jp .ifa6		; test <
+	jp	.failed
+.ifa6
+	ifa_not	<, 4, jp .ifa7		; test <
+	jp	.failed
+.ifa7
+	ifa_not	!=, 5, jp .passed	; test !=
+	jp	.failed
+.failed
+	lda	0
+	TestResult	13
+.passed
+	lda	1
+	TestResult	13
