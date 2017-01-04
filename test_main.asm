@@ -53,6 +53,8 @@ begin:
 	call	test_12_math_Mult_Shortcuts
 	call	test_13_math_Divide_A_by_C
 	call	test_21_matrix_DeclareInit	; begin test_matrix.asm
+	call	test_22_matrix_IterDeclareInit
+	call	test_23_matrix_SubmatrixIter
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
