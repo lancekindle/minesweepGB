@@ -199,32 +199,6 @@ mat_IterInit: MACRO
 	ENDC
 	ENDM
 
-; setup iterator to iterate in a 3x3 square centered around given coordinates
-; currenty doesn't account for edges
-mat_IterInitRelativeNeighbors: MACRO
-	load	d, \2
-	load	e, \3	; D,E should contain Y, X, respectively
-	mat_IterInit	\1	; lazy setup of all variables
-			; WARNING: overwrite A & HL
-	dec	d
-	dec	e	; get address @ (Y-1, X-1)
-	mat_IndexYX	\1, d, e	; calculate index @ (Y-1, X-1)
-	load	bc, \1	; base address of matrix
-	add	hl, bc	; full address of matrix@(Y-1,X-1)
-	lda	l
-	ld	[\1_iter_ptrL], a
-	lda	h
-	ld	[\1_iter_ptrH], a	; store pointer to start of submatrix
-	ld	b, 3	; size of submatrix (both width and height)
-	lda	b	; size of submatrix
-	ld	[\1_iter_W], a
-	ld	[\1_iter_steps_remain], a
-	dec	a	; rows to traverse are 1 less than height of submatrix
-	ld	[\1_iter_rowsteps_remain], a
-	lda	\1_W
-	sub	b	; rowstep = (matrix width - submatrix width)
-	ld	[\1_iter_rowstep], a
-	ENDM
 
 ; call this macro to get the next element in an initiated matrix iterator
 ; the next-in-line byte will be in A when this completes, and HL will contain
@@ -317,8 +291,90 @@ mat_IterNext_fxn:
 	ret_true		; indicate there are still more elements
 
 
+; mat_IterCount    matrix, >=, 5
+; uses AF, BC, HL, DE
+; stops iteration short if count reaches 255
+; EXIT: count in A
+;	last-used-address within matrix in HL
+mat_IterCount: MACRO
+	ld	c, 1	; our count (start at 1 to detect overflow. -1 at end)
+	load	b, \3	; number to compare stored in B. (BC is only register
+			; pair that we preserve)
+.loop\@
+	push	bc	; store compare# and count
+	mat_IterNext	\1	; gets next byte
+	pop	bc	; restore compare# and count
+	jr	nc,	.done\@	; CY=0 when we've gone past end of matrix
+	ifa_not	\2, b, jr 	.loop\@	; begin loop again if comparison failed
+	inc	c			; else, increment our count
+	jr	nz, .loop\@		; (and then begin loop again)
+	; we get here if C overflowed ($FF > $00)
+.done\@
+	dec	c	; -1 to compensate for +1 in beginning
+			; (this ensures that if we overflowed, we'll return FF)
+	ld	a, c	; place count in a
+	ENDM
 
-	
+
+
+; call this, and the iterator will be exhausted, and count of iterated
+; bytes returned.
+; Useful for debugging; otherwise there's much easier ways to get the
+; size of a submatrix
+; (can handle a maximum of 255 bytes). Will return 255 and stop exhausting
+; iterator
+mat_IterExhaust: MACRO
+	ld	c, 1	; our count (start at 1) (we'll compensate at end)
+	; this is so that if we hit max count (255), C will actually have
+	; rolled over to 0, which triggers the Zero-flag, and we can
+	; detect that and stop before we sample 256 values
+	; (which is one greater than we can handle)
+.loop\@
+	push	bc	; store count
+	mat_IterNext	\1	; gets next byte
+	pop	bc	; restore count
+	jr	nc,	.done\@	; CY=0 when we've gone past end of matrix
+	inc	c	; count += 1
+	jr	nz, .loop\@		; (and then begin loop again)
+	; we get here if C overflowed ($FF > $00)
+.done\@
+	dec	c	; this compensates for the ld c, 1 above
+	ld	a, c	; place count in a
+	ENDM
+
+
+; mat_Count	name, >=, #
+; Count all bytes in matrix that match conditional comparison
+; such as >=, 3   (or >=, B   if B contains the value 3)
+; will stop counting if count maxes out at 255, and finish with 255 immediately
+; HL will contain the address of the last-compared byte in the matrix
+mat_Count8bit: MACRO
+	load	hl, \1	; load address of matrix
+	load	b, \3	; comparator value  (\2 is comparison type: ==, >...)
+	ld	c, 0	; our counter for # of instances
+	ld	de, \1_size	; loop count
+	inc	d ; we increment both D&E because our for-loop decrements
+	inc	e ; in a non-std way. (we decrement first, then loop)
+	jr	.countdown\@
+.loop\@
+	ld	a, [hl]		; load byte from matrix
+	ifa_not	\2, b, jr	.countdown\@
+	inc	c		; increment C
+	jr	z,	.maxed_count\@	; C just rolled over from FF to 0
+.countdown\@
+	increment	hl	; advance to next byte in matrix
+	dec	e	; countdown. (when combined with the below dec d)
+	jr	nz, .loop\@ ; if e isn't zero, we don't yet have to dec d
+	dec	d	; sets Zero flag if DE==0
+	jr	nz, .loop\@	; continue looping until DE == 0
+	inc	c	; to offset the below dec c
+.maxed_count\@
+	dec	c	; If we got here by jr z, .maxed_count,
+	; then C just maxed out in values (FF) and was incremented to zero.
+	; we decrement, then, to restore the max value, 255
+	ld	a, c	; place count in A
+	ENDM
+
 
 mat_GetIndex: MACRO
 	load	bc, \1, "arg1 of mat_GetIndex is matrix-name or address"
