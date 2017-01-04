@@ -199,8 +199,15 @@ probe_cell:
 	mat_GetIndex	flags, hl	; result in a
 	pop	hl
 	pop	de
-	ifa	==, Flag, ret		; ignore probe if Y,X is flagged
-.continue_probe		; now we need to probe (y-1, x-1):(y+1,x+1)
+	ifa	==, Flag, ret	; ignore probe if Y,X is flagged
+.check_explode
+	push	de	; store Y,X coordinates
+	push	hl	; store Y,X index for writing # to screen later
+	mat_GetIndex	mines, hl	; HL equals current index
+	pop	hl
+	pop	de	; y,x coordinates
+	ifa	==, 1, ret	; return (do nothing) if we exploded
+.count_nearby_mines		; now we need to probe (y-1, x-1):(y+1,x+1)
 	push	hl	; store Y,X index for writing # to screen later
 	lda	-1
 	add	d	; get Y - 1
@@ -225,16 +232,12 @@ probe_cell:
 	; setup iterator @mines, from (y-1, x-1) to (y+1, x+1)
 	; aka	[y-1:y+2,x-1:x+2)    <==  [inclusive start, exclusive end)
 	; where (y,x) is the coordinates of the player
+	; b, c  = (y-1, y+2).   d, e == (x-1, x+2)
 	mat_IterInit	mines, b, c, d, e
-	mat_IterExhaust mines
-	;mat_IterCount	mines, ==, 1; counts mines surrounding player
-	; so far it seems like iterCount iterates over a smaller matrix
-	; (iter must not iterate correctly)
-	add	"0"			; set A to string version of count
+	mat_IterCount	mines, ==, 1; counts mines surrounding player
+	add	"0"		; set A to string version of count
 	pop	hl	; retrieve Index @ Y, X
-	push	af
-	call	lcd_Wait4VBlank		; need to wait for VRAM to be available
-	pop	af
+	preserve	af, call lcd_Wait4VBlank ; need to wait for VRAM access
 	mat_SetIndex	_SCRN0, hl, a	; write count to screen background
 	ret
 
