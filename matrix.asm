@@ -69,9 +69,10 @@ mat_Init: MACRO
 		ENDC
 	ENDC
 	; matrix-name, start addr of values, byte-count of values (end-start)
-	IF _NARG == 3	; if user passes start & end address of values to fill
+	IF _NARG == 3	; if user passes start address & size of values to fill
 		; make pre-compile checks only
 		; if passed argument 3 isn't a dynamic value in a register pair
+		PRINTT "\n[===     \1, \2, \3     ===]\n"
 		IF STRIN("afbcdehlAFBCDEHL", "\3") == 0
 		; verify matrix will be fully filled by supplied values
 		IF (\3) != (\1_H * \1_W)
@@ -86,11 +87,14 @@ mat_Init: MACRO
 		load	de, \1, "matrix address is destination"
 		load	hl, \2, "start address of values is source"
 		load	bc, \3, "number of bytes to fill (end - start)"
+		PRINTV	\3
 		IF (\1 < $A000) && (\1 + (\1_H * \1_W) > $8000)
 		; if inside VRAM space ($8000 - $A000), use SetVRAM to prevent
 		; access outside of vblank (else it will trash video display)
+			PRINTT "copying into VRAM"
 			call	mem_CopyVRAM
 		ELSE
+			PRINTT "copying outside vram"
 			call	mem_Copy
 		ENDC
 	ENDC
@@ -114,31 +118,33 @@ mat_IterDeclare: MACRO
 ; initialize iterator. Save variables to ram
 ; if you pass in just the matrix name, the iterator will be set up to
 ; iterate the entire matrix
-; TRASHES ALL REGISTERS
+; USES AF, BC, DE, HL
 mat_IterInit: MACRO
 	IF _NARG == 1
 	ld	hl, \1 - 1	; load address of matrix - 1
 				; (we increment before sampling)
-	lda	l	; load LSB of matrix address (-1)
+	lda	l	; load LSB of matrix address
 	ld	[\1_iter_ptrL], a
-	lda	h	; load MSB of matrix address (-1)
+	lda	h	; load MSB of matrix address
 	ld	[\1_iter_ptrH], a
 	; store steps-remain as a way to count down until we reach end of row
-	; in this case, the width of the matrix -1
-	lda	\1_W - 1
+	; in this case, the width of the matrix
+	lda	\1_W + 1	; FIRST ROW ITERATION needs an additional step
 	ld	[\1_iter_steps_remain], a
-	; store width of matrix as iter_W - 1. If we were iterating a submatrix
+	; store width of matrix as iter_W. If we were iterating a submatrix
 	; the width would be smaller than the full matrix. This number is used
 	; to restore _iter_step_remain when we advance to the next row
 	; (it's also equal to the initial value of \1_iter_steps remain)
+	lda	\1_W		; all proceeding row iterations require just
+				; the width  (not +1)
 	ld	[\1_iter_W], a
 	; step is amount that we increment index-address (iter_ptr) each time
 	; we advance to the next element
 	lda	1
 	ld	[\1_iter_step], a	; store step (in x-direction) as 1
 	; store rowstep remain as a way to count down # of rows to traverse
-	; (in this case, the height of the matrix - 1)
-	lda	\1_H - 1
+	; (in this case, the height of the matrix)
+	lda	\1_H
 	ld	[\1_iter_rowsteps_remain], a
 	; rowstep is extra amount to increment to return to start of next row
 	; for a whole-matrix iteration, rowstep is 0, as iter_step will get us
@@ -148,6 +154,8 @@ mat_IterInit: MACRO
 	ld	[\1_iter_rowstep], a	; store rowstep of 1
 	ENDC
 	; 5 args: name, startY, endY, startX, endX  (assumes x,y steps are 1)
+	; bounds are inclusive start, exclusive end:
+	; [y1:y2, x1:x2)	meaning: up-to, but NOT including y2 and x2
 	IF _NARG == 5
 		load	b, \2, "arg2 mat_IterInit: Start Y"
 		load	c, \3, "arg3 mat_IterInit: End Y"
@@ -157,15 +165,25 @@ mat_IterInit: MACRO
 		ld	[\1_iter_step], a
 		lda	e
 		sub	d	; calculate endX - startX
-		ld	[\1_iter_steps_remain], a	; aka # of cols
+		;inc	a	; +1 to account for loop quirks
+		inc	a	; +1 for first row
+		ld	[\1_iter_steps_remain], a	; aka # of cols in row
+		dec	a ; -1 rest of row-iterations should use normal width
 		ld	[\1_iter_W], a		; submatrix width
+		;dec	a	; remove 1 since we added 1 for loop-correction
+		; get two's complement of width (aka get -width)
 		cpl
 		inc	a	; get negative width (-width) of submatrix
-		add	\1_W	; matrix_width - submatrix_width = rowstep
+		add	\1_W + 1; rowstep = matrix_width - submatrix_width + 1
+		; +1 because we want to get first byte of next row, 
+		; not last byte of the current row
 		ld	[\1_iter_rowstep], a
 		lda	c
-		sub	b	; calculate endY - startY
-		dec	a	; rowsteps = # of rows -1
+		sub	b	; calculate endY - startY (aka # of rows)
+		; there used to be a `dec a` here, but I removed it
+		; due to our new iterstep method, which stops one row early
+		; (decrements rowsteps_remain and then exits if it equals zero
+		; rather than checking if it equals zero first)
 		ld	[\1_iter_rowsteps_remain], a
 		ld	e, d	; move Start X to e
 		ld	d, b	; move Start Y to d
@@ -237,6 +255,7 @@ mat_IterNext: MACRO
 ; where xxx can be a register or a hard-coded value. Just be very careful
 ; that you verify it's not within VRAM range. (If it is, you just need to wait
 ; for V-Blank before writing, or else you risk garbling the display).
+
 mat_IterNext_fxn:
 	ld	b, 0	; setup for adding bc to HL later ;)
 	push	de	; store "start of variables" address
@@ -248,10 +267,9 @@ mat_IterNext_fxn:
 	ld	h, a	; now hl points to curent index in (sub)matrix
 .iter_next_step
 	increment	de	; now DE points to \1_iter_steps_remain
-	ld	a, [de]
-	and	a	; set Z flag if steps (in column) remaining is zero
-	jr	z, .iter_next_row	; skip iter-col to begin iter-row
+	ld	a, [de]		; get iter_steps_remain
 	dec	a
+	jr	z, .iter_next_row	; if zero, skip iter-col to begin iter-row
 	ld	[de], a		; update value of \1_iter_steps_remain in ram
 	increment	de	; point to \1_iter_step
 	ld	a, [de]
@@ -262,15 +280,15 @@ mat_IterNext_fxn:
 	increment	de	; point to \1_iter_step (was skipped above)
 	increment	de	; point to \1_iter_rowsteps_remain
 	ld	a, [de]
-	and	a	; set Z flag if rows remaining is zero
+	dec	a ; sets Z flag if rows remaining is zero (we just decremented
+	; to zero, but we had previously incremented to offset this)
 	; if no rows remain, we haven't got any more elements to read
 	; which means we already got last element in the last iteration
 	jr	z, .iter_ended	; hl points to last element
-	dec	a	; ah, good. continue to next row's element
 	ld	[de], a	; store remaining rows
 	increment	de	; points to \1_iter_rowstep
-	ld	a, [de]		; assume b=0. So BC=rowstep-amount
-	ld	c, a
+	ld	a, [de]		; get rowstep
+	ld	c, a		; assume b=0. So BC=rowstep-amount
 	increment	de	; points to \1_iter_W
 	ld	a, [de]		; grab reset # for \1_iter_steps_remain
 	add	hl, bc	; step to next row's element in iterator
@@ -284,9 +302,9 @@ mat_IterNext_fxn:
 .iter_ended
 	pop	de ; retrieve pushed (now unnecessary) address of variables
 	ld	a, [hl]		;get element @ index
-	set_false		; indicate end of iteration.
-	ret			; No new element was retried this iteration
-				; The last element is repeated here
+	ret_false		; indicate end of iteration.
+				; No new byte was retrieved this iteration
+				; The last byte is repeated here
 .iter_get_element
 	ld	c, [hl]			; get element @ index
 	pop	de		; retrieve "start of variables" address
@@ -296,8 +314,8 @@ mat_IterNext_fxn:
 	increment	de
 	ld	[de], a		; store MSB. Finishes storing new index in ram
 	ld	a, c		; place element in A
-	set_true		; indicate there are still more elements
-	ret
+	ret_true		; indicate there are still more elements
+
 
 
 	
