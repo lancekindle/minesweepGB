@@ -441,32 +441,72 @@ math_MultiplyComplicatedPowerOf2: MACRO
 ; once the sample is >= denominator.
 ; we continue this process, adding MSBs to the remainder, until we've
 ; fully-divided the numerator.
-; Register A is the remainder (and sampled MSB's).
-; Register B is the denominator
-; Register C is the numerator
-; Register D holds the result. Every time we shift a MSB into A, we shift D
-; because we are looking at another power of 2 division.
-math_Divide_C_by_B:
-	ld	a, 0	; we will be shifting MSB's of C into A
+; INPT:	A holds numererator
+;	C holds denominator
+; EXIT:	A holds integer result (rounded down)
+;	B holds remainder
+;	C still holds denominator
+; USES:	AF, BC, DE
+math_Divide_A_by_C:
+	ld	b, a	; our algorithm actually performs B / C
+			; (but we want conformity)
+	ld	a, 0	; we will be shifting MSB's of B into A
 	ld	d, 0	; we will store division result in D
 	ld	e, 9	; # of times I will divide + 1. Rounded-Down Integer
 .start_divide_C_by_A:
 	dec	e
 	jr	z, .done_dividingCB
-	shift_left	a, c	; take first MSB sample from C, place in A
-	ifa	>=, b, jr .subtract_B_from_A
-	SLA	d	; sampled bits still too small for B, we have not yet
+	shift_left	a, b	; take first MSB sample from B, place in A
+	ifa	>=, c, jr .subtract_B_from_A
+	SLA	d	; sampled bits still too small for C, we have not yet
 			; divided the remainder by B
 	jr .start_divide_C_by_A
 .subtract_B_from_A:
-	sub	b	; remainder is in A
+	sub	c	; remainder is in A
 	SCF
 	RL	d	; sampled bits were larger than B, so we have divided
 			; a portion of the register.
 			; To indicate we've done this, shift and store 1 in D
 	jr .start_divide_C_by_A
 .done_dividingCB:
+	ld	b, a	; store remainder in B
+	ld	a, d	; store result (from D) in A
 	ret
+
+
+; macro to set-up variables and call math_Divide. Will opt for speed-shortcuts
+; wherever possible.
+math_Div: MACRO
+	load	a, \1, "byte to be divided"
+	; now we just need to check what kind of argument \2 is, and perform
+	; the correct (and preferably fast) procedure
+	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+	; looks like the user passed a register / register pair
+		PRINTT	"performing register A/C division"
+		load	c, \2, "divider byte"
+		call	math_Divide_A_by_C
+	ELSE
+	; check if \2 is a divisor that can be done fast computationallly
+	; these divisors are in the form 2^C
+	; basically, check if \2 is one of these numbers:
+	; 8 (yep that's all for now)
+	IF (\2 == 8)
+		PRINTT "\nUsing fast division for \1 / \2\n"
+		math_DivideFastPowerOf2	a, \2
+	ENDC
+	ENDC
+	ENDM
+
+
+math_DivideFastPowerOf2: MACRO
+	load	a, \1, "byte to be divided"
+	IF (\2 == 8)
+		shift_right	a
+		shift_right	a
+		shift_right	a
+	ENDC
+	ENDM
+
 
 
 
