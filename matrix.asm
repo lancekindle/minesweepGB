@@ -449,5 +449,32 @@ mat_IndexYX: MACRO
 	add	hl, de	; add X mem offset to HL
 	ENDM
 
+; from an index, calculate the Y, X coordinates in D,E respectively
+; USES:	BC, DE, HL
+; EXIT: D,E holds Y,X
+mat_YX_from_Index: MACRO
+	load	hl, \2, "index from which to calculate y,x"
+	ld	b, 0
+	ld	c, \1_W	; BC == 16-bit value of width
+	cpl	b
+	cpl	c		; calculate two's complement so that:
+	increment	bc	; BC = -width
+	ld	d, 0	; count (Y coordinate)
+.sub	add	hl, bc
+	jr	c, .y_found ; check if we've gone past 0. D = Y-value
+	inc	d	; y+=1
+	jr	.sub
+.y_found
+	decrement	bc
+	cpl	b
+	cpl	c	; get original width
+	add	hl, bc	; HL previously held negative number after subtraction
+			; of one too many rows. Now we add a row back to get
+			; index remaining after valid Y-coordinate subtracted
+	; HL should contain $00XX, where L contains XX, the X coordinate
+	ld	e, l	; place X coordinate in E
+	ENDM
+
+
 
 	ENDC	; end matrix define
