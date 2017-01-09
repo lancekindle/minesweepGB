@@ -90,6 +90,26 @@ TestResult: MACRO
 	ret	; cause test function to return
 	ENDM
 
+; cause TestResult to pass
+TestPassed: MACRO
+	lda	1
+	IF _NARG == 2
+		TestResult	\1, \2
+	ELSE
+		TestResult	\1
+	ENDC
+	ENDM
+
+
+; cause TestResult to fail
+TestFailed: MACRO
+	lda	0
+	IF _NARG == 2
+		TestResult	\1, \2
+	ELSE
+		TestResult	\1
+	ENDC
+	ENDM
 
 
 
