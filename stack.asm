@@ -12,8 +12,10 @@ include "math.asm"
 STACK_ASM	SET	1
 
 stack_Declare: MACRO
-\1_stack_size = \2
-\1_stack_end = \1 + \1_stack_size - 1
+; add 1 to stack-size (arg \2) so that it holds the expected number of bytes
+\1_stack_size = \2 + 1			; create compiler-level constant vars
+	var_MidRamBytes	\1, \2 + 1	; reserve stack's size (+1) of ram
+\1_stack_end = \1 + \2			; keep track of end of stack
 	IF !DEF(\1)
 		PRINTT "\nCreating Stack called \1 with size \2\n"
 		var_MidRamBytes \1, \2
@@ -80,6 +82,7 @@ stack_PushA:
 ; pop A from stack
 ; returns true and with byte in A if there's an available byte to read
 ; else return false, with A holding 0
+; USES:	AF, BC, DE, HL
 stack_Pop: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1		; load beginning of stack address-space
@@ -109,6 +112,7 @@ stack_PopA:
 ; returns with HL containing stack size
 ; returns true if HL > 0
 ; returns false if HL == 0
+; USES:	AF, BC, DE, HL
 stack_Size: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1		; load start of stack address
@@ -119,10 +123,18 @@ stack_SizeHL:
 	ld	c, [hl]	; load LSB of stack top pointer
 	increment	hl
 	ld	b, [hl]	; load MSB of stack top pointer
-	ldpair	h,l,	d,e	; load hl with address of start of stack
-	cpl	l
-	cpl	h
-	increment	hl	; get two's complement of HL. (-HL)
+
+	lda	e	; begin loading -DE into HL
+	cpl
+	inc	a	; get two's complement of LSB of start of stack
+	; zero flag is set if we need to add 1 to MSB
+	ld	l, a
+	lda	d
+	cpl		; get one's complement of MSB of start of stack
+	if_flag	z, inc	a	; add one to MSB if LSB rolled over
+				; (part of creating two's complement)
+	ld	h, a	; DE contained start-of-stack address
+			; HL now contains -(DE)
 	add	hl, bc		; HL = BC - HL (aka "end-start" aka size)
 	ld	a, h
 	or	l	; sets zero flag if HL == 0
