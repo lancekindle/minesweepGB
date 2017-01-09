@@ -31,6 +31,7 @@ include "test_includes.asm"
 include "test_syntax.asm"
 include "test_math.asm"
 include "test_matrix.asm"
+include "test_stack.asm"
 
 begin:
 	di    ; disable interrupts
@@ -55,6 +56,9 @@ begin:
 	call	test_21_matrix_DeclareInit	; begin test_matrix.asm
 	call	test_22_matrix_IterDeclareInit
 	call	test_23_matrix_SubmatrixIter
+	call	test_31_stack_DeclareInit	; begin test_stack.asm
+	call	test_32_stack_PushPop
+	call	test_33_stack_Boundaries
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
