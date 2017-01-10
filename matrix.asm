@@ -110,9 +110,13 @@ mat_IterDeclare: MACRO
 	var_LowRamByte	\1_iter_step		; iterator step in x
 	var_LowRamByte	\1_iter_rowsteps_remain	; row steps remaining
 	var_LowRamByte	\1_iter_rowstep		; iterator step in y (from end of submatrix)
-	var_LowRamByte	\1_iter_W	; W of submatrix we're iterating
-					; (used to reset \1_iter_step_remain
-	ENDM				; after we advance a row)
+	var_LowRamByte	\1_iter_W; W of submatrix we're iterating (used to
+				 ; reset \1_iter_step_remain after we advance
+				 ; a row). Also to calculate current X coord
+	var_LowRamByte	\1_iter_H; used for calculating current Y coordinate
+	var_LowRamByte	\1_iter_offsetX	; used for calculating current X
+	var_LowRamByte	\1_iter_offsetY	; used for calculating current Y
+	ENDM
 
 
 ; initialize iterator. Save variables to ram
@@ -121,6 +125,7 @@ mat_IterDeclare: MACRO
 ; USES AF, BC, DE, HL
 mat_IterInit: MACRO
 	IF _NARG == 1
+	; we setup iterator to iterate full matrix. from (0,0) to (H, W)
 	ld	hl, \1 - 1	; load address of matrix - 1
 				; (we increment before sampling)
 	lda	l	; load LSB of matrix address
@@ -146,12 +151,16 @@ mat_IterInit: MACRO
 	; (in this case, the height of the matrix)
 	lda	\1_H
 	ld	[\1_iter_rowsteps_remain], a
+	ld	[\1_iter_H], a
 	; rowstep is extra amount to increment to return to start of next row
 	; for a whole-matrix iteration, rowstep is 0, as iter_step will get us
 	; from the last element of row 1 to the first element of row2,
 	; for example. When dealing with a submatrix, this will be > 0
 	lda	1
 	ld	[\1_iter_rowstep], a	; store rowstep of 1
+	lda	0
+	ld	[\1_iter_offsetY], a
+	ld	[\1_iter_offsetX], a	; iterator started at (0,0)
 	ENDC
 	; 5 args: name, startY, endY, startX, endX  (assumes x,y steps are 1)
 	; bounds are inclusive start, exclusive end:
@@ -161,6 +170,10 @@ mat_IterInit: MACRO
 		load	c, \3, "arg3 mat_IterInit: End Y"
 		load	d, \4, "arg4 mat_IterInit: Start X"
 		load	e, \5, "arg5 mat_IterInit: End X"
+		ld	a, b
+		ld	[\1_iter_offsetY], a
+		ld	a, d
+		ld	[\1_iter_offsetX], a	; iterator started at (B, D)
 		ld	a, 1
 		ld	[\1_iter_step], a
 		lda	e
@@ -185,6 +198,7 @@ mat_IterInit: MACRO
 		; (decrements rowsteps_remain and then exits if it equals zero
 		; rather than checking if it equals zero first)
 		ld	[\1_iter_rowsteps_remain], a
+		ld	[\1_iter_H], a
 		ld	e, d	; move Start X to e
 		ld	d, b	; move Start Y to d
 		mat_IndexYX	\1, d, e	; get start index in HL
@@ -220,16 +234,13 @@ mat_IterNext: MACRO
 ; and HL will contain memory address at which element was taken
 ; if user attempts to call IterNext and the iterator has already
 ; reached the end, it will reset the carry-flag (to 0) and return the last
-; element once again. This is known as the IterStop Signal.
-; If IterNext_fxn is called again after it has already reached the end,
-; it will return the last valid element from iteration,
-; and reset carry flag (to 0), as if it had just reached the end.
-; this is NOT the same thing as "Index". If you want to alter the value
+; valid element once again. This is known as the IterStop Signal.
+; at exit, the address in HL is NOT the same thing as "Index".
+; HL = Index + full_matrix_start_address. If you want to alter the value
 ; at address HL, simply use	ld [HL], xxx
 ; where xxx can be a register or a hard-coded value. Just be very careful
 ; that you verify it's not within VRAM range. (If it is, you just need to wait
 ; for V-Blank before writing, or else you risk garbling the display).
-
 mat_IterNext_fxn:
 	ld	b, 0	; setup for adding bc to HL later ;)
 	push	de	; store "start of variables" address
@@ -450,24 +461,34 @@ mat_IndexYX: MACRO
 	ENDM
 
 ; from an index, calculate the Y, X coordinates in D,E respectively
-; USES:	BC, DE, HL
+; USES:	AF, BC, DE, HL
 ; EXIT: D,E holds Y,X
 mat_YX_from_Index: MACRO
 	load	hl, \2, "index from which to calculate y,x"
 	ld	b, 0
 	ld	c, \1_W	; BC == 16-bit value of width
-	cpl	b
-	cpl	c		; calculate two's complement so that:
+	lda	b
+	cpl
+	ld	b, a
+	lda	c
+	cpl
+	ld	c, a		; calculate two's complement so that:
 	increment	bc	; BC = -width
 	ld	d, 0	; count (Y coordinate)
+; now we basically subtract width from Index until we can't anymore. The
+; number of times we've subtraced width is equal to the height (Y)
 .sub	add	hl, bc
 	jr	c, .y_found ; check if we've gone past 0. D = Y-value
 	inc	d	; y+=1
 	jr	.sub
 .y_found
 	decrement	bc
-	cpl	b
-	cpl	c	; get original width
+	lda	b
+	cpl
+	ld	b, a
+	lda	c
+	cpl		; undo two's complement to get original width.
+	ld	c, a	; BC = width
 	add	hl, bc	; HL previously held negative number after subtraction
 			; of one too many rows. Now we add a row back to get
 			; index remaining after valid Y-coordinate subtracted
@@ -475,6 +496,31 @@ mat_YX_from_Index: MACRO
 	ld	e, l	; place X coordinate in E
 	ENDM
 
+
+; get Y, X from current Iter location
+; USES: AF, DE, HL
+; EXIT: D,E contains Y, X, respectively
+mat_IterYX: MACRO
+	ld	a, [\1_iter_W]
+	ld	hl, \1_iter_steps_remain
+	sub	[HL]	; steps_taken = width - steps_remaining
+	; (the above cmd will set carry-flag if IterNext hasn't been used yet)
+	; (because steps_remaining > width in very beginning)
+	if_flag	c, lda 0 ; carry-flag is set if iterator wasn't started yet
+			 ; (because steps_remain = width+1 in beginning)
+			 ; So... we set steps_taken to 0
+	ld	hl, \1_iter_offsetX
+	add	[hl]	; add startX to steps_taken. `A` now contains X
+	ld	e, a	; store X in E
+	; do the same computation for Y
+	lda	[\1_iter_H]
+	ld	hl, \1_iter_rowsteps_remain
+	sub	[HL]
+	if_flag	c, lda 0
+	ld	hl, \1_iter_offsetY
+	add	[hl]	; A now contains Y
+	ld	d, a
+	ENDM
 
 
 	ENDC	; end matrix define

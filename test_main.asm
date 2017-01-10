@@ -56,6 +56,7 @@ begin:
 	call	test_21_matrix_DeclareInit	; begin test_matrix.asm
 	call	test_22_matrix_IterDeclareInit
 	call	test_23_matrix_SubmatrixIter
+	call	test_24_matrix_IterYX
 	call	test_31_stack_DeclareInit	; begin test_stack.asm
 	call	test_32_stack_PushPop
 	call	test_33_stack_Boundaries

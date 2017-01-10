@@ -135,13 +135,17 @@ mat5x5_end:
 
 submat5x5:
 DB	 1, 2, 3
-DB	 6, 7, 8
-DB	11,12,13
+DB	 6, 7, 8	; represents a 3x3 submatrix of the above 5x5
+DB	11,12,13	; starting at (0,0)
 
 submat5x5_1_4:
 DB	 7, 8, 9
-DB	12,13,14
-DB	17,18,19
+DB	12,13,14	; represents a 3x3 submatrix of the above 5x5
+DB	17,18,19	; but from coordinates (1,1) to (4,4)
+
+submat5x5_13_25:	; submatrix from (1,2) to (3,5)--> [1:3, 2:5)
+DB	 8, 9,10
+DB	13,14,15
 
 
 ;verify_submatrix iterator, hand-crafted-submatrix
@@ -172,10 +176,16 @@ test_23_matrix_SubmatrixIter:
 	; now let's test that the count is correct
 	mat_IterInit	m3, 1,4, 1,4	; setup another 3x3 submatrix
 	mat_IterExhaust	m3
-	ifa	<>, 9, jr .failed
-	; now verify values not just from 0,0 to 3,3
+	ifa	<>, 9, jp .failed
+	; now verify values are from 1,1 to 4,4
 	mat_IterInit	m3, 1,4, 1,4
 	verify_submatrix	m3, submat5x5_1_4
+	; now verify values [1:3, 2:5)
+	mat_IterInit	m3, 1,3,  2,5
+	mat_IterExhaust	m3
+	ifa	<>, 6, jp .failed	; verify count
+	mat_IterInit	m3, 1,3,  2,5
+	verify_submatrix	m3, submat5x5_13_25
 .passed
 	lda	1
 	TestResult	2, 3
@@ -183,7 +193,48 @@ test_23_matrix_SubmatrixIter:
 	lda	0
 	TestResult	2, 3
 
+verify_de: MACRO
+	lda	d
+	ifa	<>, \1, jp .failed
+	lda	e
+	ifa	<>, \2, jp .failed
+	ENDM
 
-; hl holds address to hand-crafted submatrix values
-compare_iter_to_array:
-	
+verify_iter_next_yx: MACRO
+	mat_IterNext	\1
+	mat_IterYX	\1
+	verify_de	\2, \3
+	ENDM
+
+; test that IterYX returns Y,X coordinates (in DE) of the @current Iter address
+; must set true if within the iterator coordinates, false if not
+; it'll only be false if the Iterator has not been Next'ed yet
+test_24_matrix_IterYX:
+	; make use of previously declared iterator on M3
+	mat_IterInit	m3, 0,2,  0,2
+	mat_IterYX	m3	; get Y,X in D,E
+	verify_de	0,0	; un-iterated iterator starts at 0,0
+	mat_IterNext	m3	; get first element @ 0,0
+	mat_IterYX	m3	; get Y,X
+	verify_de	0,0	; first element gotten. Iterator still at (0,0)
+	verify_iter_next_yx	m3, 0,1
+	verify_iter_next_yx	m3, 1,0	; iterator rolls over to next row
+	verify_iter_next_yx	m3, 1,1
+	verify_iter_next_yx	m3, 1,1	; already at end of iterator
+	; now lets test with a larger, offset iterator
+	mat_IterInit	m3, 1,3,   2,5	; [1:3, 2:5]
+	; y range: 1, 2
+	; x range: 2, 3, 4
+	mat_IterYX	m3
+	verify_de	1, 2	; before we've even iterated
+	verify_iter_next_yx	m3, 1, 2	; first iteration still @ start
+	verify_iter_next_yx	m3, 1, 3
+	verify_iter_next_yx	m3, 1, 4
+	verify_iter_next_yx	m3, 2, 2
+	verify_iter_next_yx	m3, 2, 3
+	verify_iter_next_yx	m3, 2, 4
+	verify_iter_next_yx	m3, 2, 4	; stuck at last coordinates
+.passed
+	TestPassed	2, 4
+.failed
+	TestFailed	2, 4
