@@ -67,6 +67,10 @@ include "vars.asm"
 include "matrix.asm"
 include "stack.asm"
 
+; declare some variables
+	var_LowRamByte	rNearbyCount
+	var_LowRamByte	rCellY
+	var_LowRamByte	rCellX
 
 	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
 	mat_Declare	mines, SCRN_VY_B, SCRN_VX_B	; setup mines matrix
@@ -218,75 +222,87 @@ probe_cell:
 	ifa	==, 1, ret	; return (do nothing) if we exploded
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
 	call	get_sprite_yx_in_de
-.add_DE_to_stack	; push Y,X (D,E) onto stack
+.add_DE_to_stack
 	ld	a, d
-	preserve	de, stack_Push	toExplore, a ; store Y coordinate
+	push	de
+	stack_Push	toExplore, a ; store Y coordinate
+	pop	de
 	ld	a, e
 	stack_Push	toExplore, a	; store X coordinate
 .explore_stack	; pop X,Y into E,D
 	stack_Pop	toExplore	; get X
 	ret	nc	; stack is empty. No more cells to probe. Return.
-	ld	e, a	; store X
-	preserve	de, stack_Pop	toExplore	; get Y
-	ld	d, a	; store Y
-	push	de	; store Y,X
+	ld	[rCellX], a	; store X
+	stack_Pop	toExplore	; get Y
+	ld	[rCellY], a	; store Y
+	ld	d, a		;Y in d
+	lda	[rCellX]
+	ld	e, a		;X in E
 	; D,E now holds Y,X, respectively
-.count_nearby_mines		; now we need to probe (y-1, x-1):(y+1,x+1)
+	call	count_nearby_mines	; writes # to screen, # returns in A
+	ifa	>, 0, jp .explore_stack	; nearby mines, so explore from stack
+.push_nearby_into_stack
+	lda	[rCellY]
+	ld	d, a
+	lda	[rCellX]
+	ld	e, a
+	; DE now holds YX
 	call	get_neighbor_corners_within_bounds
-	pop	HL	; pop Y,X into H,L
-	push	bc
-	push	de	; preserve neighbor corners
-	push	HL	; preserve Y,X on top of stack
+	; b, c holds (y-1, y+2), d, e holds (x-1, x+2)
+	mat_IterInit	mines, b, c, d, e	; setup iterate neighbors
+.loop_push_neighbors
+	mat_IterNext	mines	; we only iter to add each cell's Y,X to stack
+	jp	nc, .explore_stack	; finished adding cells to stack.
+					; now let's explore next cell on stack
+	push	hl		; store index@matrix
+	mat_GetIndex	probed, hl	; get value @ index in A
+	pop	hl
+	ifa	==, 1, jr .loop_push_neighbors	; this cell's already been
+						; explored. Move to next cell.
+	mat_SetIndex	probed, hl, 1	; NOW we set cell to probed
+					; before we add it to stack
+
+	; INTERESTING. IF we comment out above command to mark a cell
+	; as probed, the stack fills up. And, because the stack is odd-length,
+	; when it pops off, it gets Y,X mixed up as X,Y
+	; TODO: Add a stack_Push2 that'll only push values if both will fit.
+	mat_IterYX	mines	; get Y,X of current iteration in D,E
+	lda	d
+	push	de
+	stack_Push	toExplore, a	; push Y coordinate
+	pop	de
+	lda	e
+	stack_Push	toExplore, a	; push X coordinate
+	jr	.loop_push_neighbors
+
+
+; call this with coordinates Y,X loaded in D,E
+; This will write the number of nearby mines on-screen as well
+; EXIT:	count of nearby mines in A
+count_nearby_mines:		; now we need to probe (y-1, x-1):(y+1,x+1)
+	push	de
+	call	get_neighbor_corners_within_bounds
 	; setup iterator @mines, from (y-1, x-1) to (y+1, x+1)
 	; aka	[y-1:y+2,x-1:x+2)    <==  [inclusive start, exclusive end)
 	; where (y,x) is the coordinates of the player
 	; b, c  = (y-1, y+2).   d, e == (x-1, x+2)
 	mat_IterInit	mines, b, c, d, e
 	mat_IterCount	mines, ==, 1; counts mines surrounding player
-	add	"0"		; set A to string version of count
-	preserve	af, call lcd_Wait4VBlank ; need to wait for VRAM access
+	ld	[rNearbyCount], a	; store minecount
 	pop	de	; retrieve Y, X
-	push	af
 	mat_IndexYX	_SCRN0, d,e	; calculate index
-	pop	af
 	push	hl	; store index
-	push	af	; store value of a
+	call	lcd_Wait4VBlank ; need to wait for VRAM access
+	lda	[rNearbyCount]
+	add	"0"	; create string equivalent of count
 	mat_SetIndex	_SCRN0, hl, a	; write count to screen background
-	pop	hl
+	pop	hl	; pop matrix index
 	mat_SetIndex	probed, hl, 1	; show that it's been explored
-	pop	af	; restore value of nearby mines
-	pop	de
-	pop	bc	; restore neighbor corners in d,e,  b,c
 	; only explore neighbors if all of them are empty
-	ifa	==,"0", jr	.push_nearby_into_stack
-	; else continue to explore current stack
-	jp	.explore_stack
-.push_nearby_into_stack
-	mat_IterInit	mines, b, c, d, e	; iterate neighbors
-.loop_push_neighbors
-	mat_IterNext	mines	; we only iter to get next HL address / Y,X
-	jp	nc, .explore_stack		; finished adding to stack.
-						; now let's explore it
-	push	hl
-	mat_GetIndex	probed, hl
-	ifa	==, 1, jr .donot_explore_already_explored
-	pop	hl
-	push	hl
-	mat_SetIndex	probed, hl	; NOW we set cell to probed
-	pop	hl			; before we add it to stack
-	call	mat_YX_from_Index
-	ld	a, d	; D holds Y address
-	preserve	de, stack_Push	toExplore	; push Y coordinate
-	ld	a, e	; E holds X address
-	stack_Push	toExplore	; push X coordinate
-	jr	.loop_push_neighbors
-.donot_explore_already_explored
-	pop	hl
-	jr .loop_push_neighbors
+	lda	[rNearbyCount]
+	ret
 
-
-
-; USES:	A, BC, DE
+; USES:	AF, BC, DE
 ; INPT:	Y,X in D,E, respectively
 ; EXIT:	Y-1,Y+2 in B,C.  X-1,X+2 in D,E, respectively
 get_neighbor_corners_within_bounds:
