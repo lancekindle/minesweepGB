@@ -254,6 +254,17 @@ probe_cell:
 	mat_IterNext	mines	; we only iter to add each cell's Y,X to stack
 	jp	nc, .explore_stack	; finished adding cells to stack.
 					; now let's explore next cell on stack
+	; HL contains address of cell within mines. We need to calculate Index,
+	; which is HL - mines-start-address
+	ld	bc, mines
+	lda	b
+	cpl
+	ld	b, a
+	lda	c
+	cpl
+	ld	c, a		; get two's complement to:
+	increment	bc	; calculate -(mines)
+	add	hl, bc
 	push	hl		; store index@matrix
 	mat_GetIndex	probed, hl	; get value @ index in A
 	pop	hl
