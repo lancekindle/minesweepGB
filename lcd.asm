@@ -29,7 +29,7 @@ include "gbhw.inc"
 ;======================= (end reference) ====================================
 
 
-lcd_Wait4VBlank
+lcd_Wait4VBlank:
 	ld	a, [rLY]
 	cp	145	; are we at line 145 yet?  (finished drawing screen then)
 	jr	nz, lcd_Wait4VBlank

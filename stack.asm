@@ -56,6 +56,7 @@ stack_Push: MACRO
 ;	DE contains end of stack address
 ; returns true if succeeded. (A was pushed onto stack)
 ; returns false if no room left on stack
+; USES:	AF, BC, DE, HL
 stack_PushA:
 	ld	c, [hl]	; load LSB of stack top pointer
 	increment	HL	; hl -> \1_stack_topH
@@ -109,7 +110,7 @@ stack_PopA:
 	ld	[hl], c	; store LSB of stack top pointer
 	ret_true
 
-; returns with HL containing stack size
+; returns with HL containing stack size (as opposed to max size)
 ; returns true if HL > 0
 ; returns false if HL == 0
 ; USES:	AF, BC, DE, HL

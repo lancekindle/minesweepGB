@@ -236,7 +236,7 @@ mat_IterNext: MACRO
 ; reached the end, it will reset the carry-flag (to 0) and return the last
 ; valid element once again. This is known as the IterStop Signal.
 ; at exit, the address in HL is NOT the same thing as "Index".
-; HL = Index + full_matrix_start_address. If you want to alter the value
+; HL = Index + matrix_start_address. If you want to alter the byte
 ; at address HL, simply use	ld [HL], xxx
 ; where xxx can be a register or a hard-coded value. Just be very careful
 ; that you verify it's not within VRAM range. (If it is, you just need to wait
