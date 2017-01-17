@@ -7,6 +7,8 @@
 include "syntax.asm"
 include "vars.asm"
 include "math.asm"
+include "memory.asm"
+include "lcd.asm"
 
 
 	IF !DEF(MATRIX_ASM)
@@ -100,6 +102,21 @@ mat_Init: MACRO
 	ENDC
 	ENDM
 
+; this macro waits until V-blank if the matrix resides within VRAM
+; If we don't wait until V-blank, any write to VRAM is not guaranteed to
+; happen.
+mat_Wait_If_Writing_To_VRAM: MACRO
+	IF (\1 < $A000) && (\1 + (\1_H * \1_W) > $8000)
+	; if inside VRAM space ($8000 - $A000), use SetVRAM to prevent
+	; access outside of vblank (else it will trash video display)
+		IF _NARG == 2	; \2 would contain "trash AF"
+			lcd_Wait4VBlank	\2
+		ELSE
+			lcd_Wait4VBlank
+		ENDC
+	ENDC
+	ENDM
+
 ; declare (set aside) variables in ram for iteration of a matrix.
 ; variables are set up one-after another in ram so that they can be read
 ; from a pointer, increment the pointer, then read next variable
@@ -183,10 +200,7 @@ mat_IterInit: MACRO
 		ld	[\1_iter_steps_remain], a	; aka # of cols in row
 		dec	a ; -1 rest of row-iterations should use normal width
 		ld	[\1_iter_W], a		; submatrix width
-		;dec	a	; remove 1 since we added 1 for loop-correction
-		; get two's complement of width (aka get -width)
-		cpl
-		inc	a	; get negative width (-width) of submatrix
+		negate	a	; get negative width (-width) of submatrix
 		add	\1_W + 1; rowstep = matrix_width - submatrix_width + 1
 		; +1 because we want to get first byte of next row, 
 		; not last byte of the current row
@@ -418,6 +432,7 @@ mat_SetIndex: MACRO
 	load	hl, \2, "arg2 of mat_SetIndex is address-offset"
 	load	a, \3, "arg3 of mat_SetIndex is value to place in matrix"
 	add	hl, bc		; compute location of matrix @ Index
+	mat_Wait_If_Writing_To_VRAM	\1
 	ld	[HL], a		; load value into matrix @ Index
 	ENDM
 
@@ -437,6 +452,7 @@ mat_SetYX: MACRO
 	mat_IndexYX	\1, d, e	; place index@YX in HL
 	pop	bc
 	add	hl, bc	; add base addr of matrix to Index
+	mat_Wait_If_Writing_To_VRAM	\1, "trash AF"
 	pop	af
 	ld	[HL], a		; load value (a) into matrix@Y,X
 	ENDM
@@ -467,13 +483,7 @@ mat_YX_from_Index: MACRO
 	load	hl, \2, "index from which to calculate y,x"
 	ld	b, 0
 	ld	c, \1_W	; BC == 16-bit value of width
-	lda	b
-	cpl
-	ld	b, a
-	lda	c
-	cpl
-	ld	c, a		; calculate two's complement so that:
-	increment	bc	; BC = -width
+	negate	b,c, "trash AF"	; BC = -width
 	ld	d, 0	; count (Y coordinate)
 ; now we basically subtract width from Index until we can't anymore. The
 ; number of times we've subtraced width is equal to the height (Y)
@@ -482,13 +492,7 @@ mat_YX_from_Index: MACRO
 	inc	d	; y+=1
 	jr	.sub
 .y_found
-	decrement	bc
-	lda	b
-	cpl
-	ld	b, a
-	lda	c
-	cpl		; undo two's complement to get original width.
-	ld	c, a	; BC = width
+	negate	b,c, "trash AF"	; negate -width to get original +width
 	add	hl, bc	; HL previously held negative number after subtraction
 			; of one too many rows. Now we add a row back to get
 			; index remaining after valid Y-coordinate subtracted
