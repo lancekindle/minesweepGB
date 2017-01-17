@@ -81,6 +81,7 @@ if_not: MACRO
 ; those instructions. So it's a sleek, fast and readable way to compare #s
 ; just remember that ifa doesn't work with negative #'s or those >= 256
 ifa: MACRO
+blahblah\@	= STRSUB("\2",1,1)
 	cp	\2
 	IF (STRCMP("\1", "==") == 0) ; Z=1
 	jr	nz, .skip_ifa\@
@@ -369,9 +370,9 @@ preserve2: MACRO
 ; an optional arg3 will be printed before failure if necessary
 ; loading allows argument enforcement with the flexibility to pass either
 ; the desired register or a #. An example may be:
-; load	a, \2, "move_Character arg2"
+; load	a, \2, "movement speed of player (arg2)"
 ; The optional error message should be used to specify which argument is
-; failing (as that may not be always obvious), or what the argument is
+; failing (as that may not be always obvious), and what the argument is
 ; supposed to contain conceptually.
 ; If it does error-out, a default error message is always included that
 ; tells the user which register should have been used
@@ -413,22 +414,26 @@ load:	MACRO
 ; ld	a, \2				; if \2 is a register such as c....
 ; ENDM					; c will hold 9, not the value that
 ;					; c previously held at start of macro
-; at this point, you cannot "ld	a, \4" and expect it to work if \4 is any
+; at this point, you cannot "ld	a, \2" and expect it to work if \2 is any
 ; register. Hence, ldhard gives you peace of mind that the programmer will
 ; be unable to compile if he passes in a register where you've specified
 ; a hard-coded # must be supplied
 ldhard: MACRO
 	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0
+		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
 		ENDC
-		FAIL "arg1 should be a register / pair. Got \1 instead"
+		PRINTT	"arg1 should be a register / pair. Got \1 instead"
+		FAIL	"\n====================================\n"
 	ENDC
 	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
 		ENDC
-		FAIL "arg2 should be a hard-coded #. Got \2 instead"
+		PRINTT	"arg2 should be a hard-coded #. Got \2 instead"
+		FAIL	"\n====================================\n"
 	ENDC
 	ld	\1, \2
 	ENDM
@@ -451,13 +456,80 @@ ldpair: MACRO
 	ld	\2, \4
 	ENDM
 
-; setvar variable, value
-; uses  registers. So preserve if necessary
-setvar: MACRO
-	ld a, \2
-	ld [\1], a
+
+; calculate two's complement of a register / pair
+; completely safe, preserves all other registers (unless negating a pair and
+; a third [optional] argument "trash AF" is supplied)
+; e.g.: negate	b,c
+; or  : negate	b,c, "trash AF" <- indicate you don't care about preserving AF
+; the formulate for negating a # is to:
+; 1) complement it (0->1, 1->0)
+; 2) increment
+; OR
+; 1) subtract it from 0
+; in the case of a register pair, the full register must be incremented,
+; not necessarily incrementing both registers.
+; accumulator (A) is the only register capable of complementing. Hence why
+; for anything other than `negate a`, a `push af; pop af` preserves AF
+negate: MACRO
+trash\@	set	0
+	IF _NARG == 1
+		IF STRIN("aA","\1") >= 1
+			cpl
+			inc	a	; get -A
+		ELSE
+			push	af
+			sub	a	; set A=0
+			sub	\1	; get -(\1) in A
+			ld	\1, a
+			pop	af
+		ENDC
+	ENDC
+	IF _NARG >= 2
+		IF _NARG == 3
+			IF STRCMP("trash AF","\3") == 0
+			; then we don't preserve af
+trash\@	set	1
+			ENDC
+		ENDC
+		IF STRIN("aA","\1") >= 1 || STRIN("aA","\2") >= 1
+		FAIL	"\nnegate register_pair cannot accept A. Got \1, \2\n"
+		ENDC
+		IF (trash\@ == 0)
+			push	af
+		ENDC
+		ld	a, \1
+		cpl
+		ld	\1, a	; get complement MSB
+		; now we get the negative of \2. If \2 is 0, when we complement
+		; we'll get $FF, which when incremented will roll over to 0
+		; and force us to increment \1, the More Significant Byte (MSB)
+		; we make use of this fact by instead subtracting \2 from 0,
+		; and incrementing \1 if the result of that subtraction was 0
+		; (indicating that \2 is 0 as well)
+		sub	a	; set A=0
+		sub	\2	; get -(\2)	(sets Zero-flag if \2 == 0)
+		if_flag	z, inc	\1	; increment \1 if \2 == 0
+		ld	\2, a
+		IF (trash\@ == 0)
+			pop	af
+		ENDC
+	ENDC
 	ENDM
-;getvar is simply ld a, [var]
+
+
+; exchange register_pair1 with register_pair2
+; allows functionality similar to what you might see in normal Z80 opcodes,
+; (but with any registers) with one exception: cannot exchange with AF
+; example:	exch	b,c,	h,l
+; COST:	9/4
+exch: MACRO
+	push	\1\2
+	ld	\1, \3
+	ld	\2, \4
+	pop	\3\4
+	ENDM
+
 
 ; shift register(s) left, with carry-over to preceding register
 ; essentially treating 1,2,3, or 4 registers as one register when shifting.
@@ -524,7 +596,10 @@ increment: MACRO
 	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
 		FAIL "\nincrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0	; didn't get a register pair
+	IF STRIN("afAF","\1") >= 1 && STRLEN("\1") == 2
+		FAIL "\nincrement requires register pair, but NOT AF\n"
+	ENDC
+	IF STRIN("bcdehlBCDEHL", "\1") == 0	; didn't get a register pair
 		FAIL "\nincrement requires register pair. Got \1, a single\n"
 	ENDC
 	IF STRIN("bcBC", "\1") >= 1
@@ -556,7 +631,10 @@ decrement: MACRO
 	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
 		FAIL "\ndecrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0	; didn't get a register pair
+	IF STRIN("afAF","\1") >= 1 && STRLEN("\1") == 2
+		FAIL "\ndecrement requires register pair, but NOT AF\n"
+	ENDC
+	IF STRIN("bcdehlBCDEHL", "\1") == 0	; didn't get a register pair
 		FAIL "\ndecrement requires register pair. Got \1, a single\n"
 	ENDC
 	IF STRIN("bcBC", "\1") >= 1
