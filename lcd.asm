@@ -2,6 +2,10 @@
 
 include "gbhw.inc"
 
+	; prevent re-loading lcd.asm if it's already loaded
+	IF	!DEF(LCD_ASM)
+LCD_ASM		SET	1
+
 ;================== FROM GBHW.INC  (FOR REFERENCE)===========================
 ; --
 ; -- LCDC ($FF40)
@@ -29,11 +33,27 @@ include "gbhw.inc"
 ;======================= (end reference) ====================================
 
 
-lcd_Wait4VBlank:
+; macro to safely wait for V-Blank. At that point, VRAM is available to write
+; if user specifies argument "trash AF", then AF will not be preserved
+; (which makes access just a tiny bit faster)
+lcd_Wait4VBlank: MACRO
+trash\@ = 0
+	IF _NARG == 1
+		IF STRCMP("trash AF", "\1") != 0
+trash\@ = 1
+		ENDC
+	ENDC
+	IF trash\@ == 0
+		push	af
+	ENDC
+.wait4vblank\@
 	ld	a, [rLY]
 	cp	145	; are we at line 145 yet?  (finished drawing screen then)
-	jr	nz, lcd_Wait4VBlank
-	ret
+	jr	nz, .wait4vblank\@
+	IF trash\@ == 0
+		pop	af
+	ENDC
+	ENDM
 
 lcd_Stop:
 	ld	a, [rLCDC]  ; LCD-Controller
@@ -106,3 +126,6 @@ lcd_ScreenInit:
 	; lh   vs.   ldh.    ldh sets address to $ff00 and then adds (?) nn
 	; OR ldh sets address to nn BUT sets 2nd byte to ff
 	ret
+
+
+	ENDC	; end lcd-defines
