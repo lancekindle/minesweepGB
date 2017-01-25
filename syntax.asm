@@ -364,7 +364,7 @@ preserve2: MACRO
 
 ; load is designed to be used by other macros for enforcing arguments.
 ; calling load yyy, xxx
-; will fail at compile time if xxx isn't register yyy, or a hard-coded #.
+; will fail at compile time if xxx isn't a hard-coded-# OR register yyy.
 ; (if arg2 matches arg1, this macro will create no instructions, since the
 ; value is already in the desired register)
 ; an optional arg3 will be printed before failure if necessary
@@ -377,13 +377,13 @@ preserve2: MACRO
 ; If it does error-out, a default error message is always included that
 ; tells the user which register should have been used
 load:	MACRO
-	IF STRIN("abcdehlABCDEHL","\1")==0
+	IF STRIN("ABCDEHL",STRUPR("\1"))==0
 		PRINTT "\n====================================\n"
 		PRINTT	"first argument must be register (a, b, c...)"
 		FAIL	"\n====================================\n"
 	ENDC
-	IF STRIN("abcdehlABCDEHL","\2")>=1
-		IF STRCMP("\1", "\2") != 0
+	IF STRIN("ABCDEHL",STRUPR("\2"))>=1
+		IF STRCMP(STRUPR("\1"), STRUPR("\2")) != 0
 			PRINTT "\n====================================\n"
 			IF _NARG == 3
 				PRINTT	"\3"
@@ -393,10 +393,20 @@ load:	MACRO
 		ENDC
 	ENDC
 	IF STRIN("[hl][HL]", "\2") && STRIN("\2", "[") && STRIN("\2", "]")
-		WARN	"I don't think \2 will work. You should just pass hl"
+		; this means the user did something like `load b, [hl]`
+		; which would be way cool to support. BUUUUT. What if prior
+		; to this, user did: `load h, 55`
+		; then [hl] definitely points to something different
+		; I REALLY FEEL LIKE WE SHOULD FAIL, RATHER THAN JUST WARN
+		; because user can very easily `ld b, [HL]` prior to this.
+		; Not failing gives an increased possibility of a bug forming.
+		IF STRLEN("\1") == 2	; user is attempting ld RP, [hl]. Fail.
+			FAIL	"ld \1, \2 will NOT work"	;RP==reg. pair
+		ENDC
+		WARN	"I don't think ld \1, \2 will work"
 	ENDC
-	IF STRCMP("\1", "\2") != 0	; only load register / value IF
-		ld	\1, \2		; register 1 != register 2
+	IF STRCMP(STRUPR("\1"), STRUPR("\2")) != 0 ; only load register / value
+		ld	\1, \2		; IF register 1 != register 2
 	ENDC				; (it'd be silly to   ld a, a
 	ENDM				; and a syntax error to   ld hl, hl)
 
