@@ -49,18 +49,18 @@ test_31_stack_DeclareInit:
 test_32_stack_PushPop:
 	stack_Push	stack, 11	; push 11 onto stack
 	stack_Pop	stack
-	ifa	<>, 11, jr .failed	; verify 11 was popped from stack
+	ifa	<>, 11, jp .failed	; verify 11 was popped from stack
 	; verify ptr is back @ start
 	verify_stack_address_at_beginning	stack
 	stack_Push	stack, 1
 	stack_Push	stack, 2
 	stack_Push	stack, 3
 	stack_Pop	stack
-	ifa	<>, 3, jr .failed
+	ifa	<>, 3, jp .failed
 	stack_Pop	stack
-	ifa	<>, 2, jr .failed
+	ifa	<>, 2, jp .failed
 	stack_Pop	stack
-	ifa	<>, 1, jr .failed
+	ifa	<>, 1, jp .failed
 .passed
 	TestPassed	3, 2
 .failed
@@ -114,3 +114,98 @@ test_33_stack_Boundaries:
 	TestPassed	3, 3
 .failed
 	TestFailed	3, 3
+
+
+; verify that pushing and popping a word succeeds or fails in chunks of 2 bytes
+; and that you can pop into BC, DE, or HL
+test_34_stack_PushPop_Word:
+	verify_stack_address_at_beginning	stack
+	; test that you can pass B,C
+	ld	bc, $BBCC
+	stack_Push	stack, c, b
+	ld	bc, $0000	; zero out bc
+	stack_Pop	stack, bc
+	lda	b
+	ifa	<>, $BB, jp .failed
+	lda	c
+	ifa	<>, $CC, jp .failed
+	ld	bc, $DDEE
+	; verify you can pop into DE
+	stack_Push	stack, c, b
+	stack_Pop	stack, de
+	lda	d
+	ifa	<>, $DD, jp .failed
+	lda	e
+	ifa	<>, $EE, jp .failed
+	; verify pop into HL
+	ld	bc, $1122
+	stack_Push	stack, c, b
+	stack_Pop	stack, hl
+	lda	h
+	ifa	<>, $11, jp .failed
+	lda	l
+	ifa	<>, $22, jp .failed
+	; we've confirmed that stack successfully pushes & pops BC
+	verify_stack_address_at_beginning	stack
+	stack_Push	stack, $11, $22	; push a word
+	stack_Push	stack, $33	; push a single value
+	stack_Pop	stack, bc	; pop off a word. Should get 33,22
+	lda	b
+	ifa	<>, $33, jp .failed
+	lda	c
+	ifa	<>, $22, jp .failed
+	stack_Pop	stack	; pop off that last word
+	verify_stack_address_at_beginning	stack
+.passed
+	TestPassed	3, 4
+.failed
+	TestFailed	3, 4
+
+
+; verify that pushing a word succeeds only if both bytes are pushed onto
+; stack. Similarly, verify that popping succeeds only if it can pop 2 bytes
+test_35_stack_PushPop_WordBoundaries:
+	verify_stack_address_at_beginning	stack
+	stack_Pop	stack, bc
+	jp	c, .failed	; if true-flag set, then it thinks it can pop2
+				; from an empty stack
+	stack_Push	stack, $AA	; push a single value
+	stack_Pop	stack, bc	; again try to pop 2 bytes
+	jp	c, .failed ; fail (again) if stack pops2 from size-1 stack
+	stack_Push	stack, $22	; push a second value
+	stack_Pop	stack, bc
+	jp	nc, .failed	; fail this time if Pop2 doesn't work
+	;BC should contain $22AA
+	lda	B
+	ifa	<>, $22, jp .failed
+	lda	C
+	ifa	<>, $AA, jp .failed
+	; We've now confirmed that stack_Pop won't pop until at least 2 bytes
+	; are on the stack if BC is passed as an argument
+	stack_Push	stack, $AA, $BB		; 2/5 filled
+	stack_Push	stack, $CC, $DD		; 4/5 filled
+	if_flag	nc, jp .failed	; flag should indicate success
+	stack_Push	stack, $EE, $FF	; this one should fail
+	if_flag	c, jp .failed	; flag should indicate failure
+	stack_Push	stack, $00	; 5/5 filled
+	if_flag	nc, jp .failed	; previous operation should have succeeded
+	; now pop values
+	stack_Pop	stack, bc
+	lda	b
+	ifa	<>, $00, jp .failed
+	lda	c
+	ifa	<>, $DD, jp .failed
+	stack_Pop	stack, bc
+	lda	b
+	ifa	<>, $CC, jp .failed
+	lda	c
+	ifa	<>, $BB, jp .failed
+	stack_Pop	stack, bc	;1/5 filled. should fail
+	if_flag	c, jp .failed
+	stack_Pop	stack, a
+	ifa	<>, $AA, jp .failed
+.passed
+	TestPassed	3, 5
+.failed
+	TestFailed	3, 5
+

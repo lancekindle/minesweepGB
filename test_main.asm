@@ -60,6 +60,8 @@ begin:
 	call	test_31_stack_DeclareInit	; begin test_stack.asm
 	call	test_32_stack_PushPop
 	call	test_33_stack_Boundaries
+	call	test_34_stack_PushPop_Word
+	call	test_35_stack_PushPop_WordBoundaries
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt
