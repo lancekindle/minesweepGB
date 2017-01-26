@@ -392,7 +392,7 @@ load:	MACRO
 			FAIL	"\n====================================\n"
 		ENDC
 	ENDC
-	IF STRIN("[hl][HL]", "\2") && STRIN("\2", "[") && STRIN("\2", "]")
+	IF STRIN("[HL]",STRUPR("\2")) && STRIN("\2", "[") && STRIN("\2", "]")
 		; this means the user did something like `load b, [hl]`
 		; which would be way cool to support. BUUUUT. What if prior
 		; to this, user did: `load h, 55`
@@ -429,7 +429,7 @@ load:	MACRO
 ; be unable to compile if he passes in a register where you've specified
 ; a hard-coded # must be supplied
 ldhard: MACRO
-	IF STRIN("afbcdehlAFBCDEHL", "\1") == 0
+	IF STRIN("AFBCDEHL",STRUPR("\1")) == 0
 		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
@@ -437,7 +437,7 @@ ldhard: MACRO
 		PRINTT	"arg1 should be a register / pair. Got \1 instead"
 		FAIL	"\n====================================\n"
 	ENDC
-	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+	IF STRIN("AFBCDEHL",STRUPR("\2")) >= 1
 		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
@@ -454,11 +454,11 @@ ldhard: MACRO
 ; parameters are dest1, dest2,     src1, src2
 ; where dest1 & 2 must combine to form a register pair, and same with src1 & 2
 ldpair: MACRO
-	IF STRIN("afbcdehlAFBCDEHL", STRCAT("\1","\2")) == 0
+	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
 		PRINTT "\nldpair only takes register pairs separated by commas"
 		FAIL ".Got \1,\2 as first two arguments instead."
 	ENDC
-	IF STRIN("afbcdehlAFBCDEHL", STRCAT("\3","\4")) == 0
+	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\3","\4"))) == 0
 		PRINTT "\nldpair only takes register pairs separated by commas"
 		FAIL ".Got \3,\4 as last two arguments instead."
 	ENDC
@@ -497,7 +497,7 @@ trash\@	set	0
 	ENDC
 	IF _NARG >= 2
 		IF _NARG == 3
-			IF STRCMP("trash AF","\3") == 0
+			IF STRCMP("TRASH AF",STRUPR("\3")) == 0
 			; then we don't preserve af
 trash\@	set	1
 			ENDC
@@ -603,24 +603,24 @@ shift_right: MACRO
 ; increment sets the flags in the same fashion as INC
 ; (Zero flag is set if register = 0, and doesn't change the carry-flag)
 increment: MACRO
-	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
+	IF STRIN("ABFCDHEL",STRUPR("\1")) >= 1	; it's just a single register
 		FAIL "\nincrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("afAF","\1") >= 1 && STRLEN("\1") == 2
+	IF STRIN("AF",STRUPR("\1")) >= 1 && STRLEN("\1") == 2
 		FAIL "\nincrement requires register pair, but NOT AF\n"
 	ENDC
-	IF STRIN("bcdehlBCDEHL", "\1") == 0	; didn't get a register pair
+	IF STRIN("BCDEHL",STRUPR("\1")) == 0	; didn't get a register pair
 		FAIL "\nincrement requires register pair. Got \1, a single\n"
 	ENDC
-	IF STRIN("bcBC", "\1") >= 1
+	IF STRIN("BC",STRUPR("\1")) >= 1
 		inc	C
 		if_flag	z, inc	B
 	ENDC
-	IF STRIN("deDE", "\1") >= 1
+	IF STRIN("DE",STRUPR("\1")) >= 1
 		inc	E
 		if_flag	z, inc	D
 	ENDC
-	IF STRIN("hlHL", "\1") >= 1
+	IF STRIN("HL",STRUPR("\1")) >= 1
 		inc	L
 		if_flag	z, inc	H
 	ENDC
@@ -638,28 +638,28 @@ increment: MACRO
 ; decrement sets the flags in the same fashion as DEC
 ; (Zero flag is set if register = 0, and doesn't change the carry-flag)
 decrement: MACRO
-	IF STRIN("abfcdhelABFCDHEL", "\1") >= 1	; it's just a single register
+	IF STRIN("ABFCDHEL",STRUPR("\1")) >= 1	; it's just a single register
 		FAIL "\ndecrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("afAF","\1") >= 1 && STRLEN("\1") == 2
+	IF STRIN("AF",STRUPR("\1")) >= 1 && STRLEN("\1") == 2
 		FAIL "\ndecrement requires register pair, but NOT AF\n"
 	ENDC
-	IF STRIN("bcdehlBCDEHL", "\1") == 0	; didn't get a register pair
+	IF STRIN("BCDEHL",STRUPR("\1")) == 0	; didn't get a register pair
 		FAIL "\ndecrement requires register pair. Got \1, a single\n"
 	ENDC
-	IF STRIN("bcBC", "\1") >= 1
+	IF STRIN("BC",STRUPR("\1")) >= 1
 		inc	C
 		dec	C ; check to see if we are about to decrement from 0
 		if_flag	z, dec	B
 		dec	C
 	ENDC
-	IF STRIN("deDE", "\1") >= 1
+	IF STRIN("DE",STRUPR("\1")) >= 1
 		inc	E
 		dec	E ; check to see if we are about to decrement from 0
 		if_flag	z, dec	D
 		dec	E
 	ENDC
-	IF STRIN("hlHL", "\1") >= 1
+	IF STRIN("HL",STRUPR("\1")) >= 1
 		inc	L
 		dec	L ; check to see if we are about to decrement from 0
 		if_flag	z, dec	H
