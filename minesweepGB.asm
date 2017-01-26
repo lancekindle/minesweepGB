@@ -166,7 +166,7 @@ begin:
 	mat_Init	probed, 0
 	stack_Init	toExplore
 .mainloop:
-	call	lcd_Wait4VBlank
+	lcd_Wait4VBlank
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
@@ -223,24 +223,19 @@ probe_cell:
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
 	call	get_sprite_yx_in_de
 .add_DE_to_stack
-	ld	a, d
-	push	de
-	stack_Push	toExplore, a ; store Y coordinate
-	pop	de
-	ld	a, e
-	stack_Push	toExplore, a	; store X coordinate
+	ldpair	b,c,	d,e	; Y,X in BC now
+	stack_Push	toExplore, c,b	; store X,Y in stack
 .explore_stack	; pop X,Y into E,D
-	stack_Pop	toExplore	; get X
+	stack_Pop	toExplore, de
 	ret	nc	; stack is empty. No more cells to probe. Return.
-	ld	[rCellX], a	; store X
-	stack_Pop	toExplore	; get Y
-	ld	[rCellY], a	; store Y
-	ld	d, a		;Y in d
-	lda	[rCellX]
-	ld	e, a		;X in E
+	lda	d
+	ld	[rCellY], a	; store Y in ram
+	lda	e
+	ld	[rCellX], a	; store X in ram
 	; D,E now holds Y,X, respectively
 	call	count_nearby_mines	; writes # to screen, # returns in A
-	ifa	>, 0, jp .explore_stack	; nearby mines, so explore from stack
+	ifa	>, 0, jp .explore_stack	; nearby mines exist, so explore stack
+	; we get here if mine-count==0, so now we'll explore nearby
 .push_nearby_into_stack
 	lda	[rCellY]
 	ld	d, a
@@ -256,15 +251,9 @@ probe_cell:
 					; now let's explore next cell on stack
 	; HL contains address of cell within mines. We need to calculate Index,
 	; which is HL - mines-start-address
-	ld	bc, mines
-	lda	b
-	cpl
-	ld	b, a
-	lda	c
-	cpl
-	ld	c, a		; get two's complement to:
-	increment	bc	; calculate -(mines)
-	add	hl, bc
+	ld	bc, mines	; get two's complement to:
+	negate	b,c		; calculate  -(mines)
+	add	hl, bc		; stack-start (HL) - addr (BC) == Index
 	push	hl		; store index@matrix
 	mat_GetIndex	probed, hl	; get value @ index in A
 	pop	hl
@@ -278,12 +267,8 @@ probe_cell:
 	; when it pops off, it gets Y,X mixed up as X,Y
 	; TODO: Add a stack_Push2 that'll only push values if both will fit.
 	mat_IterYX	mines	; get Y,X of current iteration in D,E
-	lda	d
-	push	de
-	stack_Push	toExplore, a	; push Y coordinate
-	pop	de
-	lda	e
-	stack_Push	toExplore, a	; push X coordinate
+	ldpair	b,c,	d,e	; move Y,X into BC
+	stack_Push	toExplore, c, b	; push X, Y
 	jr	.loop_push_neighbors
 
 
@@ -303,7 +288,7 @@ count_nearby_mines:		; now we need to probe (y-1, x-1):(y+1,x+1)
 	pop	de	; retrieve Y, X
 	mat_IndexYX	_SCRN0, d,e	; calculate index
 	push	hl	; store index
-	call	lcd_Wait4VBlank ; need to wait for VRAM access
+	lcd_Wait4VBlank ; need to wait for VRAM access
 	lda	[rNearbyCount]
 	add	"0"	; create string equivalent of count
 	mat_SetIndex	_SCRN0, hl, a	; write count to screen background
