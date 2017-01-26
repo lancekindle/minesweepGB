@@ -126,6 +126,7 @@ stack_PushBC:
 	lda	d	; load value originally in B
 	ld	[bc], a	; push B onto stack
 	; now we store our current pointer in ram
+	; HL already points to where we'd loaded MSB (aka register B)
 	ld	[hl], b	; load MSB of stack top pointer
 	decrement	HL
 	ld	[hl], c	; load LSB of stack top pointer
@@ -147,20 +148,28 @@ stack_Pop: MACRO
 		call	stack_PopA
 	ENDC
 	IF _NARG == 2
-		IF STRIN("aA","\2") >= 1
+		IF STRIN("A",STRUPR("\2")) >= 1	;+A+
 			call	stack_PopA
-		ENDC
-		IF STRIN("bcBC","\2") >= 1
+		ELSE
+		IF STRIN("BC",STRUPR("\2")) >= 1	;+BC+
 			call	stack_PopBC
-		ENDC
-		IF STRIN("deDE","\2") >= 1
+		ELSE
+		IF STRIN("DE",STRUPR("\2")) >= 1		;+DE+
 			call	stack_PopBC
 			ldpair	d,e,	b,c
-		ENDC
-		IF STRIN("hlHL","\2") >= 1
+		ELSE
+		IF STRIN("HL",STRUPR("\2")) >= 1			;+HL+
 			call	stack_PopBC
 			ldpair	h,l,	b,c
-		ENDC
+		ELSE
+			FAIL	"\nexpected A,BC,DE, or HL. Got \2\n"
+		ENDC							;-HL-
+		ENDC						;-DE-
+		ENDC					;-BC-
+		ENDC				;-A-
+	ENDC; end if _narg=2
+	IF _NARG >= 3
+		FAIL	"\nstack_Pop expects at most 2 arguments. Got more\n"
 	ENDC
 	ENDM
 
