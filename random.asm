@@ -31,9 +31,7 @@ random_xorshift_update:
 	lda	[random_LoByte]
 	adc	a	; Ax2 + 1. Basically a shift left by 1  (x<<1)
 	ld	b, a
-	RRCA
-	RRCA
-	RRCA	; rotate right 3. (y>>3)
+	swap	a	; swap lower and upper nibble. Same as y>>4
 	xor	b
 	ld	b, a
 	lda	[rDIV]	; load divider register (time-based number that inc's)
