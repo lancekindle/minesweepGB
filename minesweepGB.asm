@@ -66,6 +66,7 @@ include "math.asm"
 include "vars.asm"
 include "matrix.asm"
 include "stack.asm"
+include "random.asm"
 
 ; declare some variables
 	var_LowRamByte	rNearbyCount
@@ -83,6 +84,7 @@ include "stack.asm"
 	; meaning we can address the background tiles like a 32x32 matrix
 	; SCRN_VY_B == 32 == SCRN_VX_B
 	mat_IterDeclare	mines	; declar ram variables for mines iterator
+	mat_IterDeclare	_SCRN0	; declare ram vars for screen iterator
 
 Blank	SET	" "
 Mine	SET	"*"
@@ -165,6 +167,8 @@ begin:
 	mat_Init	flags, Blank
 	mat_Init	probed, 0
 	stack_Init	toExplore
+	call	fill_mines
+	call	remove_dense_mines
 .mainloop:
 	lcd_Wait4VBlank
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
@@ -194,6 +198,43 @@ toggle_flag:
 	ld	e, a	; X coordinate should be in E
 	mat_SetYX	_SCRN0, d, e, Flag
 	ret
+
+; fill mines randomly in the minefield
+fill_mines:
+	mat_IterInit	mines, 0, SCRN_Y_B,   0, SCRN_X_B
+.iterate
+	mat_IterNext	mines
+	ret	nc	; return if mines iterator done
+	push	hl
+	rand_A
+	pop	hl
+	ifa	>, 50, jp .no_add_mine
+	ld	a, 1
+	ld	[hl], a
+.no_add_mine
+	jp	.iterate
+
+
+; re-iterates current mine count and potentially removes a mine @ a location
+; where there are >= 3 mines nearby. Should help remove dense clusters of mines
+remove_dense_mines:
+	mat_IterInit	_SCRN0, 0, SCRN_Y_B,   0, SCRN_X_B
+.iterate
+	mat_IterNext	_SCRN0
+	ret	nc	; return if iteration done
+	mat_IterYX	_SCRN0	; Y,X from current iteration in D,E
+	call	get_neighbor_corners_within_bounds
+	; BC now holds [y-1:y+2), DE holds [x-1:x+2)
+	mat_IterInit	mines, b,c,   d,e
+	mat_IterCount	mines, ==, 1
+	ifa	>=,3, jp .maybe_remove_mine
+	jp .iterate
+.maybe_remove_mine
+	rand_A
+	ifa	>,150, jp .iterate
+	mat_IterYX	_SCRN0; get Y,X in DE
+	mat_SetYX	mines, d, e, 0	; remove mine @ location
+	jp .iterate
 
 ; USES: A, DE
 ; EXIT: D,E holds Y,X coordinates of player (if we assume screen is 20x16 grid)
@@ -233,7 +274,7 @@ probe_cell:
 	lda	e
 	ld	[rCellX], a	; store X in ram
 	; D,E now holds Y,X, respectively
-	call	count_nearby_mines	; writes # to screen, # returns in A
+	call	count_and_display_nearby_mines; writes # to screen, # ret in A
 	ifa	>, 0, jp .explore_stack	; nearby mines exist, so explore stack
 	; we get here if mine-count==0, so now we'll explore nearby
 .push_nearby_into_stack
@@ -261,11 +302,6 @@ probe_cell:
 						; explored. Move to next cell.
 	mat_SetIndex	probed, hl, 1	; NOW we set cell to probed
 					; before we add it to stack
-
-	; INTERESTING. IF we comment out above command to mark a cell
-	; as probed, the stack fills up. And, because the stack is odd-length,
-	; when it pops off, it gets Y,X mixed up as X,Y
-	; TODO: Add a stack_Push2 that'll only push values if both will fit.
 	mat_IterYX	mines	; get Y,X of current iteration in D,E
 	ldpair	b,c,	d,e	; move Y,X into BC
 	stack_Push	toExplore, c, b	; push X, Y
@@ -275,7 +311,7 @@ probe_cell:
 ; call this with coordinates Y,X loaded in D,E
 ; This will write the number of nearby mines on-screen as well
 ; EXIT:	count of nearby mines in A
-count_nearby_mines:		; now we need to probe (y-1, x-1):(y+1,x+1)
+count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	push	de
 	call	get_neighbor_corners_within_bounds
 	; setup iterator @mines, from (y-1, x-1) to (y+1, x+1)
@@ -296,6 +332,21 @@ count_nearby_mines:		; now we need to probe (y-1, x-1):(y+1,x+1)
 	mat_SetIndex	probed, hl, 1	; show that it's been explored
 	; only explore neighbors if all of them are empty
 	lda	[rNearbyCount]
+	ret
+
+; call this with coordinates Y,X loaded in D,E
+; this will NOT display # on screen, NOR mark cell as probed. It simply counts
+; EXIT:	count of nearby mines in A
+; USES:	AF, BC, DE, HL
+count_only_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
+	call	get_neighbor_corners_within_bounds
+	; setup iterator @mines, from (y-1, x-1) to (y+1, x+1)
+	; aka	[y-1:y+2,x-1:x+2)    <==  [inclusive start, exclusive end)
+	; where (y,x) is the coordinates of the player
+	; b, c  = (y-1, y+2).   d, e == (x-1, x+2)
+	mat_IterInit	mines, b, c, d, e
+	mat_IterCount	mines, ==, 1; counts mines surrounding player
+	ld	[rNearbyCount], a	; store minecount
 	ret
 
 ; USES:	AF, BC, DE
