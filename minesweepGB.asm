@@ -72,6 +72,7 @@ include "random.asm"
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
+	var_LowRamByte	rFirstProbe
 
 	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
 	mat_Declare	mines, SCRN_VY_B, SCRN_VX_B	; setup mines matrix
@@ -130,6 +131,8 @@ begin:
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
 	call	fill_mines
 	call	remove_dense_mines
+	ld	a, 1
+	ld	[rFirstProbe], a
 .mainloop:
 	lcd_Wait4VBlank
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
@@ -236,9 +239,24 @@ get_sprite_yx_in_de:
 	ld	e, a	; X coordinate should be in E
 	ret
 
+; for the first probe, remove all mines in a 3x3 square around the player
+; makes the first probe better, since it'll "open up" a foothold from which
+; to begin probing in an educated manner
+; assume that D,E already holds player Y,X position
+first_probe:
+	call	get_neighbor_corners_within_bounds
+	; b, c holds (y-1, y+2), d, e holds (x-1, x+2)
+	mat_IterInit	mines, b, c, d, e	; setup iterate neighbors
+	mat_IterSet	mines, 0
+	ld	a, 0
+	ld	[rFirstProbe], a	; disable future calling of this
+	ret
+
 probe_cell:
 	call	get_sprite_yx_in_de
 	; probe cell @ current location
+	ld	a, [rFirstProbe]	; is this our first probe?
+	ifa	==, 1, call	first_probe
 	mat_IndexYX	mines, d, e	; get address in HL
 	push	hl	; store current matrix index. We'll use it 3x
 	mat_GetIndex	flags, hl	; result in a

@@ -130,7 +130,9 @@ mat_IterDeclare: MACRO
 	var_LowRamByte	\1_iter_W; W of submatrix we're iterating (used to
 				 ; reset \1_iter_step_remain after we advance
 				 ; a row). Also to calculate current X coord
-	var_LowRamByte	\1_iter_H; used for calculating current Y coordinate
+	var_LowRamByte	\1_iter_H ; H of submatrix we're iterating. Also
+				  ; used for calculating current Y coordinate
+	; the next two variables hold the initial (Y,X) of the iterator
 	var_LowRamByte	\1_iter_offsetX	; used for calculating current X
 	var_LowRamByte	\1_iter_offsetY	; used for calculating current Y
 	ENDM
@@ -338,6 +340,21 @@ mat_IterCount: MACRO
 	dec	c	; -1 to compensate for +1 in beginning
 			; (this ensures that if we overflowed, we'll return FF)
 	ld	a, c	; place count in a
+	ENDM
+
+
+; exhasts the iterator, setting the remaining values to the value in reg. A
+mat_IterSet: MACRO
+	load	a, \2
+	push	af
+.loop\@
+	mat_IterNext	\1	; get to next address
+	pop	bc	; value from a is in b
+	jr	nc, .done\@	; iteration exhausted if carry=0
+	ld	[hl], b	; set value at iteration address
+	push	bc
+	jr	.loop\@
+.done\@
 	ENDM
 
 
