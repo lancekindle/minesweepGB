@@ -91,47 +91,6 @@ Mine	SET	"*"
 Flag	SET	"/"	; Blank, Mine, Flag are now variable constants
 
 
-
-populate_minefield: MACRO
- DB   1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0
- DB   0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0
- DB   0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
- DB   0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0
- DB   0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0
- DB   0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0
- DB   0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0
- DB   0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0
- DB   0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,1,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0
- DB   0,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0
- DB   0,0,0,0,0,1,0,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1
- DB   0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,1
- DB   0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0
- DB   0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
- DB   0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0
- DB   0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0
-	ENDM
-
-mines_prefill:
-	populate_minefield	; call macro paste minefield
-mines_prefill_end:
-
-
 ClearSpriteTable:
 	ld	a, 0
 	ld	hl, OAMDATALOC
@@ -163,10 +122,12 @@ begin:
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
 	call	lcd_EnableVBlankInterrupt
-	mat_Init	mines, mines_prefill, mines_prefill_end - mines_prefill
+	mat_Init	mines, 0
 	mat_Init	flags, Blank
 	mat_Init	probed, 0
 	stack_Init	toExplore
+	call	display_startscreen	; and wait for user input
+	mat_Init	_SCRN0, Blank	; initialize screen background with " "
 	call	fill_mines
 	call	remove_dense_mines
 .mainloop:
@@ -176,6 +137,31 @@ begin:
 	if_	jpad_EdgeB, call	toggle_flag
 	if_	jpad_EdgeA, call	probe_cell
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
+
+
+; start screen text
+startscreen:
+	DB	"Press A Button"
+startscreen_end:
+
+; displays startscreen and waits for user input before returning
+; runs a tight loop so that when the user presses a button,
+; it initializes the random-value generator (not tied to vblank)
+display_startscreen:
+	mat_GetYX	_SCRN0, 5, 3
+	; HL contains address @ 5,5
+	ldpair	d,e,	h,l	; destination is screen
+	ld	hl, startscreen	; source is screen letters
+	ld	bc, startscreen_end - startscreen	; # of bytes to write
+	call	mem_CopyVRAM
+	; now we run in a tight loop waiting for user input
+.wait4input
+	call	jpad_GetKeys
+	or	a	; set zero-flag if no user input
+	jr	z, .wait4input
+	rand_A	; immediately calculate random#. This has the effect
+		; of starting the randomizer based on when user pressed a key
+	ret
 
 
 get_true:
@@ -231,10 +217,12 @@ remove_dense_mines:
 	jp .iterate
 .maybe_remove_mine
 	rand_A
-	ifa	>,150, jp .iterate
+	ifa	>,200, jp .iterate
 	mat_IterYX	_SCRN0; get Y,X in DE
 	mat_SetYX	mines, d, e, 0	; remove mine @ location
+	; it isn't guaranteed there's a mine @ current location...
 	jp .iterate
+
 
 ; USES: A, DE
 ; EXIT: D,E holds Y,X coordinates of player (if we assume screen is 20x16 grid)
