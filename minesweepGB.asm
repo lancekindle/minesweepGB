@@ -299,7 +299,7 @@ probe_cell:
 	; HL contains address of cell within mines. We need to calculate Index,
 	; which is HL - mines-start-address
 	ld	bc, mines	; get two's complement to:
-	negate	b,c		; calculate  -(mines)
+	negate	bc		; calculate  -(mines)
 	add	hl, bc		; stack-start (HL) - addr (BC) == Index
 	push	hl		; store index@matrix
 	mat_GetIndex	probed, hl	; get value @ index in A

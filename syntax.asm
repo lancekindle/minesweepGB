@@ -513,6 +513,9 @@ trash\@	set	0
 	IF _NARG == 2
 		IF STRCMP("TRASH AF", STRUPR("\2")) == 0
 trash\@	set	1
+		ELSE
+			PRINTT	"\n you supplied a 2nd arg to negate: \2. "
+			FAIL "2nd arg to negate should be `trash AF` only\n"
 		ENDC
 	ENDC
 	IF STRLEN("\1") == 1	; it's a single register to negate

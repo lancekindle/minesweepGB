@@ -469,7 +469,7 @@ mat_SetYX: MACRO
 	mat_IndexYX	\1, d, e	; place index@YX in HL
 	pop	bc
 	add	hl, bc	; add base addr of matrix to Index
-	mat_Wait_If_Writing_To_VRAM	\1, "trash AF"
+	mat_Wait_If_Writing_To_VRAM	\1, trash AF
 	pop	af
 	ld	[HL], a		; load value (a) into matrix@Y,X
 	ENDM
@@ -500,7 +500,7 @@ mat_YX_from_Index: MACRO
 	load	hl, \2, "index from which to calculate y,x"
 	ld	b, 0
 	ld	c, \1_W	; BC == 16-bit value of width
-	negate	b,c, "trash AF"	; BC = -width
+	negate	bc, trash AF	; BC = -width
 	ld	d, 0	; count (Y coordinate)
 ; now we basically subtract width from Index until we can't anymore. The
 ; number of times we've subtraced width is equal to the height (Y)
@@ -509,7 +509,7 @@ mat_YX_from_Index: MACRO
 	inc	d	; y+=1
 	jr	.sub
 .y_found
-	negate	b,c, "trash AF"	; negate -width to get original +width
+	negate	bc, trash AF	; negate -width to get original +width
 	add	hl, bc	; HL previously held negative number after subtraction
 			; of one too many rows. Now we add a row back to get
 			; index remaining after valid Y-coordinate subtracted
