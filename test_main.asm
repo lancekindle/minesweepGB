@@ -16,7 +16,7 @@ section "Timer_Overflow", HOME[$0050]
 section "Serial", HOME[$0058]
 	reti
 section "joypad_p1_p4", HOME[$0060]
-	reti
+	jp	JoypadInterrupt
 section "start", HOME[$0100]
 	nop
 	jp begin
@@ -76,6 +76,7 @@ SetupGameboy:
 	call	ClearBackground
 	call	lcd_On
 	call	lcd_ShowBackground
+	call	JoypadInterrupt	; enables it
 	ret
 
 LoadFont:
@@ -92,6 +93,21 @@ ClearBackground:
 	ld	bc, SCRN_VX_B * SCRN_VY_B
 	call	mem_SetVRAM
 	ret
+
+; call this to enable joypad interrupts. Additionally, this gets called
+; each time there is a joypad interrupt, which acknowledges the interrupt
+; and then returns, keeping the joypad interrupt enabled. Allows for you to
+; halt the cpu for debugging purposes. Then you can press a button to continue
+; execution
+JoypadInterrupt:
+	push	af
+	ld	a, 0
+	ld	[rIF], a	; acknowledge any current interrupts by setting
+				; all Interrupt Flags to 0
+	ld	a, %00010000	; bit 4 (in bits 7-0) is joypad interrupt
+	ld	[rIE], a	; set Interrupt-Enable flags
+	pop	af
+	reti
 
 ; makes use of include "ibmpc1.inc"
 ASCII_TILES_LOC:

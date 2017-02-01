@@ -9,6 +9,7 @@
 TEST_INCLUDES_ASM	SET	1
 
 include "memory.asm"
+include "syntax.asm"
 
 
 get_true:
@@ -103,12 +104,29 @@ TestPassed: MACRO
 
 ; cause TestResult to fail
 TestFailed: MACRO
+	push	af
+	push	bc
+	push	de
+	push	hl
+	call	briefly_skip\@	; set this as return address after
+				; TestResult writes '-' and returns
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	halt	; AH OK THIS IS IMPORTANT. For debugging purposes.
+	; halts the cpu (but continue to display graphics) until an interrupt
+	; occurs. In this case, a button press. Allows us to debug in BGB
+	; what the register currently holds and why this is happening
+briefly_skip\@:
+	; technically this part gets run twice
 	lda	0
 	IF _NARG == 2
 		TestResult	\1, \2
 	ELSE
 		TestResult	\1
 	ENDC
+	ret	; this ret doesn't get run (TestResult returns)
 	ENDM
 
 
