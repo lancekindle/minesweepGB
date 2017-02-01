@@ -467,60 +467,84 @@ ldpair: MACRO
 	ENDM
 
 
+; used for explicitly negating two registers as a pair
+; (used by other macros only). Specify two registers like so: H,L
+; always trashes AF. Be sure to push/pop af as necessary
+; this is the fastest negation available. 6 cycles, 6 bytes
+negate_pair: MACRO
+	xor	a	; zero out A
+	sub	\2	; subtract LSB of register pair (sets Carry if \2 > 0)
+	; A = -LSB
+	ld	\2, a
+	ld	a, 0
+	sbc	\1	; A = -MSB - Carry  (aka A = complement(MSB) if CY = 1)
+	; they say that the easiest way to calculate two's complement of a
+	; register (aka negate a register) is to complement, then increment.
+	; so if A = %0000,0001. (01), then we complement: A = %1111,1110 (FE)
+	; & increment: A = %1111,1111 (FF).    FF is two's complement to 01.
+	; when negating a register pair, we complement and store each register,
+	; then increment the register pair as a whole. Meaning: increment LSB
+	; and only increment MSB if LSB overflowed. And LSB only overflows if
+	; it increments from FF to 0. LSB only increments to 0 if it's original
+	; value (before complement) was 0. So in other words, we only
+	; increment MSB if LSB == 0.
+	; The above SBC \1 increments MSB (by omission) if LSB == 0.
+	; Because the prior SUB \2 only sets the carry flag if LSB > 0
+	ld	\1, a
+	ENDM
+
 ; calculate two's complement of a register / pair
 ; completely safe, preserves all other registers (unless negating a pair and
 ; a third [optional] argument "trash AF" is supplied)
-; e.g.: negate	b,c
-; or  : negate	b,c, "trash AF" <- indicate you don't care about preserving AF
+; e.g.: negate	bc
+; or  : negate	bc, trash AF <- indicate you don't care about preserving AF
 ; the formulate for negating a # is to:
 ; 1) complement it (0->1, 1->0)
 ; 2) increment
 ; OR
 ; 1) subtract it from 0
 ; in the case of a register pair, the full register must be incremented,
-; not necessarily incrementing both registers.
+; not necessarily incrementing both registers. In fact, the higher-byte
+; of a register pair is ONLY incremented if the lower byte was 0 originally
 ; accumulator (A) is the only register capable of complementing. Hence why
 ; for anything other than `negate a`, a `push af; pop af` preserves AF
 negate: MACRO
 trash\@	set	0
-	IF _NARG == 1
-		IF STRIN("aA","\1") >= 1
+	IF _NARG == 2
+		IF STRCMP("TRASH AF", STRUPR("\2")) == 0
+trash\@	set	1
+		ENDC
+	ENDC
+	IF STRLEN("\1") == 1	; it's a single register to negate
+		IF STRCMP("A", STRUPR("\1")) == 0
+			; negate a only
 			cpl
 			inc	a	; get -A
 		ELSE
-			push	af
-			sub	a	; set A=0
+			IF (trash\@ == 0)
+				push	af
+			ENDC
+			xor	a	; set A=0
 			sub	\1	; get -(\1) in A
 			ld	\1, a
-			pop	af
-		ENDC
-	ENDC
-	IF _NARG >= 2
-		IF _NARG == 3
-			IF STRCMP("TRASH AF",STRUPR("\3")) == 0
-			; then we don't preserve af
-trash\@	set	1
+			IF (trash\@ == 0)
+				pop	af
 			ENDC
 		ENDC
-		IF STRIN("aA","\1") >= 1 || STRIN("aA","\2") >= 1
-		FAIL	"\nnegate register_pair cannot accept A. Got \1, \2\n"
-		ENDC
+	ENDC
+	IF STRLEN("\1") == 2
 		IF (trash\@ == 0)
 			push	af
 		ENDC
-		ld	a, \1
-		cpl
-		ld	\1, a	; get complement MSB
-		; now we get the negative of \2. If \2 is 0, when we complement
-		; we'll get $FF, which when incremented will roll over to 0
-		; and force us to increment \1, the More Significant Byte (MSB)
-		; we make use of this fact by instead subtracting \2 from 0,
-		; and incrementing \1 if the result of that subtraction was 0
-		; (indicating that \2 is 0 as well)
-		sub	a	; set A=0
-		sub	\2	; get -(\2)	(sets Zero-flag if \2 == 0)
-		if_flag	z, inc	\1	; increment \1 if \2 == 0
-		ld	\2, a
+		IF STRCMP("BC", STRUPR("\1")) == 0
+			negate_pair	b,c
+		ENDC
+		IF STRCMP("DE", STRUPR("\1")) == 0
+			negate_pair	d,e
+		ENDC
+		IF STRCMP("HL", STRUPR("\1")) == 0
+			negate_pair	h,l
+		ENDC
 		IF (trash\@ == 0)
 			pop	af
 		ENDC
