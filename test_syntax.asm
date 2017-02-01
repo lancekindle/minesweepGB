@@ -350,3 +350,74 @@ test_0D_ifa_not:
 .passed
 	lda	1
 	TestResult	13
+
+
+; call with register, and value to load then negate
+; test_negate	a, 5   --OR--   test_negate	bc, $F0C2
+test_negate: MACRO
+	IF STRLEN("\1") == 1
+		ld	\1, \2
+		negate	\1
+		ld	a, \1
+		ifa	<>, \3, jp .failed
+		PRINTT	"\1"
+	ELSE
+		IF STRIN("BCDEHL",STRUPR("\1")) == 0
+			FAIL	"\1 needs to be a register pair"
+		ENDC
+		; assume it's a register pair
+		ld	\1, \2
+		negate	\1
+		; move negated register pair to DE
+		IF STRCMP("HL",STRUPR("\1")) == 0
+			ldpair	d,e,	h,l
+		ENDC
+		IF STRCMP("BC",STRUPR("\1")) == 0
+			ldpair	d,e,	b,c
+		ENDC
+		; we'll store \3 in HL
+		ld	hl, \3
+		; now DE, HL should be equal
+		ld	a, d
+		ifa	<>,h, jp .failed
+		ld	a, e
+		ifa	<>,l, jp .failed
+	ENDC
+	ENDM
+
+; test that negate returns -register or -register_pair
+; also verify that "trash AF" will force the macro to skip preserving A
+test_0E_negate:
+	test_negate	a, 4, -4
+	test_negate	b, 0, 0
+	test_negate	c, 8, -8
+	test_negate	d, 99, -99
+	;test_negate	e, 255, -255	; signed 8bit range: $7F, -$80
+	test_negate	h, 127, -127	; aka 		     127, -128
+	test_negate	l, 67, -67
+	; test negate register pairs
+	test_negate	bc, $0A38, -$0A38
+	test_negate	DE, $0000, -$0000
+	;test_negate	HL, $FFFF, -$FFFF  ; signed 16bit range: $7FFF, -$8000
+	test_negate	HL, $7FFF, -$7FFF  ; aka		 32767, -32768
+	; test "trash AF" argument
+	ld	a, 0
+	ld	b, 88
+	negate	b, trash AF
+	ifa	==, 0, jp .failed	; a should not be preserved
+	ld	a, 0
+	negate	b
+	ifa	<>, 0, jp .failed	; a is preserved
+	; test "trash AF" arg when negating register pair
+	ld	a, 0
+	ld	hl, $F92F
+	negate	hl, trash AF
+	ifa	==, 0, jp .failed
+	ld	a, 0
+	negate	hl
+	ifa	<>, 0, jp .failed
+.passed
+	TestPassed	14
+.failed
+	TestFailed	14
+
