@@ -124,7 +124,7 @@ begin:
 	call	lcd_ShowSprites
 	call	lcd_EnableVBlankInterrupt
 	mat_Init	mines, 0
-	mat_Init	flags, Blank
+	mat_Init	flags, 0
 	mat_Init	probed, 0
 	stack_Init	toExplore
 	call	display_startscreen	; and wait for user input
@@ -173,20 +173,29 @@ get_true:
 ; press keyboard_A to toggle flag
 ; this places a character @ location of sprite (x, y)
 toggle_flag:
-	; sprite coordinates are (0,0) up to (160,144)
-	; background coordinates are (0,0) up to (20,18)
-	; 160 / 8 == 20
-	; so to translate from sprite coordinates to background coordinates,
-	; we divide by 8.
-	GetSpriteYAddr	Sprite0		; Y is loaded in a
-	math_Div	a, 8	; normally overwrites registers. But quick way
-				; doesn't
-	ld	d, a	; Y coordinate should be in D
-	GetSpriteXAddr	Sprite0		; X is loaded in a
-	math_Div	a, 8
-	ld	e, a	; X coordinate should be in E
-	mat_SetYX	_SCRN0, d, e, Flag
+	call	get_sprite_yx_in_de
+	mat_IndexYX	_SCRN0, d, e
+	; hl now holds Index, the offset we can use
+	push	hl
+	mat_GetIndex	probed, hl
+	pop	hl
+	ifa	==, 1, ret
+	push	hl
+	mat_GetIndex	flags, hl
+	pop	hl
+	ifa	>, 0, jr .toggle_off
+	push	hl
+	mat_SetIndex	flags, hl, Flag
+	pop	hl
+	mat_SetIndex	_SCRN0, hl, Flag
 	ret
+.toggle_off
+	push	hl
+	mat_SetIndex	flags, hl, 0
+	pop	hl
+	mat_SetIndex	_SCRN0, hl, Blank
+	ret
+
 
 ; fill mines randomly in the minefield
 fill_mines:
@@ -197,7 +206,7 @@ fill_mines:
 	push	hl
 	rand_A
 	pop	hl
-	ifa	>, 50, jp .no_add_mine
+	ifa	>, 40, jp .no_add_mine
 	ld	a, 1
 	ld	[hl], a
 .no_add_mine
@@ -254,14 +263,18 @@ first_probe:
 
 probe_cell:
 	call	get_sprite_yx_in_de
+	push	de	; save Y,X
 	; probe cell @ current location
-	ld	a, [rFirstProbe]	; is this our first probe?
-	ifa	==, 1, call	first_probe
 	mat_IndexYX	mines, d, e	; get address in HL
 	push	hl	; store current matrix index. We'll use it 3x
 	mat_GetIndex	flags, hl	; result in a
 	pop	hl
+	pop	de	; restore Y,X in DE
 	ifa	==, Flag, ret	; ignore probe if Y,X is flagged
+	push	hl
+	ld	a, [rFirstProbe]	; is this our first probe?
+	ifa	==, 1, call	first_probe
+	pop	hl
 .check_explode
 	push	hl	; store Y,X index for writing # to screen later
 	mat_GetIndex	mines, hl	; HL equals current index
