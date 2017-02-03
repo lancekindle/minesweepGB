@@ -30,13 +30,41 @@ SYNTAX_ASM	SET	1
 
 
 ; simple macros to set/return true or false. Use these everywhere!
+; can include a conditional (C, NC, Z, NZ) as 1st arg. If the conditional
+; does not pass, then the true/false portion of (re)setting the carry-flag
+; will not happen either
 ret_true: MACRO
-	set_true
-	ret
+	IF _NARG == 0
+		set_true
+		ret
+	ENDC
+	IF _NARG == 1
+		IF STRCMP("C",STRUPR("\1")) == 0
+			ret	c	; just return if we wanted carry-flag
+			; (because CY is already set to true, then)
+		ELSE
+			jr_inverse	\1, .skip_ret_true\@
+			ret_true
+		ENDC
+	ENDC
+.skip_ret_true\@
 	ENDM
+
 ret_false: MACRO
-	set_false
-	ret
+	IF _NARG == 0
+		set_false
+		ret
+	ENDC
+	IF _NARG == 1
+		IF STRCMP("NC",STRUPR("\1")) == 0
+			ret	nc	; just return false if we wanted !CY
+			; (because CY (carry-flag) is already set to false)
+		ELSE
+			jr_inverse	\1, .skip_ret_false\@
+			ret_false
+		ENDC
+	ENDC
+.skip_ret_false\@
 	ENDM
 
 set_true: MACRO
