@@ -68,7 +68,7 @@ MidRamBase      Set     MidRamBase + \2
 ; ld	b, [player_coordinates + 1]
 ; register A or F is not allowed because we make use of A
 ; FAST:	17/14	17 cycles, 14 bytes
-var_GetLowRamWord: MACRO
+var_GetWord: MACRO
 	IF STRIN("bcdehlBCDEHL", "\1") == 0
 		FAIL	"require a register (but not A). Got \1"
 	ENDC
@@ -88,7 +88,7 @@ var_GetLowRamWord: MACRO
 ; doesn't trash registers
 ; register A or F is not allowed because we make use of A
 ; FAST:	17/14	17 cycles, 14 bytes
-var_SetLowRamWord: MACRO
+var_SetWord: MACRO
 	IF STRIN("bcdehlBCDEHL", "\1") == 0
 		FAIL	"require a register (but not A). Got \1"
 	ENDC
@@ -103,6 +103,38 @@ var_SetLowRamWord: MACRO
 	pop	af
 	ENDM
 
+; increment a word. Doesn't trash registers
+; COST:	32/12
+; COST:	26/18
+var_WordIncrement: MACRO
+	push	af
+	ld	a, [\1]
+	inc	a
+	ld	[\1], a
+	; we only need to inc MSB if LSB overflowed to zero
+	jr	nz, .done\@
+	ld	a, [\1 + 1]
+	inc	a
+	ld	[\1 + 1], a
+.done\@
+	pop	af
+	ENDM
 
+
+; COST:	29/19
+var_WordDecrement: MACRO
+	push	af
+	ld	a, [\1]
+	dec	a
+	ld	[\1], a
+	inc	a
+	; we only need to dec MSB if LSB was 0 before decrementing
+	jr	nz, .done\@
+	ld	a, [\1 + 1]
+	dec	a
+	ld	[\1 + 1], a
+.done\@
+	pop	af
+	ENDM
 
 	ENDC    ; end vars.asm definitions
