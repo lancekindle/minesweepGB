@@ -73,6 +73,10 @@ include "random.asm"
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
 	var_LowRamByte	rFirstProbe
+	var_LowRamByte	rMinesCount
+	var_LowRamWord	rCellsRemaining
+	var_LowRamByte	rCorrectFlags
+	var_LowRamByte	rWrongFlags
 
 	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
 	mat_Declare	mines, SCRN_VY_B, SCRN_VX_B	; setup mines matrix
@@ -89,7 +93,7 @@ include "random.asm"
 
 Blank	SET	" "
 Mine	SET	"*"
-Flag	SET	"/"	; Blank, Mine, Flag are now variable constants
+Flag	SET	$2B	; Blank, Mine, Flag are now variable constants
 
 
 ClearSpriteTable:
@@ -109,6 +113,21 @@ SpriteSetup:
 	call	DMACODELOC   ; we should make sure interrupts are disabled before this
 	ret
 
+; set low-ram variables to 0
+init_variables:
+	xor	a	; set A=0
+	ld	[rNearbyCount], a
+	ld	[rCellY], a
+	ld	[rCellX], a
+	ld	[rMinesCount], a
+	ld	[rCorrectFlags], a
+	ld	[rWrongFlags], a
+	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
+	var_SetWord	b,c,	rCellsRemaining
+	ld	a, 1
+	ld	[rFirstProbe], a
+	ret
+
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
@@ -123,6 +142,7 @@ begin:
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
 	call	lcd_EnableVBlankInterrupt
+	call	init_variables
 	mat_Init	mines, 0
 	mat_Init	flags, 0
 	mat_Init	probed, 0
@@ -131,14 +151,13 @@ begin:
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
 	call	fill_mines
 	call	remove_dense_mines
-	ld	a, 1
-	ld	[rFirstProbe], a
 .mainloop:
 	lcd_Wait4VBlank
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
 	if_	jpad_EdgeA, call	probe_cell
+	if_	only_mines_left, call reveal_mines
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
 
 
@@ -179,7 +198,8 @@ toggle_flag:
 	push	hl
 	mat_GetIndex	probed, hl
 	pop	hl
-	ifa	==, 1, ret
+	; if cell is already probed, do nothing
+	ifa	==, 1, ret	;jr .turn_off_flag_logically
 	push	hl
 	mat_GetIndex	flags, hl
 	pop	hl
@@ -187,13 +207,38 @@ toggle_flag:
 	push	hl
 	mat_SetIndex	flags, hl, Flag
 	pop	hl
+	push	hl
+	mat_GetIndex	mines, hl
+	ifa	==, 0, jr .wrongly_flagged   ; user flagged a non-mine
+.correctly_flagged	; we get here if user correctly flagged a mine
+	ld	hl, rCorrectFlags
+	inc	[hl]
+	jr	.display_flag_on_screen
+.wrongly_flagged
+	ld	hl, rWrongFlags
+	inc	[hl]
+.display_flag_on_screen
+	pop	hl
 	mat_SetIndex	_SCRN0, hl, Flag
 	ret
 .toggle_off
 	push	hl
-	mat_SetIndex	flags, hl, 0
+	mat_GetIndex	mines, hl
+	ifa	==, 0, jr .unflag_wrongly_flagged
+.unflag_correctly_flagged	; we get here if we just un-flagged a mine
+	ld	hl, rCorrectFlags
+	dec	[hl]
+	jr .disable_flag_logically_and_visually
+.unflag_wrongly_flagged
+	ld	hl, rWrongFlags
+	dec	[hl]
+.disable_flag_logically_and_visually
 	pop	hl
+	push	hl
 	mat_SetIndex	_SCRN0, hl, Blank
+	pop	hl
+.turn_off_flag_logically
+	mat_SetIndex	flags, hl, 0
 	ret
 
 
@@ -206,9 +251,11 @@ fill_mines:
 	push	hl
 	rand_A
 	pop	hl
-	ifa	>, 40, jp .no_add_mine
+	ifa	>, 30, jp .no_add_mine
 	ld	a, 1
-	ld	[hl], a
+	ld	[hl], a		; place mine
+	ld	hl, rMinesCount
+	inc	[hl]		; add to count of mines
 .no_add_mine
 	jp	.iterate
 
@@ -231,8 +278,12 @@ remove_dense_mines:
 	rand_A
 	ifa	>,200, jp .iterate
 	mat_IterYX	_SCRN0; get Y,X in DE
-	mat_SetYX	mines, d, e, 0	; remove mine @ location
-	; it isn't guaranteed there's a mine @ current location...
+	mat_GetYX	mines, d, e
+	ifa	==, 0, jp .iterate	; there's no mine. Go back to iteration
+	; [HL] (from above GetYX) holds the address for the current mine
+	ld	[hl], 0		; remove mine
+	ld	hl, rMinesCount
+	dec	[hl]		; lower count of mines
 	jp .iterate
 
 
@@ -248,38 +299,54 @@ get_sprite_yx_in_de:
 	ld	e, a	; X coordinate should be in E
 	ret
 
-; for the first probe, remove all mines in a 3x3 square around the player
+; for the first probe, clear all mines in a 3x3 square around the player
 ; makes the first probe better, since it'll "open up" a foothold from which
 ; to begin probing in an educated manner
 ; assume that D,E already holds player Y,X position
 first_probe:
+	call	get_sprite_yx_in_de
 	call	get_neighbor_corners_within_bounds
 	; b, c holds (y-1, y+2), d, e holds (x-1, x+2)
+	push	bc
+	push	de
+	mat_IterInit	mines, b, c, d, e	; setup iterate neighbors
+	; subtract the # of mines nearby from the total mine-count
+	mat_IterCount	mines, >, 0
+	negate	a	; get -(count of nearby mines)
+	ld	hl, rMinesCount
+	add	a, [hl]
+	ld	[hl], a		; store lowered count of mines
+	; now zero-out the nearby mines
+	pop	de
+	pop	bc
 	mat_IterInit	mines, b, c, d, e	; setup iterate neighbors
 	mat_IterSet	mines, 0
 	ld	a, 0
-	ld	[rFirstProbe], a	; disable future calling of this
+	ld	[rFirstProbe], a	; ensure first probe only runs once
 	ret
 
 probe_cell:
 	call	get_sprite_yx_in_de
-	push	de	; save Y,X
 	; probe cell @ current location
 	mat_IndexYX	mines, d, e	; get address in HL
 	push	hl	; store current matrix index. We'll use it 3x
 	mat_GetIndex	flags, hl	; result in a
 	pop	hl
-	pop	de	; restore Y,X in DE
 	ifa	==, Flag, ret	; ignore probe if Y,X is flagged
 	push	hl
+	mat_GetIndex	probed, hl
+	pop	hl
+	ifa	>, 0, ret	; ignore probe if it's already been probed
 	ld	a, [rFirstProbe]	; is this our first probe?
-	ifa	==, 1, call	first_probe
+	push	hl
+	ifa	==, 1, call	first_probe ; remove nearby mines on 1st probe
 	pop	hl
 .check_explode
 	push	hl	; store Y,X index for writing # to screen later
-	mat_GetIndex	mines, hl	; HL equals current index
+	mat_GetIndex	mines, hl
 	pop	hl
-	ifa	==, 1, ret	; return (do nothing) if we exploded
+	ifa	==, 1, jp reveal_mines	; we probed a mine :(
+	; we get here if we didn't explode
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
 	call	get_sprite_yx_in_de
 .add_DE_to_stack
@@ -341,8 +408,11 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	mat_IterCount	mines, ==, 1; counts mines surrounding player
 	ld	[rNearbyCount], a	; store minecount
 	pop	de	; retrieve Y, X
-	mat_IndexYX	_SCRN0, d,e	; calculate index
-	push	hl	; store index
+	mat_IndexYX	_SCRN0, d,e	; calculate index (in HL)
+	; index is in HL
+	call	unflag_non_mine_cell	; preserves hl
+	push	hl
+	var_WordDecrement	rCellsRemaining
 	lcd_Wait4VBlank ; need to wait for VRAM access
 	lda	[rNearbyCount]
 	add	"0"	; create string equivalent of count
@@ -352,6 +422,26 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	; only explore neighbors if all of them are empty
 	lda	[rNearbyCount]
 	ret
+
+
+; call this to logically unflag a location (index in HL) that is about to be
+; probed. We assume that the location is NOT a mine
+; preserves HL throughout this routine
+unflag_non_mine_cell:
+	push	hl
+	mat_GetIndex	flags, hl
+	ifa	>, 0, jr .removeWrongFlag
+	pop	hl
+	ret
+.removeWrongFlag
+	ld	hl, rWrongFlags
+	dec	[hl]
+	pop	hl
+	push	hl
+	mat_SetIndex	flags, hl, 0
+	pop	hl
+	ret
+
 
 ; call this with coordinates Y,X loaded in D,E
 ; this will NOT display # on screen, NOR mark cell as probed. It simply counts
@@ -409,6 +499,46 @@ move_sprite_within_screen_bounds:
 	ifa	<, SCRN_Y - 8,  MoveOnceIfDown	Sprite0, 8
 	pop	af
 	ifa	>, 0,		MoveOnceIfUp	Sprite0, 8
+	ret
+
+; returns true/false if all mines have been accounted for and flagged
+all_mines_flagged:
+	lda	[rWrongFlags]
+	or	a
+	; return false if 1+ flags are incorrectly set
+	ret_false	nz
+	lda	[rCorrectFlags]
+	ld	hl, rMinesCount
+	; return true if # of correct-flags == # of mines
+	ifa	==, [hl], ret_true
+	ret_false
+
+
+; returns true/false if all non-mine cells have been probed
+only_mines_left:
+	var_GetWord	b,c,	rCellsRemaining
+	ld	a, [rMinesCount]
+	sub	c	; Will set zero-flag
+	or	b	; if 0,A == B,C
+	ret_true	z
+	ret_false
+
+
+; iterate through and reveal mines onscreen
+reveal_mines:
+	mat_IterInit	mines, 0, SCRN_Y_B,	0, SCRN_X_B
+.loop
+	mat_IterNext	mines
+	ret	nc	; iteration finished
+	ifa	==, 0, jr .loop		; keep looping until we find a mine
+	; HL contains address @ mines
+	ld	de, mines
+	negate	de
+	add	hl, de
+	; HL now contains Index / offset
+	mat_SetIndex	_SCRN0, hl, Mine
+	jr	.loop
+.done
 	ret
 
 
