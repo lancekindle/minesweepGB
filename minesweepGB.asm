@@ -163,14 +163,14 @@ begin:
 
 ; start screen text
 startscreen:
-	DB	"Press A Button"
+	DB	"Press any Button"
 startscreen_end:
 
 ; displays startscreen and waits for user input before returning
 ; runs a tight loop so that when the user presses a button,
 ; it initializes the random-value generator (not tied to vblank)
 display_startscreen:
-	mat_GetYX	_SCRN0, 5, 3
+	mat_GetYX	_SCRN0, 5, 2
 	; HL contains address @ 5,5
 	ldpair	d,e,	h,l	; destination is screen
 	ld	hl, startscreen	; source is screen letters
@@ -181,6 +181,8 @@ display_startscreen:
 	call	jpad_GetKeys
 	or	a	; set zero-flag if no user input
 	jr	z, .wait4input
+	; now we've got the keypress in a
+	rand_seed	; seed random#-generator with keypress
 	rand_A	; immediately calculate random#. This has the effect
 		; of starting the randomizer based on when user pressed a key
 	ret
@@ -251,13 +253,12 @@ fill_mines:
 	push	hl
 	rand_A
 	pop	hl
-	ifa	>, 30, jp .no_add_mine
+	ifa	>, 30, jr .iterate
 	ld	a, 1
 	ld	[hl], a		; place mine
 	ld	hl, rMinesCount
 	inc	[hl]		; add to count of mines
-.no_add_mine
-	jp	.iterate
+	jr	.iterate
 
 
 ; re-iterates current mine count and potentially removes a mine @ a location
@@ -267,6 +268,13 @@ remove_dense_mines:
 .iterate
 	mat_IterNext	_SCRN0
 	ret	nc	; return if iteration done
+	ld	bc, _SCRN0
+	negate	bc
+	add	hl, bc	; Index = @YX_address - beginning of matrix
+	; HL now holds Index
+	mat_GetIndex	mines, hl
+	ifa	==, 0, jr .iterate	; skip if there's no mine here
+	; we get here if there's a mine in the center.
 	mat_IterYX	_SCRN0	; Y,X from current iteration in D,E
 	call	get_neighbor_corners_within_bounds
 	; BC now holds [y-1:y+2), DE holds [x-1:x+2)
