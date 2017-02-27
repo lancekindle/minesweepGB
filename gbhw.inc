@@ -278,95 +278,9 @@ rWY EQU $FF4A
 rWX EQU $FF4B
 
 
-; --
-; -- KEY 1 ($FF4D)
-; -- Select CPU Speed (R/W)
-; --
-rKEY1 EQU $FF4D
-
-
-; --
-; -- VBK ($FF4F)
-; -- Select Video RAM Bank (R/W)
-; --
-rVBK EQU $FF4F
-
-
-; --
-; -- HDMA1 ($FF51)
-; -- Horizontal Blanking, General Purpose DMA (W)
-; --
-rHDMA1 EQU $FF51
-
-
-; --
-; -- HDMA2 ($FF52)
-; -- Horizontal Blanking, General Purpose DMA (W)
-; --
-rHDMA2 EQU $FF52
-
-
-; --
-; -- HDMA3 ($FF53)
-; -- Horizontal Blanking, General Purpose DMA (W)
-; --
-rHDMA3 EQU $FF53
-
-
-; --
-; -- HDMA4 ($FF54)
-; -- Horizontal Blanking, General Purpose DMA (W)
-; --
-rHDMA4 EQU $FF54
-
-
-; --
-; -- HDMA5 ($FF55)
-; -- Horizontal Blanking, General Purpose DMA (R/W)
-; --
-rHDMA5 EQU $FF55
-
-
-; --
-; -- RP ($FF56)
-; -- Infrared Communications Port (R/W)
-; --
-rRP EQU $FF56
-
-
-; --
-; -- BCPS ($FF68)
-; -- Background Color Palette Specification (R/W)
-; --
-rBCPS EQU $FF68
-
-
-; --
-; -- BCPD ($FF69)
-; -- Background Color Palette Data (R/W)
-; --
-rBCPD EQU $FF69
-
-
-; --
-; -- BCPS ($FF6A)
-; -- Object Color Palette Specification (R/W)
-; --
-rOCPS EQU $FF6A
-
-
-; --
-; -- BCPD ($FF6B)
-; -- Object Color Palette Data (R/W)
-; --
-rOCPD EQU $FF6B
-
-
-; --
-; -- SVBK ($FF4F)
-; -- Select Main RAM Bank (R/W)
-; --
-rSVBK EQU $FF70
+; -- $FF4D - $FF70
+; -- Color Game Boy specific registers
+; -- (see cgbhw.inc)
 
 
 ; --
