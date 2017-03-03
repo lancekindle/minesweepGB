@@ -5,6 +5,7 @@
 ;---------------------------------------------------------------------------
 
 include "gbhw.inc"
+include "cgbhw.inc"
 include "ibmpc1.inc"
 
 
@@ -44,7 +45,7 @@ section "start", HOME[$0100]
 ; UGH. After any macro call / command, DO NOT INCLUDE A COMMA! Commas only
 ; separate 2+ arguments. First argument doesn't have a comma separating it.
 ; write the rom header
-	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
+	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT, COLOR_COMPATIBLE
 
 ; include .asm files here (asm includes actual code. inc just defines stuff)
 ; we need to add it here after all the critical address-specific code
@@ -67,8 +68,11 @@ include "vars.asm"
 include "matrix.asm"
 include "stack.asm"
 include "random.asm"
+include "rgb.asm"
 
 ; declare some variables
+	var_LowRamByte	rGBC	; set to > 0 if color gameboy present
+	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
@@ -113,6 +117,28 @@ SpriteSetup:
 	call	DMACODELOC   ; we should make sure interrupts are disabled before this
 	ret
 
+
+init_colorgb_variables:
+	ld	a, $FF
+	; at the very least, set the fact that color is supported
+	ld	[rGBC], a
+	; check if gameboy color or gameboy advance
+	bit	0, b	; check bit 0 of B. It's gba if 1
+	if_flag	nz,	ld [rGBA], a
+	; now enable Color Gameboy double-speed
+	ld	[rKEY1], a
+	stop	
+	; stop normally halts cpu (in a bad way). But since we've just
+	; enabled double-speed mode, the cpu will pick up (After a screen
+	; flicker) in double-speed mode
+	xor	a
+	ld	hl, rgb_StandardPalette
+	call	rgb_SetSingleBGP  ; set BKGND palette 0 (reg. A) to greyscale
+	xor	a
+	ld	hl, rgb_StandardPalette
+	call	rgb_SetSingleOBJP  ; set sprite palette 0 (reg. A) to greyscale
+	ret
+
 ; set low-ram variables to 0
 init_variables:
 	xor	a	; set A=0
@@ -131,6 +157,14 @@ init_variables:
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
+	push	af	; save color-gameboy indicator
+	xor	a
+	ld	[rGBC], a	; zero gb-color indicator
+	ld	[rGBA], a	; zero gb-advance indicator
+	pop	af
+	; register a contains 11 in a gameboy color
+	ifa	==, $11, call init_colorgb_variables
+	call init_colorgb_variables
 	call	initdma
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop

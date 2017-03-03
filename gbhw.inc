@@ -641,7 +641,16 @@ ROM_HEADER:   MACRO
     NINTENDO_LOGO  ; add nintendo logo  (idk why macro calls must be indented)
 
  DB "EXAMPLE",0,0,0,0,0,0,0,0 ; Cart name - 15bytes
- DB 0                         ; $143
+    ; set GBC compatibility. If not set, GBC features are disabled
+    IF (_NARG >= 4)
+        IF (STRCMP("\4", "COLOR_COMPATIBLE") == 0)
+ DB $80                       ; $143 - GBC support. $80 = both. $C0 = only gbc
+        ELSE
+ DB 0                         ; $143 - GBC support. $80 = both. $C0 = only gbc
+        ENDC
+    ELSE
+ DB 0                         ; $143 - GBC support. $80 = both. $C0 = only gbc
+    ENDC
  DB 0,0                       ; $144 - Licensee code (not important)
  DB 0                         ; $146 - SGB Support indicator
  DB \1                        ; $147 - Cart type
