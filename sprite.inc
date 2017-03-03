@@ -22,7 +22,7 @@ OAMDATALENGTH	EQU	$A0
 sprite_RS	SET OAMDATALOC
 
 ; RSSET and RB are macros / compiler stuff that increments a value called _RS
-; so let's talk about _RS. It's a compiler-tracked byte. 
+; so let's talk about _RS. It's a compiler-tracked byte. (max value of 255)
 ; RSSET 100        ; sets the _RS value to 100
 ; X		RB  25     ; sets X to 100 (current value of _RS) then adds 25 to _RS
 ; Y		RB  14     ; sets Y to 125 (current value of _RS) then adds 14 to _RS
