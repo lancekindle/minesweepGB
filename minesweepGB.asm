@@ -118,6 +118,50 @@ SpriteSetup:
 	ret
 
 
+bg_color_palettes:
+	; greyscale
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	192, 192, 192	; light grey
+	rgb_Set	127, 127, 127	; dark grey
+	rgb_Set	  0,   0,   0	; black
+	; green on white (good indicator)
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	  0, 127,   0	; light green
+	rgb_Set	  0, 192,   0	; darkish green
+	rgb_Set	  0, 255,   0	; green
+	; red on white (bad indicator)
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	127,   0,   0	; light red
+	rgb_Set	192,   0,   0	; darkish red
+	rgb_Set	255,   0,   0	; red
+	; blue on white
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	0,   0,   127	; light blue
+	rgb_Set	0,   0,   192	; darkish blue
+	rgb_Set	0,   0,   255	; blue
+	; yellow on white
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	127, 127,   0	; light yellow
+	rgb_Set	192, 192,   0	; bolder yellow
+	rgb_Set	255, 255,   0	; yellow
+	; purple on white
+	rgb_Set 255, 255, 255	; white
+	rgb_Set 127,   0, 127	; light magenta
+	rgb_Set	$7D, $05, $52	; dark orchid
+	rgb_Set	255,   0, 255	; magenta
+	; pink on white
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	$FA, $AF, $BE	; pink
+	rgb_Set	$F6, $60, $AB	; hot pink
+	rgb_Set	$F5, $28, $87	; deep pink
+	; orange on red (flames...)
+	rgb_Set 255,   0,   0	; red
+	rgb_Set	$FF, $24,   0	; scarlet
+	rgb_Set	$F8, $72, $17	; pumpkin orange
+	rgb_Set	255, $A5,   0	; orange
+
+
+
 init_colorgb_variables:
 	ld	a, $FF
 	; at the very least, set the fact that color is supported
@@ -131,9 +175,10 @@ init_colorgb_variables:
 	; stop normally halts cpu (in a bad way). But since we've just
 	; enabled double-speed mode, the cpu will pick up (After a screen
 	; flicker) in double-speed mode
+	nop	; nop after a halt/stop is good practice
 	xor	a
-	ld	hl, rgb_StandardPalette
-	call	rgb_SetSingleBGP  ; set BKGND palette 0 (reg. A) to greyscale
+	ld	hl, bg_color_palettes
+	call	rgb_SetAllBGP
 	xor	a
 	ld	hl, rgb_StandardPalette
 	call	rgb_SetSingleOBJP  ; set sprite palette 0 (reg. A) to greyscale
@@ -154,6 +199,38 @@ init_variables:
 	ld	[rFirstProbe], a
 	ret
 
+
+get_cell_font: MACRO
+	PUSHO	; push options so that I can change the meaning of .;0X
+	; change graphics characters. Start the line with ` (for graphics)
+	; . = 00
+	; - = 01
+	; o = 10
+	; X = 11
+	OPT	g.-oX
+
+	DW	`o.......
+	DW	`o------.
+	DW	`o------.
+	DW	`o------.
+	DW	`o------.
+	DW	`o------.
+	DW	`o------.
+	DW	`oooooooo
+	POPO	; restore default options (aka undo g.-oX)
+	ENDM
+
+cell_gfx:
+	get_cell_font
+end_cellgfx:
+
+load_cell_graphic:
+	ld	hl, font
+	ld	de, _VRAM
+	ld	bc, end_cellgfx - cell_gfx
+	call	mem_CopyVRAM
+	ret
+
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
@@ -162,14 +239,14 @@ begin:
 	ld	[rGBC], a	; zero gb-color indicator
 	ld	[rGBA], a	; zero gb-advance indicator
 	pop	af
-	; register a contains 11 in a gameboy color
+	; register a contains $11 in a gameboy color
 	ifa	==, $11, call init_colorgb_variables
-	call init_colorgb_variables
 	call	initdma
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
 	call	LoadFont
+	call	load_cell_graphic
 	call	ClearSpriteTable
 	call	lcd_On
 	call	SpriteSetup
@@ -182,7 +259,7 @@ begin:
 	mat_Init	probed, 0
 	stack_Init	toExplore
 	call	display_startscreen	; and wait for user input
-	mat_Init	_SCRN0, Blank	; initialize screen background with " "
+	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
 	call	remove_dense_mines
 .mainloop:

@@ -82,7 +82,7 @@ rgb_SetSingleBGP:
 ; *** Set all background palettes ***
 ; Entry: HL = pntr to data for 8 palettes
 rgb_SetAllBGP:
-	ld	a,%1000000	; bit 7 = auto-increment. Bits 0-6 = index 0
+	ld	a,%10000000	; bit 7 = auto-increment. Bits 0-6 = index 0
 	ld	[rBCPS],a
 	ld	bc,$4069	; b = 64, c = rBCPD	(when using ld [c], a)
 .loop1:
