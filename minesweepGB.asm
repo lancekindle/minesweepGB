@@ -52,8 +52,6 @@ section "start", HOME[$0100]
 ; has been laid out
 
 include "sprite.inc"
-; create Sprite0
-	SpriteAttr	Sprite0
 include "joypad.asm"
 	PRINTT	"jpad_rKeys @"
 	PRINTV	jpad_rKeys
@@ -71,8 +69,17 @@ include "random.asm"
 include "rgb.asm"
 
 ; declare some variables
+	; set sprite variables
+	SpriteAttr	Spr_UpperLeft
+	SpriteAttr	Spr_UpperRight
+	SpriteAttr	Spr_LowerLeft
+	SpriteAttr	Spr_LowerRight
+	; set ram variables
 	var_LowRamByte	rGBC	; set to > 0 if color gameboy present
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
+	var_LowRamByte	rPlayerY
+	var_LowRamByte	rPlayerX
+	var_LowRamByte	rPlayerHasMoved
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
@@ -108,13 +115,58 @@ ClearSpriteTable:
 	ret
 
 SpriteSetup:
-	PutSpriteYAddr	Sprite0, 0
-	PutSpriteXAddr	Sprite0, 0
-	ld	a, 1
-	ld	[Sprite0TileNum], a
+	ld	a, 8*8
+	ld	[rPlayerY], a
+	ld	a, 9*8
+	ld	[rPlayerX], a
+	; set crosshairs to tile#2
+	ld	a, 2
+	ld	[Spr_UpperLeftTileNum], a
+	ld	[Spr_LowerLeftTileNum], a
+	ld	[Spr_UpperRightTileNum], a
+	ld	[Spr_LowerRightTileNum], a
+	; flip crosshairs to they all have a corresponding orientation
 	ld	a, %00000000
-	ld	[Sprite0Flags], a
-	call	DMACODELOC   ; we should make sure interrupts are disabled before this
+	ld	[Spr_UpperLeftFlags], a
+	set	5, a	; set horizontal flip flag
+	ld	[Spr_UpperRightFlags], a
+	set	6, a	; set vertical flip flag
+	ld	[Spr_LowerRightFlags], a
+	res	5, a	; undo horizontal flip
+	ld	[Spr_LowerLeftFlags], a
+	; push sprite positions to vram
+	call	update_crosshairs
+	call	DMACODELOC
+	di	; dmacodeloc enables interrupts after it exits. Here we disable them again
+	ret
+
+; update crosshairs indicating player origin
+; player's coordinates are on top-left of cell
+; places coordinates around the location
+; USES: AF
+update_crosshairs:
+	ld	a, [rPlayerHasMoved]
+	ifa	==, 0, ret
+	; update Y position
+	ld	a, [rPlayerY]
+	push	af
+	sub	3
+	PutSpriteYAddr	Spr_UpperLeft, a
+	PutSpriteYAddr	Spr_UpperRight, a
+	pop	af
+	add	2
+	PutSpriteYAddr	Spr_LowerLeft, a
+	PutSpriteYAddr	Spr_LowerRight, a
+	; update X position
+	ld	a, [rPlayerX]
+	push	af
+	sub	2
+	PutSpriteXAddr	Spr_UpperLeft, a
+	PutSpriteXAddr	Spr_LowerLeft, a
+	pop	af
+	add	3
+	PutSpriteXAddr	Spr_UpperRight, a
+	PutSpriteXAddr	Spr_LowerRight, a
 	ret
 
 
@@ -209,6 +261,7 @@ get_cell_font: MACRO
 	; X = 11
 	OPT	g.-oX
 
+	; Cell Graphic
 	DW	`o.......
 	DW	`o------.
 	DW	`o------.
@@ -217,6 +270,54 @@ get_cell_font: MACRO
 	DW	`o------.
 	DW	`o------.
 	DW	`oooooooo
+
+	; Flagged Cell Graphic
+	DW	`o.......
+	DW	`o--X---.
+	DW	`o--X---.
+	DW	`oXXXXX-.
+	DW	`o--X---.
+	DW	`o--X---.
+	DW	`o------.
+	DW	`oooooooo
+
+	; 1/4th of character
+	DW	`X-X-X-X-
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	; 2/4th of character
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	DW	`X.......
+	DW	`-.......
+	DW	`X-X-X-X-
+	; 2/4th of character
+	DW	`-X-X-X-X
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	; 3/4th of character
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	DW	`.......X
+	DW	`.......-
+	DW	`-X-X-X-X
+
 	POPO	; restore default options (aka undo g.-oX)
 	ENDM
 
@@ -225,7 +326,7 @@ cell_gfx:
 end_cellgfx:
 
 load_cell_graphic:
-	ld	hl, font
+	ld	hl, cell_gfx
 	ld	de, _VRAM
 	ld	bc, end_cellgfx - cell_gfx
 	call	mem_CopyVRAM
@@ -305,7 +406,7 @@ get_true:
 ; press keyboard_A to toggle flag
 ; this places a character @ location of sprite (x, y)
 toggle_flag:
-	call	get_sprite_yx_in_de
+	call	get_player_yx_in_de
 	mat_IndexYX	_SCRN0, d, e
 	; hl now holds Index, the offset we can use
 	push	hl
@@ -332,7 +433,7 @@ toggle_flag:
 	inc	[hl]
 .display_flag_on_screen
 	pop	hl
-	mat_SetIndex	_SCRN0, hl, Flag
+	mat_SetIndex	_SCRN0, hl, 1
 	ret
 .toggle_off
 	push	hl
@@ -348,7 +449,7 @@ toggle_flag:
 .disable_flag_logically_and_visually
 	pop	hl
 	push	hl
-	mat_SetIndex	_SCRN0, hl, Blank
+	mat_SetIndex	_SCRN0, hl, 0
 	pop	hl
 .turn_off_flag_logically
 	mat_SetIndex	flags, hl, 0
@@ -409,13 +510,13 @@ remove_dense_mines:
 ; USES: A, DE
 ; EXIT: D,E holds Y,X coordinates of player (if we assume screen is 20x16 grid)
 ; uses fast math_Div so that rest of registers aren't overwritten
-get_sprite_yx_in_de:
-	GetSpriteYAddr	Sprite0		; Y is loaded in a
-	math_Div	a, 8
-	ld	d, a	; Y coordinate should be in D
-	GetSpriteXAddr	Sprite0		; X is loaded in a
-	math_Div	a, 8
-	ld	e, a	; X coordinate should be in E
+get_player_yx_in_de:
+	ld	a, [rPlayerY]
+	math_Div	a, 8	; convert from pixels to grid
+	ld	d, a
+	ld	a, [rPlayerX]
+	math_Div	a, 8	; convert from pixel coordinates to grid coords
+	ld	e, a
 	ret
 
 ; for the first probe, clear all mines in a 3x3 square around the player
@@ -423,7 +524,7 @@ get_sprite_yx_in_de:
 ; to begin probing in an educated manner
 ; assume that D,E already holds player Y,X position
 first_probe:
-	call	get_sprite_yx_in_de
+	call	get_player_yx_in_de
 	call	get_neighbor_corners_within_bounds
 	; b, c holds (y-1, y+2), d, e holds (x-1, x+2)
 	push	bc
@@ -445,7 +546,7 @@ first_probe:
 	ret
 
 probe_cell:
-	call	get_sprite_yx_in_de
+	call	get_player_yx_in_de
 	; probe cell @ current location
 	mat_IndexYX	mines, d, e	; get address in HL
 	push	hl	; store current matrix index. We'll use it 3x
@@ -467,7 +568,7 @@ probe_cell:
 	ifa	==, 1, jp reveal_mines	; we probed a mine :(
 	; we get here if we didn't explode
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
-	call	get_sprite_yx_in_de
+	call	get_player_yx_in_de
 .add_DE_to_stack
 	ldpair	b,c,	d,e	; Y,X in BC now
 	stack_Push	toExplore, c,b	; store X,Y in stack
@@ -605,19 +706,59 @@ get_neighbor_corners_within_bounds:
 	ret
 
 
+move_once_if_right:
+	if_not	jpad_EdgeRight, ret
+	ld	a, [rPlayerX]
+	add	8
+	ld	[rPlayerX], a
+	ld	a, $FF
+	ld	[rPlayerHasMoved], a	; place a non-zero value here
+	ret
+
+move_once_if_left:
+	if_not	jpad_EdgeLeft, ret
+	ld	a, [rPlayerX]
+	sub	8
+	ld	[rPlayerX], a
+	ld	a, $FF
+	ld	[rPlayerHasMoved], a	; place a non-zero value here
+	ret
+
+move_once_if_up:
+	if_not	jpad_EdgeUp, ret
+	ld	a, [rPlayerY]
+	sub	8
+	ld	[rPlayerY], a
+	ld	a, $FF
+	ld	[rPlayerHasMoved], a	; place a non-zero value here
+	ret
+
+move_once_if_down:
+	if_not	jpad_EdgeDown, ret
+	ld	a, [rPlayerY]
+	add	8
+	ld	[rPlayerY], a
+	ld	a, $FF
+	ld	[rPlayerHasMoved], a	; place a non-zero value here
+	ret
+
+
 move_sprite_within_screen_bounds:
 	; MoveIf* are macros from sprite.inc
 	; Only move if NOT on borders
-	GetSpriteXAddr	Sprite0
+	xor	a	; A=0
+	ld	[rPlayerHasMoved], a	; if player has moved this'll be updated
+	ld	a, [rPlayerX]
 	push	af	; store X value for later
-	ifa	<, SCRN_X - 8,  MoveOnceIfRight Sprite0, 8
+	ifa	<, SCRN_X - 8,	call move_once_if_right
 	pop	af
-	ifa	>, 0,		MoveOnceIfLeft	Sprite0, 8
-	GetSpriteYAddr	Sprite0
+	ifa	>, 0,		call move_once_if_left
+	ld	a, [rPlayerY]
 	push	af
-	ifa	<, SCRN_Y - 8,  MoveOnceIfDown	Sprite0, 8
+	ifa	<, SCRN_Y - 8,	call move_once_if_down
 	pop	af
-	ifa	>, 0,		MoveOnceIfUp	Sprite0, 8
+	ifa	>, 0,		call move_once_if_up
+	jp	update_crosshairs
 	ret
 
 ; returns true/false if all mines have been accounted for and flagged
