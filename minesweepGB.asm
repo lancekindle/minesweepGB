@@ -80,6 +80,8 @@ include "rgb.asm"
 	var_LowRamByte	rPlayerY
 	var_LowRamByte	rPlayerX
 	var_LowRamByte	rPlayerHasMoved
+	var_LowRamByte	rCrosshairY
+	var_LowRamByte	rCrosshairX
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
@@ -117,8 +119,10 @@ ClearSpriteTable:
 SpriteSetup:
 	ld	a, 8*8
 	ld	[rPlayerY], a
+	ld	[rCrosshairY], a
 	ld	a, 9*8
 	ld	[rPlayerX], a
+	ld	[rCrosshairX], a
 	; set crosshairs to tile#2
 	ld	a, 2
 	ld	[Spr_UpperLeftTileNum], a
@@ -145,10 +149,8 @@ SpriteSetup:
 ; places coordinates around the location
 ; USES: AF
 update_crosshairs:
-	ld	a, [rPlayerHasMoved]
-	ifa	==, 0, ret
-	; update Y position
-	ld	a, [rPlayerY]
+	call	move_crosshairs_halfway_to_player
+	ld	a, [rCrosshairY]
 	push	af
 	sub	3
 	PutSpriteYAddr	Spr_UpperLeft, a
@@ -158,7 +160,7 @@ update_crosshairs:
 	PutSpriteYAddr	Spr_LowerLeft, a
 	PutSpriteYAddr	Spr_LowerRight, a
 	; update X position
-	ld	a, [rPlayerX]
+	ld	a, [rCrosshairX]
 	push	af
 	sub	2
 	PutSpriteXAddr	Spr_UpperLeft, a
@@ -167,6 +169,62 @@ update_crosshairs:
 	add	3
 	PutSpriteXAddr	Spr_UpperRight, a
 	PutSpriteXAddr	Spr_LowerRight, a
+	ret
+
+
+; moves the crosshairs halfway to the player. Each call moves it halfway closer
+; until it's fully moved into the player's position
+; barely perceptable, but it makes movement feel so smooth. mmmmmm yeah.
+; try rocking back and forth to see what I mean
+move_crosshairs_halfway_to_player:
+	; uncomment these lines to see the instant 'jerky' moves
+;	ld	a, [rPlayerY]
+;	ld	[rCrosshairY], a
+;	ld	a, [rPlayerX]
+;	ld	[rCrosshairX], a
+	; update Y position
+	ld	a, [rCrosshairY]
+	ld	b, a
+	ld	a, [rPlayerY]
+	sub	b	; calculate player_y - crosshar_y
+	jp z, .update_X	; skip updating Y if it's already equal
+	if_flag	c, jp .negativeY
+	; A is positive here. We add half that to crosshair_y
+	srl	a	; divide offset by 2
+	if_flag	nc, jp .add_half_y_offset
+	or	a
+	; if carry-flag=1 and A=0, then our offset was one
+	; we need to load 1 as offset to finally reach player_y
+	if_flag	z, ld	a, 1
+	jp .add_half_y_offset
+.negativeY
+	sra	a	; divide by 2 (for signed/negative numbers)
+	; unlike unsigned #s, -1 never goes away when divided by 2. $FF stays
+	; $FF when using sra (which keeps the same bit 7)
+	; so it's totally cool to use the exact result as the offset
+.add_half_y_offset
+	add	b	; apply offset to crosshair_y
+	ld	[rCrosshairY], a
+	; update X position
+.update_X
+	ld	a, [rCrosshairX]
+	ld	b, a
+	ld	a, [rPlayerX]
+	sub	b	; calculate player_X - crosshar_X
+	ret z	; skip updating X if it's already equal
+	if_flag	c, jp .negativeX
+	srl	a	; divide offset by 2
+	if_flag	nc, jp .add_half_x_offset
+	or	a
+	; if carry-flag=1 and A=0, then our offset was one
+	; we need to load 1 as offset to finally reach player_x
+	if_flag	z, ld	a, 1
+	jp .add_half_x_offset
+.negativeX
+	sra	a	; divide by 2 (for signed/negative numbers)
+.add_half_x_offset
+	add	b	; apply offset to crosshair_x
+	ld	[rCrosshairX], a
 	ret
 
 
@@ -211,7 +269,6 @@ bg_color_palettes:
 	rgb_Set	$FF, $24,   0	; scarlet
 	rgb_Set	$F8, $72, $17	; pumpkin orange
 	rgb_Set	255, $A5,   0	; orange
-
 
 
 init_colorgb_variables:
