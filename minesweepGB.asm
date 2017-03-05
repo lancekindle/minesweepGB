@@ -271,6 +271,29 @@ bg_color_palettes:
 	rgb_Set	255, $A5,   0	; orange
 
 
+; check for gameboy color and gameboy advance hardware. Enable color features
+; if possible
+check_hardware:
+	push	af	; save color-gameboy indicator
+	xor	a
+	ld	[rGBC], a	; zero gb-color indicator
+	ld	[rGBA], a	; zero gb-advance indicator
+	ld	a, [$143]	; this is the ROM's GBC support indicator
+	; it doesn't matter what hardware we're running if we accidentally
+	; compiled the program to be non-color compatible
+	ifa	<, $80, jp .rom_incompatible_with_color
+	pop	af
+	; register a contains $11 in a gameboy color
+	; AND bit 1 of register b is set in a gameboy advance
+	ifa	==, $11, call init_colorgb_variables
+	ret
+.rom_incompatible_with_color
+	; we get here if rom does not tell the gbc that it's color compatible
+	; so even though we may detect gbc, gba hardware, we must NOT use any
+	; color features. Pretend we're on the original gameboy
+	pop	af
+	ret
+
 init_colorgb_variables:
 	ld	a, $FF
 	; at the very least, set the fact that color is supported
@@ -479,13 +502,7 @@ load_graphics:
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
-	push	af	; save color-gameboy indicator
-	xor	a
-	ld	[rGBC], a	; zero gb-color indicator
-	ld	[rGBA], a	; zero gb-advance indicator
-	pop	af
-	; register a contains $11 in a gameboy color
-	ifa	==, $11, call init_colorgb_variables
+	call	check_hardware
 	call	initdma
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
