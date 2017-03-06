@@ -45,7 +45,7 @@ section "start", HOME[$0100]
 ; UGH. After any macro call / command, DO NOT INCLUDE A COMMA! Commas only
 ; separate 2+ arguments. First argument doesn't have a comma separating it.
 ; write the rom header
-	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT;, COLOR_COMPATIBLE
+	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT, COLOR_COMPATIBLE
 
 ; include .asm files here (asm includes actual code. inc just defines stuff)
 ; we need to add it here after all the critical address-specific code
@@ -176,6 +176,7 @@ update_crosshairs:
 ; until it's fully moved into the player's position
 ; barely perceptable, but it makes movement feel so smooth. mmmmmm yeah.
 ; try rocking back and forth to see what I mean
+; USES: AF, B
 move_crosshairs_halfway_to_player:
 	; uncomment these lines to see the instant 'jerky' moves
 ;	ld	a, [rPlayerY]
@@ -191,10 +192,7 @@ move_crosshairs_halfway_to_player:
 	if_flag	c, jp .negativeY
 	; A is positive here. We add half that to crosshair_y
 	srl	a	; divide offset by 2
-	if_flag	nc, jp .add_half_y_offset
-	or	a
-	; if carry-flag=1 and A=0, then our offset was one
-	; we need to load 1 as offset to finally reach player_y
+	; if A=0, then before divide by 2 it was 1. Reload 1
 	if_flag	z, ld	a, 1
 	jp .add_half_y_offset
 .negativeY
@@ -214,10 +212,7 @@ move_crosshairs_halfway_to_player:
 	ret z	; skip updating X if it's already equal
 	if_flag	c, jp .negativeX
 	srl	a	; divide offset by 2
-	if_flag	nc, jp .add_half_x_offset
-	or	a
-	; if carry-flag=1 and A=0, then our offset was one
-	; we need to load 1 as offset to finally reach player_x
+	; if A=0, then our offset was one. Load 1 as offset
 	if_flag	z, ld	a, 1
 	jp .add_half_x_offset
 .negativeX
