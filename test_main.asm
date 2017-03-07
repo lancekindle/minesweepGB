@@ -63,6 +63,8 @@ begin:
 	call	test_33_stack_Boundaries
 	call	test_34_stack_PushPop_Word
 	call	test_35_stack_PushPop_WordBoundaries
+	call	test_36_stack_PushPop_3bytes_and_Boundaries
+	call	test_37_stack_PushFail_PreservesPushingRegisters
 ; ===============================[ End calling tests ]====================
 .mainloop:
 	halt

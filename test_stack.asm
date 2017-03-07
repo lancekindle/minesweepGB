@@ -209,3 +209,149 @@ test_35_stack_PushPop_WordBoundaries:
 .failed
 	TestFailed	3, 5
 
+
+; verify that pushing and popping a 3 bytes succeeds or fails in 3-byte chunks
+test_36_stack_PushPop_3bytes_and_Boundaries:
+	verify_stack_address_at_beginning	stack
+.test_pop_boundary
+	; first test that 1, 2-filled values cannot be popped until 3 bytes
+	stack_Pop	stack, abc
+	if_flag	c, jp .failed	; can't pop from an empty stack
+	stack_Push	stack, $00
+	stack_Pop	stack, abc	; can't pop 3bytes from a 1-byte stack
+	if_flag	c, jp .failed
+	stack_Push	stack, $00
+	stack_Pop	stack, abc	; can't pop 3bytes from a 2-byte stack
+	if_flag	c, jp .failed
+	stack_Push	stack, $00
+	stack_Pop	stack, abc	; can't pop 3bytes from a 2-byte stack
+	if_flag	nc, jp .failed		; that should pass
+	ld	a, $AA
+	ld	bc, $BBCC
+	stack_Push	stack, c, b, a
+	ld	bc, 0	; zero out bc
+	ld	a, 0	; zero out a
+	stack_Pop	stack, abc
+	ifa	<>, $AA, jp .failed
+	lda	b
+	ifa	<>, $BB, jp .failed
+	lda	c
+	ifa	<>, $CC, jp .failed
+	; we've confirmed that stack successfully pushes & pops ABC
+	; verify that pushes in chunks can combine into one pop
+	verify_stack_address_at_beginning	stack
+	stack_Push	stack, $11, $22	; push a word
+	stack_Push	stack, $33	; push a single value
+	stack_Pop	stack, ABC	; should get 33, 22, 11
+	ifa	<>, $33, jp .failed
+	lda	b
+	ifa	<>, $22, jp .failed
+	lda	c
+	ifa	<>, $11, jp .failed
+	verify_stack_address_at_beginning	stack
+	stack_Pop	stack, ABC	; should fail
+	if_flag	c, jp .failed
+.fillup
+	stack_Push	stack, a	; I don't care what value I push here.
+	if_flag	c, jp .fillup
+	; we get here when the stack is totally full
+.test_push_boundary
+	stack_Pop	stack, ABC	; make room for one push
+	; TEST PUSH BOUNDARIES (1,2 remaining bytes should fail)
+	stack_Push	stack, $33	; push a single value
+	if_flag	nc, jp .failed
+	stack_Push	stack, c,b,a
+	if_flag	c, jp .failed		; pushing 3 fails when there's only 2 bytes left
+	; test with only 1 byte of space available
+	stack_Push	stack, $33	; push a single value
+	if_flag	nc, jp .failed
+	stack_Push	stack, c,b,a
+	if_flag	c, jp .failed		; pushing 3 fails when there's only 1 byte left
+	; test with 0 bytes of space available
+	stack_Push	stack, $33	; push a single value
+	if_flag	nc, jp .failed
+	stack_Push	stack, c,b,a
+	if_flag	c, jp .failed		; pushing 3 fails when there's only 0 bytes left
+	stack_Push	stack, $33	; push a single value
+	if_flag	c, jp .failed	; verify that stack is completely full
+.test_pushes_and_pops
+	stack_Pop	stack, ABC	; make room for one push
+	ld	a, $AA
+	ld	bc, $BBCC
+	stack_Push	stack, c,b,a
+	if_flag	nc, jp .failed	; that push should succeed
+	stack_Push	stack, c,b,a	; this push should fail
+	if_flag	c, jp .failed
+	stack_Pop	stack	; remove A value
+	ld	a, $11
+	stack_Push	stack, a
+	ld	a, $99	; overwrite A value
+	ld	bc, $FFFF	; overwrite BC value (just in case)
+	stack_Pop	stack, ABC	; ABC => $11,BBCC
+	ifa	<>, $11, jp .failed
+	lda	b
+	ifa	<>, $BB, jp .failed
+	lda	c
+	ifa	<>, $CC, jp .failed
+.cleanup
+	; need to empty stack for next test
+	stack_Pop	stack
+	if_flag	c, jp .cleanup
+.passed
+	TestPassed	3, 6
+.failed
+	TestFailed	3, 6
+
+
+; verify that registers are restored upon push fail. This is important
+; because if a push fails, we may want to try again with the same values
+; It'll add dramatic overhead if we have to constantly preserve those
+; registers prior to attempting to push. Instead, we just detect a push
+; fail, and then we can push those values onto SP and work to clear up
+; space
+test_37_stack_PushFail_PreservesPushingRegisters:
+	verify_stack_address_at_beginning	stack
+.pushA
+	ld	a, $AA
+	stack_Push	stack, A
+	if_flag	c, jp .pushA
+	; we get here when the stack-push fails
+	; verify register A has kept its value
+	ifa	<>, $AA, jp .failed
+	stack_Pop	stack, BC	; make some room
+	stack_Pop	stack, BC	; for next pushing test
+.pushBC
+	ld	bc, $BBCC
+	stack_Push	stack, C,B
+	if_flag	c, jp .pushBC
+	; we get here when the stack-push fails
+	; verify registers B,C remain unaltered
+	lda	b
+	ifa	<>, $BB, jp .failed
+	lda	c
+	ifa	<>, $CC, jp .failed
+	stack_Pop	stack, BC	; make some room
+	stack_Pop	stack, BC	; for next pushing test
+.pushABC
+	ld	a, $AA
+	ld	bc, $BBCC
+	stack_Push	stack, C,B,A
+	if_flag	c, jp .pushABC
+	; we get here when the stack-push fails
+	; verify registers A,B,C remain unaltered
+	ifa	<>, $AA, jp .failed
+	lda	b
+	ifa	<>, $BB, jp .failed
+	lda	c
+	ifa	<>, $CC, jp .failed
+.cleanup
+	; need to empty stack for next test
+	stack_Pop	stack
+	if_flag	c, jp .cleanup
+.passed
+	TestPassed	3, 7
+.failed
+	TestFailed	3, 7
+
+
+
