@@ -8,6 +8,15 @@
 	IF	!DEF(TEST_INCLUDES_ASM)
 TEST_INCLUDES_ASM	SET	1
 
+	; Verify that test is coming from main test. Otherwise, The user
+	; is probably compiling / running a subtest module accidentally.
+	; You need to compile and run test_main.asm if this throws a fit
+	IF !DEF(RUNNING_MAIN_TEST)
+	PRINTT	"\n=====\nCompile and run test_main.asm instead\n=====\n\n"
+	FAIL	"You are compiling/running a subtest."
+	ENDC
+
+
 include "memory.asm"
 include "syntax.asm"
 

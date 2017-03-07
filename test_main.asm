@@ -4,6 +4,9 @@
 ;   Licensed under GNU GPL v3 <http://www.gnu.org/licenses/>
 ;---------------------------------------------------------------------------
 ; Newest Test is on bottom of file
+	IF !DEF(RUNNING_MAIN_TEST)
+RUNNING_MAIN_TEST	SET	1
+
 include "gbhw.inc"
 include "ibmpc1.inc"
 
@@ -116,3 +119,6 @@ JoypadInterrupt:
 ASCII_TILES_LOC:
 	chr_IBMPC1 1,8  ; arguments 1,8 cause all 256 characters to be loaded
 ASCII_TILES_END:
+
+
+	ENDC	; end RUNNING_MAIN_TEST DEFINES
