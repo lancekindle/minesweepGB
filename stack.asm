@@ -66,6 +66,7 @@ stack_Init: MACRO
 stack_Push: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1_stack_end	; load end of stack address-space
+	di	; avoid one thread messing with stack while another accesses it
 	IF _NARG == 4
 		load	C, \2, "When pushing 2 bytes, 1st byte to push in \1 stack will be in C"
 		load	B, \3, "When pushing 2 bytes, 2nd to push into \1 stack will be in B"
@@ -81,6 +82,7 @@ stack_Push: MACRO
 		load	a, \2, "value to push into \1 stack"
 		call	stack_PushA
 	ENDC
+	ei	; re-enable interrupts. Stack is safe to modify
 	IF (_NARG == 1) || (_NARG > 4)
 		FAIL "stack_Push requires stack-name and 1, 2, or 3 values to push"
 	ENDC
@@ -222,6 +224,7 @@ stack_PushABC:
 stack_Pop: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1		; load beginning of stack address-space
+	di	; avoid multi-thread manipulation of stack
 	IF _NARG == 1
 		call	stack_PopA
 	ENDC
@@ -230,15 +233,15 @@ stack_Pop: MACRO
 			call	stack_PopA
 		ELSE
 		IF STRIN("BC",STRUPR("\2")) >= 1	;+BC+
-			call	stack_PopBC
+			call	stack_PopDE
+			ldpair	b,c,	d,e
 		ELSE
 		IF STRIN("DE",STRUPR("\2")) >= 1		;+DE+
-			call	stack_PopBC
-			ldpair	d,e,	b,c
+			call	stack_PopDE
 		ELSE
 		IF STRIN("HL",STRUPR("\2")) >= 1			;+HL+
-			call	stack_PopBC
-			ldpair	h,l,	b,c
+			call	stack_PopDE
+			ldpair	h,l,	d,e
 		ELSE
 		IF STRIN("ABC",STRUPR("\2")) >= 1			;+ABC+
 			call	stack_PopABC
@@ -250,6 +253,7 @@ stack_Pop: MACRO
 		ENDC				;-A-
 		ENDC
 	ENDC; end if _narg=2
+	ei	; re-enable interrupts. Stack is safe to manipulate again
 	IF _NARG >= 3
 		FAIL	"\nstack_Pop expects at most 2 arguments. Got more\n"
 	ENDC
@@ -283,7 +287,7 @@ stack_PopA:
 ; Will verify that we have space to read both B & C, and then do so
 ; returns true if bytes read (and they'll be in BC),
 ; or returns False, without having read either byte
-stack_PopBC:
+stack_PopDE:
 	ld	c, [hl]	; load LSB of stack top pointer
 	inc	hl	; hl -> \1_stack_topH
 	ld	b, [hl]	; load MSB of stack top pointer
@@ -310,7 +314,6 @@ stack_PopBC:
 	ld	[hl], b	; store MSB of stack top pointer
 	dec	hl	; hl -> \1_stack_topL
 	ld	[hl], c	; store LSB of stack top pointer
-	ldpair	b,c,	d,e	; move values into BC
 	ret_true
 
 
