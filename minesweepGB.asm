@@ -99,7 +99,11 @@ include "rgb.asm"
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
-	stack_Declare	toReveal, 30
+	stack_Declare	toReveal, 42
+	; toFlag holds coordinates of cells to flag.
+	; (but will not flag it if it's marked as probed)
+	stack_Declare	toFlag, 2	; enough to queue 1 flag only
+	stack_Declare	toUnflag, 2
 	; we'll now be able to use mat_GetYX and mat_SetYX on _SCRN0
 	; meaning we can address the background tiles like a 32x32 matrix
 	; SCRN_VY_B == 32 == SCRN_VX_B
@@ -108,7 +112,8 @@ include "rgb.asm"
 
 Blank	SET	" "
 Mine	SET	"*"
-Flag	SET	$2B	; Blank, Mine, Flag are now variable constants
+Cell	SET	$00	; Cell == graphics index to display a normal cell
+Flag	SET	Cell + $01	; Blank, Mine, Flag are now variable constants
 
 
 ClearSpriteTable:
@@ -486,7 +491,7 @@ end_numbergfx
 load_graphics:
 	; copy cell, flagged-cell, and crosshairs graphics
 	ld	hl, cell_gfx
-	ld	de, _VRAM
+	ld	de, _VRAM + Cell	; (Cell == 0. That part adds nothing)
 	ld	bc, end_cellgfx - cell_gfx
 	call	mem_CopyVRAM
 	; copy #0 graphics
@@ -509,6 +514,8 @@ begin:
 	mat_Init	probed, 0
 	stack_Init	toExplore
 	stack_Init	toReveal
+	stack_Init	toFlag
+	stack_Init	toUnflag
 	call	LoadFont
 	call	load_graphics
 	call	ClearSpriteTable
@@ -525,7 +532,6 @@ begin:
 .mainloop:
 	halt	; should get interrupted every vblank...
 	nop
-	if_	jpad_EdgeB, call	toggle_flag
 	if_	jpad_EdgeA, call	probe_cell
 	if_	only_mines_left, call reveal_mines
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
@@ -545,9 +551,11 @@ handle_vblank:
 	pushall
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
 	di
-	call	reveal_all_waiting_cells
+	call	reveal_queued_probed_cells
+	call	reveal_queued_flags
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
+	if_	jpad_EdgeB, call	toggle_flag
 	popall
 	reti
 
@@ -611,8 +619,8 @@ toggle_flag:
 	ld	hl, rWrongFlags
 	inc	[hl]
 .display_flag_on_screen
-	pop	hl
-	mat_SetIndex	_SCRN0, hl, 1
+	pop	bc
+	stack_Push	toFlag, C,B
 	ret
 .toggle_off
 	push	hl
@@ -626,9 +634,9 @@ toggle_flag:
 	ld	hl, rWrongFlags
 	dec	[hl]
 .disable_flag_logically_and_visually
-	pop	hl
-	push	hl
-	mat_SetIndex	_SCRN0, hl, 0
+	pop	bc
+	push	bc
+	stack_Push	toUnflag, C,B
 	pop	hl
 .turn_off_flag_logically
 	mat_SetIndex	flags, hl, 0
@@ -824,7 +832,7 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	ret
 
 
-reveal_all_waiting_cells:
+reveal_queued_probed_cells:
 .reveal_loop
 	stack_Pop	toReveal, ABC
 	; if stack_Pop returns false (no more to pop), then we are done
@@ -837,6 +845,38 @@ reveal_all_waiting_cells:
 	;ld	[hl], a
 	mat_SetIndex	_SCRN0, hl, a, vblank unsafe	; write count to screen background
 	jr .reveal_loop
+
+reveal_queued_flags:
+.flag_loop
+	stack_Pop	toFlag, HL
+	; if stack_Pop returns false (no more to pop), then we are done
+	jr	nc, .unflag_loop
+	push	hl
+	mat_GetIndex	probed, hl
+	ifa	==, 1, jr .bad_flag
+	pop	hl
+	; we assume this is during v-blank. Just do it
+	mat_SetIndex	_SCRN0, hl, Flag, vblank unsafe
+	jr .flag_loop
+.bad_flag
+	; skip this flag
+	pop	hl
+	jr .flag_loop
+.unflag_loop
+	stack_Pop	toUnflag, HL
+	; if stack_Pop returns false (no more to pop), then we are done
+	ret	nc
+	; we assume this is during v-blank. Just do it
+	push	hl
+	mat_GetIndex	probed, hl
+	ifa	==, 1, jr .bad_unflag
+	pop	hl
+	mat_SetIndex	_SCRN0, hl, Cell, vblank unsafe
+	jr .unflag_loop
+.bad_unflag
+	; skip this unflag
+	pop	hl
+	jr .unflag_loop
 
 
 ; call this to logically unflag a location (index in HL) that is about to be
@@ -975,26 +1015,31 @@ only_mines_left:
 	ld	a, [rMinesCount]
 	sub	c	; Will set zero-flag
 	or	b	; if 0,A == B,C
-	ret_true	z
+	ret_true	z	; return true if 0-flag has been set
 	ret_false
 
 
 ; iterate through and reveal mines onscreen
 reveal_mines:
+	di	; disable interrupts so that writing to screen works
 	mat_IterInit	mines, 0, SCRN_Y_B,	0, SCRN_X_B
 .loop
 	mat_IterNext	mines
-	ret	nc	; iteration finished
+	jr	nc, .done	; iteration finished
 	ifa	==, 0, jr .loop		; keep looping until we find a mine
 	; HL contains address @ mines
 	ld	de, mines
 	negate	de
-	add	hl, de
+	add	hl, de	; HL = HL - DE
+	push	hl
+	; indicate it's been probed (Prevent ability to flag revealed mine)
+	mat_SetIndex	probed, hl, 1
+	pop	hl
 	; HL now contains Index / offset
 	mat_SetIndex	_SCRN0, hl, Mine
 	jr	.loop
 .done
-	ret
+	reti
 
 
 ; makes use of include "ibmpc1.inc"
