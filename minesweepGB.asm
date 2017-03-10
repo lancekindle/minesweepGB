@@ -24,7 +24,7 @@ section "Vblank", HOME[$0040]
 		; trickery. Since dma returns and enables interrupts
 		; we can just jp to the dma code immediately
 		; this saves on number of returns (and cpu cycles)
-	jp DMACODELOC	; DMACODE copies data from _RAM / $100 to OAMDATA
+	jp handle_vblank
 section "LCDC", HOME[$0048]
 	reti
 section "Timer_Overflow", HOME[$0050]
@@ -98,6 +98,8 @@ include "rgb.asm"
 		; coordinates have already been explored
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
+	; toReveal holds coordinates and value to place on cells
+	stack_Declare	toReveal, 30
 	; we'll now be able to use mat_GetYX and mat_SetYX on _SCRN0
 	; meaning we can address the background tiles like a 32x32 matrix
 	; SCRN_VY_B == 32 == SCRN_VX_B
@@ -502,6 +504,11 @@ begin:
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
+	mat_Init	mines, 0	; setup variables
+	mat_Init	flags, 0
+	mat_Init	probed, 0
+	stack_Init	toExplore
+	stack_Init	toReveal
 	call	LoadFont
 	call	load_graphics
 	call	ClearSpriteTable
@@ -509,24 +516,40 @@ begin:
 	call	SpriteSetup
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
-	call	lcd_EnableVBlankInterrupt
 	call	init_variables
-	mat_Init	mines, 0
-	mat_Init	flags, 0
-	mat_Init	probed, 0
-	stack_Init	toExplore
 	call	display_startscreen	; and wait for user input
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
 	call	remove_dense_mines
+	call	lcd_EnableVBlankInterrupt
 .mainloop:
-	lcd_Wait4VBlank
-	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	call	move_sprite_within_screen_bounds
+	halt	; should get interrupted every vblank...
+	nop
 	if_	jpad_EdgeB, call	toggle_flag
 	if_	jpad_EdgeA, call	probe_cell
 	if_	only_mines_left, call reveal_mines
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
+
+
+; this gets called v-blank. It has three purposes:
+;  1) move sprite data
+;  2) reveal all awaiting #'d cells: cells that have been queued up in probe
+;  3) read joypad
+;  4) move character according to movement keys.
+;  5) queue up probe and flag operations according to other keys
+;  3) queue task-handler operation to read joypad and do appropriate actions
+;	IF it doesn't already have that queued. It's important that the task
+;	only gets run once
+; This 3rd task is another function that has a small list of to-run functions
+handle_vblank:
+	pushall
+	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
+	di
+	call	reveal_all_waiting_cells
+	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	call	move_sprite_within_screen_bounds
+	popall
+	reti
 
 
 ; start screen text
@@ -771,7 +794,8 @@ probe_cell:
 
 
 ; call this with coordinates Y,X loaded in D,E
-; This will write the number of nearby mines on-screen as well
+; this will add this coordinate to the list of #s to be displayed on screen
+; (which will get displayed every v-blank)
 ; EXIT:	count of nearby mines in A
 count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	push	de
@@ -788,16 +812,31 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	; index is in HL
 	call	unflag_non_mine_cell	; preserves hl
 	push	hl
-	var_WordDecrement	rCellsRemaining
-	lcd_Wait4VBlank ; need to wait for VRAM access
-	lda	[rNearbyCount]
-	add	"0"	; create string equivalent of count
-	mat_SetIndex	_SCRN0, hl, a	; write count to screen background
-	pop	hl	; pop matrix index
 	mat_SetIndex	probed, hl, 1	; show that it's been explored
-	; only explore neighbors if all of them are empty
+	var_WordDecrement	rCellsRemaining
+	lda	[rNearbyCount]
+	pop	hl	; pop matrix index
+	ldpair	b,c,	h,l	; move Index to b,c
+.pushing
+	stack_Push	toReveal, C,B,A	; push Index and mine-count for later
+	jr nc, .pushing	; keep trying to push onto stack until it succeeds
 	lda	[rNearbyCount]
 	ret
+
+
+reveal_all_waiting_cells:
+.reveal_loop
+	stack_Pop	toReveal, ABC
+	; if stack_Pop returns false (no more to pop), then we are done
+	ret	nc
+	; we assume this is during v-blank. Just do it
+	ldpair	h,l,	b,c
+	add	"0"	; create string equivalent of count
+	ld	bc, _SCRN0
+	add	hl, bc	; manually get cell to reveal address
+	ld	[hl], a
+	;mat_SetIndex	_SCRN0, hl, a	; write count to screen background
+	jr .reveal_loop
 
 
 ; call this to logically unflag a location (index in HL) that is about to be

@@ -390,6 +390,23 @@ preserve2: MACRO
 	ENDM
 
 
+; pushall   pushes all registers
+; popall    pops all registers (in the right order to undo pushall)
+pushall: MACRO
+	push	AF
+	push	BC
+	push	DE
+	push	HL
+	ENDM
+
+popall: MACRO
+	pop	HL
+	pop	DE
+	pop	BC
+	pop	AF
+	ENDM
+
+
 ; load is designed to be used by other macros for enforcing arguments.
 ; calling load yyy, xxx
 ; will fail at compile time if xxx isn't a hard-coded-# OR register yyy.
