@@ -449,7 +449,17 @@ mat_SetIndex: MACRO
 	load	hl, \2, "arg2 of mat_SetIndex is address-offset"
 	load	a, \3, "arg3 of mat_SetIndex is value to place in matrix"
 	add	hl, bc		; compute location of matrix @ Index
-	mat_Wait_If_Writing_To_VRAM	\1
+	; wait for vram (if it's accessing vram-space) unless user has
+	; specified specifically that it's vblank unsafe
+	IF _NARG == 4
+	IF STRCMP("vblank unsafe", STRLWR("\4")) == 0
+		; do nothing. User specified to skip it...
+	ELSE
+		mat_Wait_If_Writing_To_VRAM	\1
+	ENDC
+	ELSE
+		mat_Wait_If_Writing_To_VRAM	\1
+	ENDC
 	ld	[HL], a		; load value into matrix @ Index
 	ENDM
 

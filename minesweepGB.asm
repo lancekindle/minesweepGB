@@ -832,10 +832,10 @@ reveal_all_waiting_cells:
 	; we assume this is during v-blank. Just do it
 	ldpair	h,l,	b,c
 	add	"0"	; create string equivalent of count
-	ld	bc, _SCRN0
-	add	hl, bc	; manually get cell to reveal address
-	ld	[hl], a
-	;mat_SetIndex	_SCRN0, hl, a	; write count to screen background
+	;ld	bc, _SCRN0
+	;add	hl, bc	; manually get cell to reveal address
+	;ld	[hl], a
+	mat_SetIndex	_SCRN0, hl, a, vblank unsafe	; write count to screen background
 	jr .reveal_loop
 
 
