@@ -297,7 +297,7 @@ check_hardware:
 	ret
 
 init_colorgb_variables:
-	ld	a, $FF
+	ld	a, 1
 	; at the very least, set the fact that color is supported
 	ld	[rGBC], a
 	; check if gameboy color or gameboy advance
@@ -755,7 +755,7 @@ probe_cell:
 	push	hl	; store Y,X index for writing # to screen later
 	mat_GetIndex	mines, hl
 	pop	hl
-	ifa	==, 1, jp reveal_mines	; we probed a mine :(
+	ifa	==, 1, jp mine_probed	; we probed a mine :(
 	; we get here if we didn't explode
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
 	call	get_player_yx_in_de
@@ -1046,6 +1046,35 @@ only_mines_left:
 	ret_false
 
 
+; call this directly from probe_cell if we probed a mine. At start,
+; HL = index corresponding to Y,X of probed mine
+; A = 1  (indicating yes, it's a mine)
+mine_probed:
+	push	hl	; store index
+	lda	[rGBC]
+	ifa	==, 0, call reveal_mines
+	lda	[rGBC]
+	ifa	>=, 1, call reveal_mines_color
+	pop	hl	; restore index
+	lda	[rGBC]
+	ifa	==, 0, ret
+.color_exploded_mine
+	di	; disable interrupts so that writing to screen works
+		; (but more specifically, so that waiting for v-blank works)
+	ld	de, _SCRN0
+	add	hl, de	; get VRAM address for mine
+	ldpair	d,e,	h,l	; move VRAM address to DE
+	ld	hl, rVBK
+	ld	[hl], 1	; switch to VRAM color bank
+	lcd_Wait4VBlank		trash AF
+	ld	a, 4
+	ld	[de], a	; set color of probed mine to red (palette 4)
+	xor	a
+	ld	[hl], a	; switch back to VRAM tile-data bank
+	reti
+
+
+
 ; iterate through and reveal mines onscreen
 reveal_mines:
 	di	; disable interrupts so that writing to screen works
@@ -1064,6 +1093,43 @@ reveal_mines:
 	pop	hl
 	; HL now contains Index / offset
 	mat_SetIndex	_SCRN0, hl, Mine
+	jr	.loop
+.done
+	reti
+
+
+reveal_mines_color:
+	di	; disable interrupts so that writing to screen works
+	mat_IterInit	mines, 0, SCRN_Y_B,	0, SCRN_X_B
+.loop
+	mat_IterNext	mines
+	jr	nc, .done	; iteration finished
+	ifa	==, 0, jr .loop		; keep looping until we find a mine
+	; HL contains address @ mines
+	ld	de, mines
+	negate	de
+	add	hl, de	; HL = HL - DE  (aka get index)
+	push	hl
+	; indicate it's been probed (Prevent ability to flag revealed mine)
+	mat_SetIndex	probed, hl, 1
+	pop	hl	; HL now contains Index / offset
+	push	hl
+	mat_GetIndex	flags, hl
+	; A=1 if flagged, A=0 if not. This perfectly corresponds with the
+	; desired palette, where palette 1 = green, 0 = greyscale
+	pop	hl
+	ld	de, _SCRN0
+	add	hl, de
+	ldpair	d,e,	h,l	; move VRAM address of mine to DE
+	ld	hl, rVBK
+	ld	[hl], 1	; switch to VRAM color bank
+	ld	c, a	; move palette to c
+	lcd_Wait4VBlank  trash AF
+	lda	c
+	ld	[de], a	; write palette to VRAM
+	lda	Mine	; load mine
+	ld	[hl], 0	; switch to VRAM tile-data bank
+	ld	[de], a	; write mine to VRAM
 	jr	.loop
 .done
 	reti
