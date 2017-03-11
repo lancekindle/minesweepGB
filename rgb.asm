@@ -41,6 +41,19 @@ rgb_InvertedPalette:
 	rgb_Set	192, 192, 192	; light grey
 	rgb_Set	255, 255, 255	; white
 
+
+; USES: A
+rgb_LoadVRAMColorBank: MACRO
+	ld	a, $01		; select bank 1 (color bank)
+	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ENDM
+
+; USES: A
+rgb_LoadVRAMTileBank: MACRO
+	ld	a, $00		; select bank 0 (tile-data bank)
+	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ENDM
+
 ; Note:
 ;	Testing of register STAT is done to allow setting
 ; palettes while the screen is on or off. Without this

@@ -99,7 +99,7 @@ include "rgb.asm"
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
-	stack_Declare	toReveal, 42
+	stack_Declare	toReveal, 30
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -241,26 +241,26 @@ bg_color_palettes:
 	rgb_Set	  0, 127,   0	; light green
 	rgb_Set	  0, 192,   0	; darkish green
 	rgb_Set	  0, 255,   0	; green
-	; red on white (bad indicator)
-	rgb_Set 255, 255, 255	; white
-	rgb_Set	127,   0,   0	; light red
-	rgb_Set	192,   0,   0	; darkish red
-	rgb_Set	255,   0,   0	; red
 	; blue on white
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	0,   0,   127	; light blue
 	rgb_Set	0,   0,   192	; darkish blue
 	rgb_Set	0,   0,   255	; blue
-	; yellow on white
-	rgb_Set 255, 255, 255	; white
-	rgb_Set	127, 127,   0	; light yellow
-	rgb_Set	192, 192,   0	; bolder yellow
-	rgb_Set	255, 255,   0	; yellow
 	; purple on white
 	rgb_Set 255, 255, 255	; white
 	rgb_Set 127,   0, 127	; light magenta
 	rgb_Set	$7D, $05, $52	; dark orchid
 	rgb_Set	255,   0, 255	; magenta
+	; red on white (bad indicator)
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	127,   0,   0	; light red
+	rgb_Set	192,   0,   0	; darkish red
+	rgb_Set	255,   0,   0	; red
+	; yellow on white
+	rgb_Set 255, 255, 255	; white
+	rgb_Set	127, 127,   0	; light yellow
+	rgb_Set	192, 192,   0	; bolder yellow
+	rgb_Set	255, 255,   0	; yellow
 	; pink on white
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	$FA, $AF, $BE	; pink
@@ -551,7 +551,10 @@ handle_vblank:
 	pushall
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
 	di
-	call	reveal_queued_probed_cells
+	lda	[rGBC]
+	ifa	==, 0, call	reveal_queued_probed_cells
+	lda	[rGBC]
+	ifa	>=, 1, call	reveal_color_queued_probed_cells
 	call	reveal_queued_flags
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
@@ -825,6 +828,7 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	lda	[rNearbyCount]
 	pop	hl	; pop matrix index
 	ldpair	b,c,	h,l	; move Index to b,c
+	add	"0"	; create string equivalent of count
 .pushing
 	stack_Push	toReveal, C,B,A	; push Index and mine-count for later
 	jr nc, .pushing	; keep trying to push onto stack until it succeeds
@@ -832,6 +836,8 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	ret
 
 
+; from queue of (count, index), write out count to index + _SCRN0.
+; since we assume this is called from within vblank, don't make safety checks
 reveal_queued_probed_cells:
 .reveal_loop
 	stack_Pop	toReveal, ABC
@@ -839,12 +845,49 @@ reveal_queued_probed_cells:
 	ret	nc
 	; we assume this is during v-blank. Just do it
 	ldpair	h,l,	b,c
-	add	"0"	; create string equivalent of count
-	;ld	bc, _SCRN0
-	;add	hl, bc	; manually get cell to reveal address
-	;ld	[hl], a
 	mat_SetIndex	_SCRN0, hl, a, vblank unsafe	; write count to screen background
 	jr .reveal_loop
+
+
+reveal_color_queued_probed_cells:
+.reveal_loop
+	stack_Pop	toReveal, ABC
+	; if stack_Pop returns false (no more to pop), then we are done
+	ret	nc
+	; we assume this is during v-blank. Just do it
+	ld	hl, _SCRN0
+	add	hl, bc	; get address of color and # tile
+	ifa	==, 0, jr .display_number	; greyscale for blank/0 tile
+	ld	c, a	; store count in c
+	; get read to push color pointer in same location as matrix
+	; choose which color to display the #
+	rgb_LoadVRAMColorBank
+	; --color the number--
+	ld	a, c	; restore count to a
+	ifa	==, 2 + "0", jr .blue
+	ifa	>, 2 + "0", jr .red_or_purple
+.green
+	lda	1
+	jr .write_color
+.blue
+	lda	2
+	jr .write_color
+.red_or_purple
+	ifa	>=, 4 + "0", jr .red
+.purple
+	lda	3
+	jr .write_color
+.red
+	lda	4
+.write_color
+	ld	[hl], a	; write color to screen-background color position
+.color_done
+	rgb_LoadVRAMTileBank	; restore VRAM bank to tiles
+	ld	a, c	; restore count in reg. A
+.display_number
+	ld	[hl], a	; write count to screen background
+	jr .reveal_loop
+
 
 reveal_queued_flags:
 .flag_loop
