@@ -99,7 +99,7 @@ include "rgb.asm"
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
-	stack_Declare	toReveal, 30
+	stack_Declare	toReveal, 42
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -849,6 +849,8 @@ reveal_queued_probed_cells:
 	jr .reveal_loop
 
 
+; Reveal numbers indicating mine-count on background grid. In the gameboy
+; color, the same grid location (but in VRAM-bank-1) is used to set the color
 reveal_color_queued_probed_cells:
 .reveal_loop
 	stack_Pop	toReveal, ABC
@@ -856,39 +858,24 @@ reveal_color_queued_probed_cells:
 	ret	nc
 	; we assume this is during v-blank. Just do it
 	ld	hl, _SCRN0
-	add	hl, bc	; get address of color and # tile
-	ifa	==, 0, jr .display_number	; greyscale for blank/0 tile
-	ld	c, a	; store count in c
-	; get read to push color pointer in same location as matrix
-	; choose which color to display the #
-	rgb_LoadVRAMColorBank
-	; --color the number--
-	ld	a, c	; restore count to a
-	ifa	==, 2 + "0", jr .blue
-	ifa	>, 2 + "0", jr .red_or_purple
-.green
-	lda	1
-	jr .write_color
-.blue
-	lda	2
-	jr .write_color
-.red_or_purple
-	ifa	>=, 4 + "0", jr .red
-.purple
-	lda	3
-	jr .write_color
-.red
-	lda	4
-.write_color
-	ld	[hl], a	; write color to screen-background color position
-.color_done
-	rgb_LoadVRAMTileBank	; restore VRAM bank to tiles
-	ld	a, c	; restore count in reg. A
-.display_number
-	ld	[hl], a	; write count to screen background
+	add	hl, bc	; get address of #'d tile (and color) in VRAM
+	ld	[hl], a	; write number to screen
+	ifa	==, "0", jr .reveal_loop ; don't need to change palette for empty cell
+.change_color
+	ldpair b,c,	h,l	; move VRAM address to bc
+	ld	hl, rVBK
+	ld	[hl], 1	; change to VRAM bank 1 (color bank)
+	sub	"0"	; get integer palette # corresponding to string count
+	ifa	>, 4, ld a, 4	; use palettes 0-4
+	ld	[bc], a	; set palette
+	xor	a
+	ld	[hl], a	; change back to VRAM bank 0 (tile-data bank)
 	jr .reveal_loop
 
 
+; reveal_queued_flags only flags and unflags once per iteration.
+; We shouldn't expect more than that # of flags, and this puts a limit
+; on how long this routine will take to run.
 reveal_queued_flags:
 .flag_loop
 	stack_Pop	toFlag, HL
@@ -904,22 +891,19 @@ reveal_queued_flags:
 .bad_flag
 	; skip this flag
 	pop	hl
-	jr .flag_loop
 .unflag_loop
 	stack_Pop	toUnflag, HL
 	; if stack_Pop returns false (no more to pop), then we are done
 	ret	nc
-	; we assume this is during v-blank. Just do it
 	push	hl
 	mat_GetIndex	probed, hl
 	ifa	==, 1, jr .bad_unflag
 	pop	hl
 	mat_SetIndex	_SCRN0, hl, Cell, vblank unsafe
-	jr .unflag_loop
-.bad_unflag
-	; skip this unflag
+	ret
+.bad_unflag	; attempted to unflag a probed cell
 	pop	hl
-	jr .unflag_loop
+	ret
 
 
 ; call this to logically unflag a location (index in HL) that is about to be
