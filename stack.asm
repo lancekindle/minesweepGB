@@ -66,8 +66,16 @@ stack_Init: MACRO
 stack_Push: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1_stack_end	; load end of stack address-space
-	di	; avoid one thread messing with stack while another accesses it
-	IF _NARG == 4
+thread_safe	set	1
+	IF _NARG == 5
+		IF STRCMP("UNSAFE THREAD", STRUPR("\5")) == 0
+thread_safe	set	0
+		ENDC
+	ENDC
+	IF thread_safe
+		di	; avoid one thread messing with stack while another accesses it
+	ENDC
+	IF _NARG >= 4
 		load	C, \2, "When pushing 2 bytes, 1st byte to push in \1 stack will be in C"
 		load	B, \3, "When pushing 2 bytes, 2nd to push into \1 stack will be in B"
 		load	A, \4, "When pushing 3 bytes, 3rd byte to push into \1 stack will be A"
@@ -82,11 +90,19 @@ stack_Push: MACRO
 		load	a, \2, "value to push into \1 stack"
 		call	stack_PushA
 	ENDC
-	ei	; re-enable interrupts. Stack is safe to modify
-	IF (_NARG == 1) || (_NARG > 4)
+	IF thread_safe
+		ei	; re-enable interrupts. Stack is safe to modify
+	ENDC
+	IF (_NARG == 1) || ((_NARG > 4) && (thread_safe == 1))
 		FAIL "stack_Push requires stack-name and 1, 2, or 3 values to push"
 	ENDC
 	ENDM
+
+
+; a stringified macro to set a variable
+if_last_arg	equs	""
+; use like so:
+; if_last_arg	==, unsafe thread, thread_safe set 1
 
 
 ; INPT: A contains value to push onto stack
@@ -224,11 +240,17 @@ stack_PushABC:
 stack_Pop: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1		; load beginning of stack address-space
+thread_safe	set	1
+	IF _NARG == 5
+		IF STRCMP("UNSAFE THREAD", STRUPR("\3")) == 0
+thread_safe	set	0
+		ENDC
+	ENDC
 	di	; avoid multi-thread manipulation of stack
 	IF _NARG == 1
 		call	stack_PopA
 	ENDC
-	IF _NARG == 2
+	IF _NARG >= 2
 		IF STRIN("A",STRUPR("\2")) >= 1	;+A+
 			call	stack_PopA
 		ELSE
@@ -254,7 +276,7 @@ stack_Pop: MACRO
 		ENDC
 	ENDC; end if _narg=2
 	ei	; re-enable interrupts. Stack is safe to manipulate again
-	IF _NARG >= 3
+	IF _NARG >= 4
 		FAIL	"\nstack_Pop expects at most 2 arguments. Got more\n"
 	ENDC
 	ENDM
