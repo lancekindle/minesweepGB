@@ -338,20 +338,20 @@ unpack_arg4_cmd	EQUS	"{c2}{c3}{c4}{c5}{c6}{c7}"
 ; i.e. jr_inverse c, rDMA ==> jr nc, rDMA
 ; this is most useful in the if_flag macro
 jr_inverse: MACRO
-	IF (STRCMP("\1", "c") == 0)
+	IF (STRCMP("C", STRUPR("\1")) == 0)
 	jr	nc, \2
 	ENDC
-	IF (STRCMP("\1", "nc") == 0)
+	IF (STRCMP("NC", STRUPR("\1")) == 0)
 	jr	c, \2
 	ENDC
-	IF (STRCMP("\1", "z") == 0)
+	IF (STRCMP("Z", STRUPR("\1")) == 0)
 	jr	nz, \2
 	ENDC
-	IF (STRCMP("\1", "nz") == 0)
+	IF (STRCMP("NZ", STRUPR("\1")) == 0)
 	jr	z, \2
 	ENDC
-	IF (STRCMP("\1", "z") != 0) && (STRCMP("\1", "c") != 0)
-		IF (STRCMP("\1", "nc") != 0) && (STRCMP("\1", "nz") != 0)
+	IF (STRCMP("Z", STRUPR("\1")) != 0) && (STRCMP("C", STRUPR("\1")) != 0)
+		IF (STRCMP("NC", STRUPR("\1")) != 0) && (STRCMP("NZ", STRUPR("\1")) != 0)
 			FAIL "\n\1 is not a valid flag\n"
 		ENDC
 	ENDC
@@ -362,7 +362,7 @@ jr_inverse: MACRO
 ; if \1 is "all", then all registers will be preserved
 ; \2 is FULL command. such as CALL xyz or a macro. 
 preserve: MACRO
-	IF (STRCMP("\1", "all") == 0)
+	IF (STRCMP("ALL", STRUPR("\1")) == 0)
 		push af
 		push bc
 		push de
@@ -371,7 +371,7 @@ preserve: MACRO
 		push \1
 	ENDC
 	unpack_arg2_cmd
-	IF (STRCMP("\1", "all") == 0)
+	IF (STRCMP("ALL", STRUPR("\1")) == 0)
 		pop hl
 		pop de
 		pop bc
@@ -495,7 +495,7 @@ ldhard: MACRO
 
 
 ; load a register pair from another register pair
-; ldpair	b,c,	h,l	; for example
+; ldpair_explicit	b,c,	h,l	; for example
 ; parameters are dest1, dest2,     src1, src2
 ; where dest1 & 2 must combine to form a register pair, and same with src1 & 2
 ldpair: MACRO
@@ -509,6 +509,52 @@ ldpair: MACRO
 	ENDC
 	ld	\1, \3
 	ld	\2, \4
+	ENDM
+
+ldpair2: MACRO
+	IF STRIN("BC,DE,HL",STRUPR("\1")) == 0	; no match...
+		FAIL	"must supply register pair as arg1"
+	ENDC
+	IF STRIN("BC,DE,HL",STRUPR("\2")) == 0	; no match...
+		FAIL	"must supply register pair as arg2"
+	ENDC
+	IF STRCMP("BC", STRUPR("\1")) == 0
+		IF STRCMP("DE", STRUPR("\2")) == 0
+			ldpair_explicit	b,c,	d,e
+		ELSE
+		IF STRCMP("HL", STRUPR("\2")) == 0
+			ldpair_explicit	b,c,	h,l
+		ENDC
+		ELSE
+		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
+		ENDC
+	ELSE
+	IF STRCMP("DE", STRUPR("\1")) == 0
+		IF STRCMP("BC", STRUPR("\2")) == 0
+			ldpair_explicit	d,e,	b,c
+		ELSE
+		IF STRCMP("HL", STRUPR("\2")) == 0
+			ldpair_explicit	d,e,	h,l
+		ENDC
+		ELSE
+		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
+		ENDC
+	ENDC	; end arg1 == DE
+	ELSE
+	IF STRCMP("HL", STRUPR("\1")) == 0
+		IF STRCMP("BC", STRUPR("\2")) == 0
+			ldpair_explicit	h,l,	b,c
+		ELSE
+		IF STRCMP("DE", STRUPR("\2")) == 0
+			ldpair_explicit	h,l,	d,e
+		ENDC
+		ELSE
+		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
+		ENDC
+	ENDC	; end arg1 == HL
+	ELSE
+		FAIL	"expected arg1 and arg2 to be two register pairs. Got \1, \2"
+	ENDC	; end arg1 == BC
 	ENDM
 
 
