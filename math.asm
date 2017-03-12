@@ -114,7 +114,7 @@ math_Mult: MACRO
 	load	a, \1, "first byte of multiplication"; preload arg1
 	; now we just need to check what kind of argument \2 is, and perform
 	; the correct (and preferably fast) procedure
-	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+	IF STRIN("AFBCDEHL", STRUPR("\2")) >= 1
 	; looks like the user passed a register / register pair
 		PRINTT	"performing register axc multiplication"
 		load	c, \2, "second byte of multiplication"
@@ -156,7 +156,7 @@ math_Multiply8HL: MACRO
 ; run this macro if arg2 is a power of 2 (only works with hard-coded #'s)
 ; 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
 math_MultiplyPowerOf2: MACRO
-	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+	IF STRIN("AFBCDEHL", STRUPR("\2")) >= 1
 		FAIL	"\n cannot pass register into this macro. Got \2\n"
 	ENDC
 	load	a, \1	; already assume A is loaded
@@ -480,7 +480,7 @@ math_Div: MACRO
 	load	a, \1, "byte to be divided"
 	; now we just need to check what kind of argument \2 is, and perform
 	; the correct (and preferably fast) procedure
-	IF STRIN("afbcdehlAFBCDEHL", "\2") >= 1
+	IF STRIN("AFBCDEHL", STRUPR("\2")) >= 1
 	; looks like the user passed a register / register pair
 		PRINTT	"performing register A/C division"
 		load	c, \2, "divider byte"

@@ -39,7 +39,7 @@ LCD_ASM		SET	1
 lcd_Wait4VBlank: MACRO
 trash\@ = 0
 	IF _NARG == 1
-		IF STRCMP("trash AF", "\1") != 0
+		IF STRCMP("TRASH AF", STRUPR("\1")) != 0
 trash\@ = 1
 		ENDC
 	ENDC

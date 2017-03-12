@@ -75,7 +75,7 @@ mat_Init: MACRO
 		; make pre-compile checks only
 		; if passed argument 3 isn't a dynamic value in a register pair
 		PRINTT "\n[===     \1, \2, \3     ===]\n"
-		IF STRIN("afbcdehlAFBCDEHL", "\3") == 0
+		IF STRIN("AFBCDEHL", STRUPR("\3")) == 0
 		; verify matrix will be fully filled by supplied values
 		IF (\3) != (\1_H * \1_W)
 			PRINTT	"\nfilling matrix requires all values to be "
@@ -452,7 +452,7 @@ mat_SetIndex: MACRO
 	; wait for vram (if it's accessing vram-space) unless user has
 	; specified specifically that it's vblank unsafe
 	IF _NARG == 4
-	IF STRCMP("vblank unsafe", STRLWR("\4")) == 0
+	IF STRCMP("VBLANK UNSAFE", STRUPR("\4")) == 0
 		; do nothing. User specified to skip it...
 	ELSE
 		mat_Wait_If_Writing_To_VRAM	\1

@@ -69,10 +69,10 @@ MidRamBase      Set     MidRamBase + \2
 ; register A or F is not allowed because we make use of A
 ; FAST:	17/14	17 cycles, 14 bytes
 var_GetWord: MACRO
-	IF STRIN("bcdehlBCDEHL", "\1") == 0
+	IF STRIN("BCDEHL", STRUPR("\1")) == 0
 		FAIL	"require a register (but not A). Got \1"
 	ENDC
-	IF STRIN("bcdehlBCDEHL", "\2") == 0
+	IF STRIN("BCDEHL", STRUPR("\2")) == 0
 		FAIL	"require a register (but not A). Got \2"
 	ENDC
 	push	af	; save AF (we have to use A)
@@ -89,10 +89,10 @@ var_GetWord: MACRO
 ; register A or F is not allowed because we make use of A
 ; FAST:	17/14	17 cycles, 14 bytes
 var_SetWord: MACRO
-	IF STRIN("bcdehlBCDEHL", "\1") == 0
+	IF STRIN("BCDEHL", STRUPR("\1")) == 0
 		FAIL	"require a register (but not A). Got \1"
 	ENDC
-	IF STRIN("bcdehlBCDEHL", "\2") == 0
+	IF STRIN("BCDEHL", STRUPR("\2")) == 0
 		FAIL	"require a register (but not A). Got \2"
 	ENDC
 	push	af	; save AF (we have to use A)
