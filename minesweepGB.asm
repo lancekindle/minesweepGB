@@ -15,7 +15,7 @@ DMACODELOC	EQU	$ff80
 ; whenever one of these IRQs is triggered, three things happen:
 ; 1) SP is loaded with the address of the interrupted instruction
 ; 2) interrupts are disabled (You can return and enable IRQs with "reti")
-; 3) execution jumps here, to the appropriate section.
+; 3) execution jumps here (below), to the appropriate section.
 ;
 ; you can control which IRQs are enabled by writing the appropriate bits
 ; to rIE  (register Interrupt Enable). Search gbhw.inc for interrupt
@@ -100,6 +100,7 @@ include "rgb.asm"
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 42
+	stack_Declare	minesToReveal, 30
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -148,7 +149,6 @@ SpriteSetup:
 	; push sprite positions to vram
 	call	update_crosshairs
 	call	DMACODELOC
-	di	; dmacodeloc enables interrupts after it exits. Here we disable them again
 	ret
 
 ; update crosshairs indicating player origin
@@ -239,8 +239,8 @@ bg_color_palettes:
 	; green on white (good indicator)
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	  0, 127,   0	; light green
-	rgb_Set	  0, 192,   0	; darkish green
 	rgb_Set	  0, 255,   0	; green
+	rgb_Set	  0, 100,   0	; dark green
 	; blue on white
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	0,   0,   127	; light blue
@@ -254,8 +254,8 @@ bg_color_palettes:
 	; red on white (bad indicator)
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	127,   0,   0	; light red
-	rgb_Set	192,   0,   0	; darkish red
 	rgb_Set	255,   0,   0	; red
+	rgb_Set	128,   0,   0	; dark red
 	; yellow on white
 	rgb_Set 255, 255, 255	; white
 	rgb_Set	127, 127,   0	; light yellow
@@ -514,6 +514,7 @@ begin:
 	mat_Init	probed, 0
 	stack_Init	toExplore
 	stack_Init	toReveal
+	stack_Init	minesToReveal
 	stack_Init	toFlag
 	stack_Init	toUnflag
 	call	LoadFont
@@ -533,7 +534,7 @@ begin:
 	halt	; should get interrupted every vblank...
 	nop
 	if_	jpad_EdgeA, call	probe_cell
-	if_	only_mines_left, call reveal_mines
+	if_	only_mines_left, call queue_color_mines_reveal
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
 
 
@@ -550,15 +551,15 @@ begin:
 handle_vblank:
 	pushall
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
-	di
 	lda	[rGBC]
 	ifa	==, 0, call	reveal_queued_probed_cells
 	lda	[rGBC]
 	ifa	>=, 1, call	reveal_color_queued_probed_cells
-	call	reveal_queued_flags
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
+	call	reveal_queued_mines
+	call	reveal_queued_flags
 	popall
 	reti
 
@@ -594,7 +595,8 @@ get_true:
 	ret_true
 
 ; press keyboard_A to toggle flag
-; this places a character @ location of sprite (x, y)
+; toggles on/off flag and keeps track of whether you've flagged a correct
+; or incorrect flag
 toggle_flag:
 	call	get_player_yx_in_de
 	mat_IndexYX	_SCRN0, d, e
@@ -608,6 +610,7 @@ toggle_flag:
 	mat_GetIndex	flags, hl
 	pop	hl
 	ifa	>, 0, jr .toggle_off
+.set_logical_flag
 	push	hl
 	mat_SetIndex	flags, hl, Flag
 	pop	hl
@@ -665,8 +668,10 @@ fill_mines:
 
 ; re-iterates current mine count and potentially removes a mine @ a location
 ; where there are >= 3 mines nearby. Should help remove dense clusters of mines
+; but leave edge-mines in place. This'll make it more likely that there will
+; stragglers around the edges
 remove_dense_mines:
-	mat_IterInit	_SCRN0, 0, SCRN_Y_B,   0, SCRN_X_B
+	mat_IterInit	_SCRN0, 1, SCRN_Y_B - 1,   1, SCRN_X_B - 1
 .iterate
 	mat_IterNext	_SCRN0
 	ret	nc	; return if iteration done
@@ -752,7 +757,7 @@ probe_cell:
 	ifa	==, 1, call	first_probe ; remove nearby mines on 1st probe
 	pop	hl
 .check_explode
-	push	hl	; store Y,X index for writing # to screen later
+	push	hl	; store index for writing # to screen later
 	mat_GetIndex	mines, hl
 	pop	hl
 	ifa	==, 1, jp mine_probed	; we probed a mine :(
@@ -1051,59 +1056,24 @@ only_mines_left:
 ; A = 1  (indicating yes, it's a mine)
 mine_probed:
 	push	hl	; store index
-	lda	[rGBC]
-	ifa	==, 0, call reveal_mines
-	lda	[rGBC]
-	ifa	>=, 1, call reveal_mines_color
+	call	queue_color_mines_reveal
 	pop	hl	; restore index
 	lda	[rGBC]
 	ifa	==, 0, ret
 .color_exploded_mine
-	di	; disable interrupts so that writing to screen works
-		; (but more specifically, so that waiting for v-blank works)
 	ld	de, _SCRN0
 	add	hl, de	; get VRAM address for mine
-	ldpair	d,e,	h,l	; move VRAM address to DE
-	ld	hl, rVBK
-	ld	[hl], 1	; switch to VRAM color bank
-	lcd_Wait4VBlank		trash AF
-	ld	a, 4
-	ld	[de], a	; set color of probed mine to red (palette 4)
-	xor	a
-	ld	[hl], a	; switch back to VRAM tile-data bank
-	reti
+	ldpair	b,c,	h,l
+	ld	a, 4	; set color of probed mine to red (palette 4)
+	stack_Push	minesToReveal, C,B,A
+	ret
 
 
-
-; iterate through and reveal mines onscreen
-reveal_mines:
-	di	; disable interrupts so that writing to screen works
+queue_color_mines_reveal:
 	mat_IterInit	mines, 0, SCRN_Y_B,	0, SCRN_X_B
 .loop
 	mat_IterNext	mines
-	jr	nc, .done	; iteration finished
-	ifa	==, 0, jr .loop		; keep looping until we find a mine
-	; HL contains address @ mines
-	ld	de, mines
-	negate	de
-	add	hl, de	; HL = HL - DE
-	push	hl
-	; indicate it's been probed (Prevent ability to flag revealed mine)
-	mat_SetIndex	probed, hl, 1
-	pop	hl
-	; HL now contains Index / offset
-	mat_SetIndex	_SCRN0, hl, Mine
-	jr	.loop
-.done
-	reti
-
-
-reveal_mines_color:
-	di	; disable interrupts so that writing to screen works
-	mat_IterInit	mines, 0, SCRN_Y_B,	0, SCRN_X_B
-.loop
-	mat_IterNext	mines
-	jr	nc, .done	; iteration finished
+	ret	nc	; iteration finished
 	ifa	==, 0, jr .loop		; keep looping until we find a mine
 	; HL contains address @ mines
 	ld	de, mines
@@ -1119,20 +1089,35 @@ reveal_mines_color:
 	; desired palette, where palette 1 = green, 0 = greyscale
 	pop	hl
 	ld	de, _SCRN0
-	add	hl, de
-	ldpair	d,e,	h,l	; move VRAM address of mine to DE
+	add	hl, de	; HL = VRAM address of tile
+	ldpair	b,c,	h,l
+.push2stack
+	stack_Push	minesToReveal, C,B,A
+	jr	nc, .push2stack	; keep trying until stack is open
+	jr	.loop
+
+
+; pop from stack a mine (and corresponding color). Set color of tile and draw
+; mine. This should be run in vblank
+reveal_queued_mines:
+.loop
+	stack_Pop	minesToReveal, ABC, thread unsafe
+	ret	nc	; return if stack_Pop came up empty
+	; A contains palette data, BC contains VRAM address of mine
+	; we need to write the mine, and change the color
+	ld	d, a	; move palette to d
+	lda	[rGBC]
+	ifa	==, 0, jr .write_mine
+.write_color
+	lda	d	; load palette back into reg. A
 	ld	hl, rVBK
 	ld	[hl], 1	; switch to VRAM color bank
-	ld	c, a	; move palette to c
-	lcd_Wait4VBlank  trash AF
-	lda	c
-	ld	[de], a	; write palette to VRAM
+	ld	[bc], a	; write palette to VRAM
+	ld	[hl], 0	; switch back to VRAM tile-data bank
+.write_mine
 	lda	Mine	; load mine
-	ld	[hl], 0	; switch to VRAM tile-data bank
-	ld	[de], a	; write mine to VRAM
-	jr	.loop
-.done
-	reti
+	ld	[bc], a	; write mine to VRAM
+	jr	.loop	; continue revealing mines until all are gone
 
 
 ; makes use of include "ibmpc1.inc"
@@ -1169,5 +1154,5 @@ dma_wait:
 	dec	a
 	jr	nz, dma_wait
 	pop	af
-	reti
+	ret	;no longer reti.because dma is now handled by a vblank routine
 dmaend:
