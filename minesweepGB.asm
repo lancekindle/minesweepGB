@@ -100,7 +100,7 @@ include "rgb.asm"
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 42
-	stack_Declare	minesToReveal, 30
+	stack_Declare	minesToReveal, 10
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -890,28 +890,13 @@ reveal_queued_flags:
 	stack_Pop	toFlag, HL
 	; if stack_Pop returns false (no more to pop), then we are done
 	jr	nc, .unflag_loop
-	push	hl
-	mat_GetIndex	probed, hl
-	ifa	==, 1, jr .bad_flag
-	pop	hl
 	; we assume this is during v-blank. Just do it
 	mat_SetIndex	_SCRN0, hl, Flag, vblank unsafe
-	jr .flag_loop
-.bad_flag
-	; skip this flag
-	pop	hl
 .unflag_loop
 	stack_Pop	toUnflag, HL
 	; if stack_Pop returns false (no more to pop), then we are done
 	ret	nc
-	push	hl
-	mat_GetIndex	probed, hl
-	ifa	==, 1, jr .bad_unflag
-	pop	hl
 	mat_SetIndex	_SCRN0, hl, Cell, vblank unsafe
-	ret
-.bad_unflag	; attempted to unflag a probed cell
-	pop	hl
 	ret
 
 
