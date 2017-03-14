@@ -238,13 +238,13 @@ bg_color_palettes:
 	rgb_Set	  0,   0,   0	; black
 	; green on white (good indicator)
 	rgb_Set 255, 255, 255	; white
-	rgb_Set	  0, 127,   0	; light green
 	rgb_Set	  0, 255,   0	; green
+	rgb_Set	  0, 127,   0	; light green
 	rgb_Set	  0, 100,   0	; dark green
 	; blue on white
 	rgb_Set 255, 255, 255	; white
-	rgb_Set	0,   0,   127	; light blue
 	rgb_Set	0,   0,   192	; darkish blue
+	rgb_Set	0,   0,   127	; light blue
 	rgb_Set	0,   0,   255	; blue
 	; purple on white
 	rgb_Set 255, 255, 255	; white
@@ -393,7 +393,7 @@ get_number_font: MACRO
 	DW	`........
 	DW	`........
 
-	OPT	g.-Xo	; realign X to be dark (but not darkest) shade
+	OPT	g.X-o	; realign X to be dark (but not darkest) shade
 	; numbers 1-9, shaded dark, but not black
         DW      `..XX....
         DW      `.XXX....
@@ -403,6 +403,8 @@ get_number_font: MACRO
         DW      `..XX....
         DW      `XXXXXX..
         DW      `........
+
+	OPT	g.-Xo	; realign X to be dark (but not darkest) shade
 
         DW      `.XXXX...
         DW      `XX..XX..
@@ -422,6 +424,8 @@ get_number_font: MACRO
         DW      `.XXXX...
         DW      `........
 
+	OPT	g.-oX	; realign X to be dark (but not darkest) shade
+	; any cell 4 or greater should be colored as black as possible
         DW      `...XXX..
         DW      `..XXXX..
         DW      `.XX.XX..
