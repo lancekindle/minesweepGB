@@ -99,6 +99,108 @@ thread_safe	set	0
 	ENDM
 
 
+; macro that takes a macro that YOU DEFINE, and registers in which to place
+; values. The Registers you define are loaded (in listed order) from top of
+; stack. Your macro is embedded to run right after the registers are loaded
+; with values. After your macro, BatchRead loops and begins again. It repeats
+; until it reads past the beginning of its stack. At that point it skips past
+; the macro and sets the pointer to the beginning of the stack
+; one thing: DE and HL are used by this macro. Do not pop stack values into
+; H,L,D,E, and if you use those registers in your defined macro, be sure to
+; push / pop the register to preserve its contents. If you do not, this may
+; never finish processing, and may load completey wrong data.
+stack_BatchRead: MACRO
+;need to know which registers are open. 0 = open, 1 = taken
+A\@	SET	0
+.preload\@
+	load	HL, \1_stack_topL
+	ld	c, [hl]	; load low-byte of stack-top address
+	inc	hl
+	ld	b, [hl]	; load high-byte of stack-top address directly to H
+	; start of stack address in bc
+	; hl -> MSB of top-of-stack
+	load	DE, \1	; aka stack-start
+	ld	[hl], D
+	dec	hl
+	ld	[hl], E	; Reset stack so that it's top-of-stack is the start
+	ldpair	h,l,	b,c
+	; HL points to original stack-top. DE contains stack-start
+.read_stack_bytes\@
+	ld	\3, [hl]
+		IF STRCMP(STRUPR("\3"), "A") == 0
+A\@	SET	1
+		ENDC
+	dec	hl
+		IF _NARG >= 4
+	ld	\4, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\4"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+		IF _NARG >= 5
+	ld	\5, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\5"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+		IF _NARG >= 6
+	ld	\6, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\6"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+		IF _NARG >= 7
+	ld	\7, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\7"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+		IF _NARG >= 8
+	ld	\8, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\8"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+		IF _NARG >= 9
+	ld	\9, [hl]
+	dec	hl
+			IF STRCMP(STRUPR("\9"), "A") == 0
+A\@	SET	1
+			ENDC
+		ENDC
+.verify_not_past_start\@
+	; if H > D, we still have plenty of stack left
+	IF A\@ == 1
+		push	af
+	ENDC
+	lda	h
+	ifa	>, d,   jr .run_user_macro\@
+	; if L < E, we went past stack-start
+	lda	L
+	ifa	<, E,   jp .BatchRead_done\@
+.run_user_macro\@
+	IF A\@ == 1
+		pop	af
+	ENDC
+	; if you get a syntax error here... check a couple things
+	; 1) is first argument name of stack?
+	; 2) is 2nd argument a macro and valid? Try calling it within own file
+	\2	; run arg-2
+	jp	.read_stack_bytes\@
+.BatchRead_done\@
+	pop	af
+.done_noPop\@
+	ENDM
+
+;a1		EQUS	"IF _NARG>=2\n \\2\nENDC\n"
+;run_arg2_macro	EQUS	"{a1}"
+
+
 ; a stringified macro to set a variable
 if_last_arg	equs	""
 ; use like so:

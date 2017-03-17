@@ -99,7 +99,7 @@ include "rgb.asm"
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
-	stack_Declare	toReveal, 42
+	stack_Declare	toReveal, 32
 	stack_Declare	minesToReveal, 10
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
@@ -404,8 +404,6 @@ get_number_font: MACRO
         DW      `XXXXXX..
         DW      `........
 
-	OPT	g.-Xo	; realign X to be dark (but not darkest) shade
-
         DW      `.XXXX...
         DW      `XX..XX..
         DW      `....XX..
@@ -414,6 +412,8 @@ get_number_font: MACRO
         DW      `XX..XX..
         DW      `XXXXXX..
         DW      `........
+
+	OPT	g.-Xo	; realign X to be dark (but not darkest) shade
 
         DW      `.XXXX...
         DW      `XX..XX..
@@ -538,8 +538,34 @@ begin:
 	halt	; should get interrupted every vblank...
 	nop
 	if_	jpad_EdgeA, call	probe_cell
+	; queue_color_mines_reveal is dmg compatible. The actual reveal
+	; loop is the one that needs to be color-sensitive
 	if_	only_mines_left, call queue_color_mines_reveal
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
+
+
+writeColorCells2VRAM: MACRO
+	; preserve HL (stack-pointer) and DE (we don't use DE)
+	push	hl
+	; data is in A,BC
+.display_number\@
+	ld	hl, _SCRN0
+	add	hl, bc	; get address of #'d tile (and color) in VRAM
+	ld	[hl], a	; write number to screen
+	ifa	==, "0", jr .done\@ ; don't need to change palette for empty cell
+.change_color\@
+	ldpair	b,c,	h,l	; move VRAM address to bc
+	ld	hl, rVBK
+	ld	[hl], 1	; change to VRAM bank 1 (color bank)
+	sub	"0"	; get integer palette # corresponding to string count
+	ifa	>, 4, ld a, 4	; use palettes 0-4
+	ld	[bc], a	; set palette
+	xor	a
+	nop
+	ld	[hl], a	; change back to VRAM bank 0 (tile-data bank)
+.done\@
+	pop	hl
+	ENDM
 
 
 ; this gets called v-blank. It has three purposes:
@@ -556,9 +582,13 @@ handle_vblank:
 	pushall
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
 	lda	[rGBC]
-	ifa	==, 0, call	reveal_queued_probed_cells
-	lda	[rGBC]
-	ifa	>=, 1, call	reveal_color_queued_probed_cells
+	ifa	==, 0, jr .dmg_probe_display
+	stack_BatchRead		toReveal, writeColorCells2VRAM, A,B,C
+.cgb_probe_display
+	jr .move_sprite
+.dmg_probe_display
+	call	reveal_queued_probed_cells
+.move_sprite
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_sprite_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
@@ -856,6 +886,7 @@ reveal_queued_probed_cells:
 	ldpair	h,l,	b,c
 	mat_SetIndex	_SCRN0, hl, a, vblank unsafe	; write count to screen background
 	jr .reveal_loop
+
 
 
 ; Reveal numbers indicating mine-count on background grid. In the gameboy
