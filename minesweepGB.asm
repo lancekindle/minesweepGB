@@ -303,13 +303,7 @@ init_colorgb_variables:
 	; check if gameboy color or gameboy advance
 	bit	0, b	; check bit 0 of B. It's gba if 1
 	if_flag	nz,	ld [rGBA], a
-	; now enable Color Gameboy double-speed
-	ld	[rKEY1], a
-	stop	
-	; stop normally halts cpu (in a bad way). But since we've just
-	; enabled double-speed mode, the cpu will pick up (After a screen
-	; flicker) in double-speed mode
-	nop	; nop after a halt/stop is good practice
+	call	cpu_doublespeed_switch
 	xor	a
 	ld	hl, bg_color_palettes
 	call	rgb_SetAllBGP
@@ -317,6 +311,28 @@ init_colorgb_variables:
 	ld	hl, rgb_StandardPalette
 	call	rgb_SetSingleOBJP  ; set sprite palette 0 (reg. A) to greyscale
 	ret
+
+; this properly switches the cpu to double speed mode (cbg-only).
+; this avoids the issue where if a key is held down during the switch, the
+; gameboy will hang. We avoid it by disabling interruption by the keypad
+; (see Cycle-Accurate Game Boy Docs by AntonioND)
+cpu_doublespeed_switch:
+	ld	a, [rIE]
+	ld	b, a	; save Interrupt-enable's for later
+	xor	a, a
+	ld	[rIE], a	; clear Interrupt-enables
+	ld	a, $30
+	ld	[rP1], a  ; briefly disable joypad from triggering interrupts
+	ld	a, $01
+	ld	[rKEY1], a	; tell cpu "prepare for hammer-time!"
+	stop ; Switch speed.
+	; stop normally halts cpu (in a bad way). But since we've just
+	; enabled double-speed mode, the cpu will pick up (After a screen
+	; flicker) in double-speed mode
+	ld a,b
+	ld [rIE],a		; restore Interrupt-enable's
+	ret ; Restore IE.<Paste>
+
 
 ; set low-ram variables to 0
 init_variables:
