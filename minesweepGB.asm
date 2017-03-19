@@ -79,7 +79,29 @@ include "rgb.asm"
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 	var_LowRamByte	rPlayerY
 	var_LowRamByte	rPlayerX
-	var_LowRamByte	rPlayerHasMoved
+
+	; hold onto last-pressed buttons. If it changes, we want to respond
+	; to user input immediately.
+	var_LowRamByte	rJPAD_LastButtons
+	; how long after buttons-release before button settings reset:
+	; Charge, RepeatRate, RepeatInc, etc.
+	; (so that user can switch from left to down-left to down seamlessly)
+	var_LowRamByte	rJPAD_Cooldown
+JPAD_Cooldown_Init	SET	2 ; time of x/60 seconds before button-release
+				  ; resets joypad settings
+	; triggers buttons on overflow (is set to overflow on first press)
+	var_LowRamByte	rJPAD_Charge
+	; how fast jpad_charge builds up
+	var_LowRamByte	rJPAD_RepeatRate
+JPAD_RepeatRate_Init	SET	5
+JPAD_MaxRepeatRate	SET	60
+; set initial charge to 255 so that any amount added overflows and immediately
+; triggers a button press.
+JPAD_Charge_Init	SET	255
+	; RepeatRate increases by this amount every time jpad_charge overflows
+	var_LowRamByte	rJPAD_RepeatInc	
+JPAD_RepeatInc_Init	SET	15
+					
 	var_LowRamByte	rCrosshairY
 	var_LowRamByte	rCrosshairX
 	var_LowRamByte	rNearbyCount
@@ -343,6 +365,17 @@ init_variables:
 	ld	[rMinesCount], a
 	ld	[rCorrectFlags], a
 	ld	[rWrongFlags], a
+	; joypad repeat variables
+	ld	a, JPAD_Cooldown_Init
+	ld	[rJPAD_Cooldown], a
+	ld	a, JPAD_Charge_Init
+	ld	[rJPAD_Charge], a
+	ld	a, JPAD_RepeatRate_Init
+	ld	[rJPAD_RepeatRate], a
+	ld	a, JPAD_RepeatInc_Init
+	ld	[rJPAD_RepeatInc], a
+	; others
+	xor	a	; reset A -> 0
 	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
 	var_SetWord	b,c,	rCellsRemaining
 	ld	a, 1
@@ -606,7 +639,7 @@ handle_vblank:
 	call	reveal_queued_probed_cells
 .move_sprite
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	call	move_sprite_within_screen_bounds
+	call	move_player_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
 	call	reveal_queued_mines
 	call	reveal_queued_flags
@@ -1009,13 +1042,39 @@ get_neighbor_corners_within_bounds:
 	ret
 
 
+move_if_right:
+	if_not	jpad_ActiveRight, ret
+	ld	a, [rPlayerX]
+	add	8
+	ld	[rPlayerX], a
+	ret
+
+move_if_left:
+	if_not	jpad_ActiveLeft, ret
+	ld	a, [rPlayerX]
+	sub	8
+	ld	[rPlayerX], a
+	ret
+
+move_if_up:
+	if_not	jpad_ActiveUp, ret
+	ld	a, [rPlayerY]
+	sub	8
+	ld	[rPlayerY], a
+	ret
+
+move_if_down:
+	if_not	jpad_ActiveDown, ret
+	ld	a, [rPlayerY]
+	add	8
+	ld	[rPlayerY], a
+	ret
+
 move_once_if_right:
 	if_not	jpad_EdgeRight, ret
 	ld	a, [rPlayerX]
 	add	8
 	ld	[rPlayerX], a
-	ld	a, $FF
-	ld	[rPlayerHasMoved], a	; place a non-zero value here
 	ret
 
 move_once_if_left:
@@ -1023,8 +1082,6 @@ move_once_if_left:
 	ld	a, [rPlayerX]
 	sub	8
 	ld	[rPlayerX], a
-	ld	a, $FF
-	ld	[rPlayerHasMoved], a	; place a non-zero value here
 	ret
 
 move_once_if_up:
@@ -1032,8 +1089,6 @@ move_once_if_up:
 	ld	a, [rPlayerY]
 	sub	8
 	ld	[rPlayerY], a
-	ld	a, $FF
-	ld	[rPlayerHasMoved], a	; place a non-zero value here
 	ret
 
 move_once_if_down:
@@ -1041,16 +1096,86 @@ move_once_if_down:
 	ld	a, [rPlayerY]
 	add	8
 	ld	[rPlayerY], a
-	ld	a, $FF
-	ld	[rPlayerHasMoved], a	; place a non-zero value here
 	ret
 
 
-move_sprite_within_screen_bounds:
-	; MoveIf* are macros from sprite.inc
+
+
+; responsible for moving the crosshairs / selection box within borders.
+; will also control repeat rate of direction(s) if joypad held down.
+; each time we trigger a keypress, we increase the rate of repeat
+move_player_within_screen_bounds:
 	; Only move if NOT on borders
-	xor	a	; A=0
-	ld	[rPlayerHasMoved], a	; if player has moved this'll be updated
+	lda	[jpad_rKeys]
+	and	jpad_dpad_mask	; will set result to non-zero if a directional
+				; key is active
+	if_flag	z, jp .Dpad_not_pressed
+.held_key
+	; reg. A holds mask for buttons currently pressed
+	; increment joypad-press variables and trigger movement if appropriate
+	lda	[rJPAD_RepeatRate]
+	ld	hl, rJPAD_Charge
+	add	a, [hl]	; get new jpad_charge
+	ld	[hl], a	; store new jpad_charge
+	if_flag	nc, jp .skip_button_press
+	; if we get here, button is pressed and we need to trigger it
+.increase_repeat_rate
+	ld	hl, rJPAD_RepeatRate
+	lda	[rJPAD_RepeatInc]
+	add	a, [hl]
+	ifa	>, JPAD_MaxRepeatRate, ld a, JPAD_MaxRepeatRate
+	ld	[hl], a	; increase repeat rate each time we trigger a key-press
+	; make sure cooldown is reset once a key gets pressed
+	ld	hl, rJPAD_Cooldown
+	ld	[hl], JPAD_Cooldown_Init
+.move_player
+	ld	a, [rPlayerX]
+	push	af	; store X value for later
+	ifa	<, SCRN_X - 8,	call move_if_right
+	pop	af
+	ifa	>, 0,		call move_if_left
+	ld	a, [rPlayerY]
+	push	af
+	ifa	<, SCRN_Y - 8,	call move_if_down
+	pop	af
+	ifa	>, 0,		call move_if_up
+	jr	.move_crosshairs
+.Dpad_not_pressed
+	; cooldown variable allows a brief lapse between button presses while
+	; still maintaining the same repeat rate. If cooldown expires, we reset
+	ld	hl, rJPAD_Cooldown
+	dec	[hl]	; sets 0-flag if cooldown == 0
+	jr	nz, .move_crosshairs
+	; if cooldown == 0, reset jpad vars
+.reset_jpad_variables
+	ld	hl, rJPAD_Charge
+	ld	[hl], JPAD_Charge_Init
+	ld	hl, rJPAD_RepeatRate
+	ld	[hl], JPAD_RepeatRate_Init
+	ld	hl, rJPAD_RepeatInc
+	ld	[hl], JPAD_RepeatInc_Init
+	jr	.move_crosshairs
+.skip_button_press
+	; we get here if buttons are pressed, but aren't triggering a repeat
+	; so lets check if there's a newly-pressed button and trigger that
+	; (if it does trigger, it'll reset the jpad charge to ensure we don't
+	; quickly repeat a key-press)
+	lda	[jpad_rEdge]
+	and	jpad_dpad_mask	; sets zero-flag if no newly pressed dpad keys
+	jp	nz, move_player_direction_just_pressed
+	; we get here if buttons are held down with no changes
+.move_crosshairs
+	jp	update_crosshairs
+	ret
+
+; moves player direction just pressed. Updates crosshairs, AND resets
+; jpad charge so that the key can't get instantly triggered (Again) the next
+; vblank
+move_player_direction_just_pressed:
+	xor	a
+	; set charge to 0 so that it'll wait the full time before repeating
+	ld	[rJPAD_Charge], a
+	; now move player according to newly-pressed direction
 	ld	a, [rPlayerX]
 	push	af	; store X value for later
 	ifa	<, SCRN_X - 8,	call move_once_if_right
@@ -1096,6 +1221,17 @@ mine_probed:
 	pop	hl	; restore index
 	lda	[rGBC]
 	ifa	==, 0, ret
+	push	hl
+.wait_for_empty_stack
+	stack_Size	minesToReveal
+	if_flag	c, jr .wait_for_empty_stack	; loop until no more mines
+						; to draw, then draw red-mine
+	; Why? Because occasionally the red mine
+	; gets drawn over by the black mine that we reveal. To prevent that,
+	; I wait until the minesToReveal is empty, indicating that all mines
+	; have been drawn and then push it to the stack again so that it'll
+	; FOR SURE not get drawn over.
+	pop	hl	; restore index
 .color_exploded_mine
 	ld	de, _SCRN0
 	add	hl, de	; get VRAM address for mine

@@ -10,6 +10,7 @@ JOYPAD_INC  SET     1
 ; gbhw.inc defines the down, up, left, right, start, select, B, etc. as...
 ; PADF_DOWN, PADF_UP, PADF_LEFT, PADF_RIGHT, PADF_START, PADF_SELECT, PADF_B..
 
+jpad_dpad_mask	SET	PADF_UP | PADF_DOWN | PADF_LEFT | PADF_RIGHT
 ; define our own joypad variables for keeping track of when a button was last
 ; pressed
 	var_LowRamByte var_DOWN
