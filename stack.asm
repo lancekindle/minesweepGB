@@ -488,7 +488,7 @@ stack_PopABC:
 stack_Size: MACRO
 	ld	hl, \1_stack_topL
 	ld	de, \1		; load start of stack address
-	call	stack_SizeA
+	call	stack_SizeHL
 	ENDM
 
 stack_SizeHL:
