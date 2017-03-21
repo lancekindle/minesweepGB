@@ -27,28 +27,12 @@ math_MultiplyAC:
 	; If 1 was rotated into the carry-flag, then we add BC to HL
 	; then we multiply C by 2 (shift bc left)
 	; do that 8 times, and you'll have multiplied C by A
-	RRA	; 1
-	if_flag	c,	add	hl, bc
-	shift_left	b, c
-	RRA	; 2
-	if_flag	c,	add	hl, bc
-	shift_left	b, c
-	RRA	; 3
-	if_flag	c,	add	hl, bc
-	shift_left	b, c
-	RRA	; 4
-	if_flag	c,	add	hl, bc
-	shift_left	b, c
-	RRA	; 5
-	if_flag	c,	add	hl, bc	; I don't use a counter because then
-	shift_left	b, c		; this procedure would have used
-	RRA	; 6			; nearly all the registers.
-	if_flag	c,	add	hl, bc	; at least this way DE is preserved
-	shift_left	b, c
-	RRA	; 7
-	if_flag	c,	add	hl, bc
-	shift_left	b, c
-	RRA	; 8
+	REPT	7	; (do the following 7 times)
+		RRA
+		if_flag	c,	add	hl, bc
+		shift_left	b, c
+	ENDR
+	RRA	; (8th time)
 	if_flag	c,	add	hl, bc
 	; Lastly, set carry flag if HL > 255
 	ld	a, %11111111
