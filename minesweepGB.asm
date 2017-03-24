@@ -918,7 +918,8 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	ldpair	b,c,	h,l	; move Index to b,c
 	add	"0"	; create string equivalent of count
 .pushing
-	stack_Push	toReveal, C,B,A	; push Index and mine-count for later
+	; push Index and mine-count for later reveal during vblank
+	stack_Push	toReveal, C,B,A, thread_safe
 	jr nc, .pushing	; keep trying to push onto stack until it succeeds
 	lda	[rNearbyCount]
 	ret
@@ -1224,8 +1225,8 @@ mine_probed:
 	push	hl
 .wait_for_empty_stack
 	stack_Size	minesToReveal
-	if_flag	c, jr .wait_for_empty_stack	; loop until no more mines
-						; to draw, then draw red-mine
+	jr	c, .wait_for_empty_stack
+	; loop until no more mines to draw, then draw red-mine
 	; Why? Because occasionally the red mine
 	; gets drawn over by the black mine that we reveal. To prevent that,
 	; I wait until the minesToReveal is empty, indicating that all mines
@@ -1237,7 +1238,7 @@ mine_probed:
 	add	hl, de	; get VRAM address for mine
 	ldpair	b,c,	h,l
 	ld	a, 4	; set color of probed mine to red (palette 4)
-	stack_Push	minesToReveal, C,B,A
+	stack_Push	minesToReveal, C,B,A, thread_safe
 	ret
 
 
@@ -1264,7 +1265,7 @@ queue_color_mines_reveal:
 	add	hl, de	; HL = VRAM address of tile
 	ldpair	b,c,	h,l
 .push2stack
-	stack_Push	minesToReveal, C,B,A
+	stack_Push	minesToReveal, C,B,A, thread_safe
 	jr	nc, .push2stack	; keep trying until stack is open
 	jr	.loop
 
@@ -1273,7 +1274,7 @@ queue_color_mines_reveal:
 ; mine. This should be run in vblank
 reveal_queued_mines:
 .loop
-	stack_Pop	minesToReveal, ABC, thread unsafe
+	stack_Pop	minesToReveal, ABC
 	ret	nc	; return if stack_Pop came up empty
 	; A contains palette data, BC contains VRAM address of mine
 	; we need to write the mine, and change the color
