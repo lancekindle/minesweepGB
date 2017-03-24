@@ -1217,6 +1217,7 @@ only_mines_left:
 ; HL = index corresponding to Y,X of probed mine
 ; A = 1  (indicating yes, it's a mine)
 mine_probed:
+	call	shake_screen
 	push	hl	; store index
 	call	queue_color_mines_reveal
 	pop	hl	; restore index
@@ -1239,6 +1240,62 @@ mine_probed:
 	ldpair	b,c,	h,l
 	ld	a, 4	; set color of probed mine to red (palette 4)
 	stack_Push	minesToReveal, C,B,A, thread_safe
+	ret
+
+
+; use to shake screen around after exploding on mine
+; change x,y once per vblank, essentially. Blocking: meaning no other
+; valuable computation may occur during this shake effect
+shake_screen:
+	lda	[rLY]	; get current Y-line
+	ld	d, a
+	dec	d	; change line so that first loop will happen
+	push	hl
+	ld	bc, $1F
+	inc	b
+	inc	c	; increment B, C so that .loop works correctly
+	jr .decrement_counter	; always start off by decrementing
+.loop
+	lda	[rLY]	; get current Y-line
+	ifa	<>, d, jr .loop	; wait until on a new frame
+.shake_frame
+	rand_A
+	ld	hl, rSCX
+	ifa	>, 155, inc [hl]	; bump right
+	ifa	<, 100, dec [hl]	; bump left
+	lda	[hl]
+.x_within_bounds
+	ifa	>, 250, jr .negative_x
+.positive_x
+	ifa	>, 2, ld [hl], 2
+	jr .shake_y
+.negative_x
+	ifa	<, 254, ld [hl], 254
+.shake_y
+	rand_A
+	ld	hl, rSCY
+	ifa	>, 155, inc [hl]	; bump down
+	ifa	<, 100, dec [hl]	; bump up
+	lda	[hl]
+.y_within_bounds
+	ifa	>, 250, jr .negative_y
+.positive_y
+	ifa	>, 2, ld [hl], 2
+	jr .shake_done
+.negative_y
+	ifa	<, 254, ld [hl], 254
+.shake_done
+.decrement_counter
+	dec	c
+	jr	nz, .loop
+	dec	b
+	jr	nz, .loop
+.restore
+	; shake effect complete. Now we restore x,y to (0,0)
+	xor	a
+	ld	[rSCX], a
+	ld	[rSCY], a
+	pop	hl
 	ret
 
 
