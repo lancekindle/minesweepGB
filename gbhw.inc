@@ -177,6 +177,8 @@ LCDCF_BGON    EQU  %00000001 ; BG Display
 rSTAT EQU $FF41
 
 STATF_LYC     EQU  %01000000 ; LYCEQULY Coincidence (Selectable)
+                             ; If set, LCD will throw LCDC interrupt if LYC=LY
+                             ; (IRQ won't trigger unless rIE is also configured)
 STATF_MODE10  EQU  %00100000 ; Mode 10
 STATF_MODE01  EQU  %00010000 ; Mode 01 (V-Blank)
 STATF_MODE00  EQU  %00001000 ; Mode 00 (H-Blank)
@@ -186,6 +188,9 @@ STATF_VB      EQU  %00000001 ; V-Blank
 STATF_OAM     EQU  %00000010 ; OAM-RAM is used by system
 STATF_LCD     EQU  %00000011 ; Both OAM and VRAM used by system
 STATF_BUSY    EQU  %00000010 ; When set, VRAM access is unsafe
+; WARNING: IS THIS RIGHT? BOTH STATF_OAM and STATF_BUSY use the
+; same flag, but documentation indicates one is suppposed to indicate
+; OAM vs VRAM unavailable
 
 
 ; --
@@ -215,7 +220,8 @@ rLY EQU $FF44
 ; -- LYC ($FF45)
 ; -- LY Compare (R/W)
 ; --
-; -- When LYEQUEQULYC, STATF_LYCF will be set in STAT
+; -- When LY == LYC, STATF_LYCF will be set in rSTAT
+; --    IF STATF_LYC is also set in rSTAT, then LCD will also throw interrupt
 ; --
 rLYC  EQU $FF45
 
@@ -293,7 +299,7 @@ rIE EQU $FFFF
 IEF_HILO    EQU  %00010000 ; Transition from High to Low of Pin number P10-P13
 IEF_SERIAL  EQU  %00001000 ; Serial I/O transfer end
 IEF_TIMER   EQU  %00000100 ; Timer Overflow
-IEF_LCDC    EQU  %00000010 ; LCDC (see STAT)
+IEF_LCDC    EQU  %00000010 ; LCDC (see rSTAT). Thrown at specific line # by LCD
 IEF_VBLANK  EQU  %00000001 ; V-Blank
 
 
