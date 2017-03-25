@@ -24,9 +24,9 @@ section "Vblank", HOME[$0040]
 		; trickery. Since dma returns and enables interrupts
 		; we can just jp to the dma code immediately
 		; this saves on number of returns (and cpu cycles)
-	jp handle_vblank
+	jp	handle_vblank
 section "LCDC", HOME[$0048]
-	reti
+	jp	shake_screen_interrupt
 section "Timer_Overflow", HOME[$0050]
 	reti
 section "Serial", HOME[$0058]
@@ -112,6 +112,7 @@ JPAD_RepeatInc_Init	SET	15
 	var_LowRamWord	rCellsRemaining
 	var_LowRamByte	rCorrectFlags
 	var_LowRamByte	rWrongFlags
+	var_LowRamWord	rShakeCounter
 
 	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
 	mat_Declare	mines, SCRN_VY_B, SCRN_VX_B	; setup mines matrix
@@ -1247,18 +1248,42 @@ mine_probed:
 ; change x,y once per vblank, essentially. Blocking: meaning no other
 ; valuable computation may occur during this shake effect
 shake_screen:
-	lda	[rLY]	; get current Y-line
-	ld	d, a
-	dec	d	; change line so that first loop will happen
+	; set lcd interrupt
+	di	; we'll enable interrupts after bumping the screen
+	push	af
+	push	bc
 	push	hl
-	ld	bc, $1F
-	inc	b
-	inc	c	; increment B, C so that .loop works correctly
-	jr .decrement_counter	; always start off by decrementing
-.loop
-	lda	[rLY]	; get current Y-line
-	ifa	<>, d, jr .loop	; wait until on a new frame
-.shake_frame
+	; select line-interrupt to occur on line 100
+	ld	hl, rLYC
+	ld	[hl], 100	; vblank is at lines 144-153
+	; set LCD to throw interrupt
+	ld	hl, rSTAT
+	lda	[hl]
+	or	STATF_LYC	; enable LY-compare
+	ld	[hl], a
+	; set interrupt flag to enable lcd line-interrupt
+	ld	hl, rIE
+	lda	[hl]	; get state of interrupts
+	or	IEF_LCDC	; enable lcd line-interrupt
+	ld	[hl], a
+	; set up shake-counter so that effect ends after ... 700ms?
+	ld	bc, $001F
+	inc	c
+	inc	b	; increment so that loop counter works
+	var_SetWord	b,c, rShakeCounter, trash AF
+	pop	hl
+	pop	bc
+	pop	af
+	;shake screen to start (will also enable interrupts)
+	jp	shake_screen_interrupt
+
+
+shake_screen_interrupt:
+	push	af
+	push	bc
+	push	hl
+	var_GetWord	b,c, rShakeCounter, trash AF
+.bump_x_frame
 	rand_A
 	ld	hl, rSCX
 	ifa	>, 155, inc [hl]	; bump right
@@ -1268,10 +1293,10 @@ shake_screen:
 	ifa	>, 250, jr .negative_x
 .positive_x
 	ifa	>, 2, ld [hl], 2
-	jr .shake_y
+	jr	.bump_y_frame
 .negative_x
 	ifa	<, 254, ld [hl], 254
-.shake_y
+.bump_y_frame
 	rand_A
 	ld	hl, rSCY
 	ifa	>, 155, inc [hl]	; bump down
@@ -1281,22 +1306,41 @@ shake_screen:
 	ifa	>, 250, jr .negative_y
 .positive_y
 	ifa	>, 2, ld [hl], 2
-	jr .shake_done
+	jr	.bump_done
 .negative_y
 	ifa	<, 254, ld [hl], 254
-.shake_done
-.decrement_counter
+.bump_done	; now we decrement counter. Completely Done if counter == 00
 	dec	c
-	jr	nz, .loop
+	jr	nz, .frame_done
 	dec	b
-	jr	nz, .loop
-.restore
-	; shake effect complete. Now we restore x,y to (0,0)
+	jr	z, .fully_done
+.frame_done
+	var_SetWord	b,c, rShakeCounter, trash AF
+	pop	hl
+	pop	bc
+	pop	af
+	reti
+.fully_done	; shake effect complete.
+	; disable lcdc IRQ
+	ld	hl, rIE
+	lda	[hl]	; get state of interrupts
+	or	IEF_LCDC	; ensure lcd line-interrupt enabled
+	xor	IEF_LCDC	; then disable lcd line-interrupt
+	ld	[hl], a
+	; stop LCD from throwing interrupts
+	ld	hl, rSTAT
+	lda	[hl]
+	or	STATF_LYC	; enable LY-compare
+	xor	STATF_LYC	; then disable LY-compare
+	ld	[hl], a
+	; Now we restore x,y to (0,0)
 	xor	a
 	ld	[rSCX], a
 	ld	[rSCY], a
 	pop	hl
-	ret
+	pop	bc
+	pop	af
+	reti
 
 
 queue_color_mines_reveal:
