@@ -59,6 +59,7 @@ MidRamBase      Set     MidRamBase + \2
 
 ; use this macro to load a word from ram. It loads the word into the specified
 ; register without trashing any other registers (it will push / pop to do so)
+; (an optional 4th argument "trash AF" will prevent the push / pop)
 ; var_GetLowRamWord	register_pair, variable_name
 ; e.g. var_GetLowRamWord	b,c, player_coordinates
 ; following Z80 stack-pointer convention, the LSB is stored @address,
@@ -75,17 +76,27 @@ var_GetWord: MACRO
 	IF STRIN("BCDEHL", STRUPR("\2")) == 0
 		FAIL	"require a register (but not A). Got \2"
 	ENDC
+preserve_AF	SET	1
+	IF _NARG == 4
+		IF STRCMP(STRUPR("\4"), "TRASH AF") == 0
+preserve_AF	SET	0
+		ENDC
+	ENDC
+		IF preserve_AF == 1
 	push	af	; save AF (we have to use A)
+		ENDC
 	lda	[\3]
 	ld	\2, a		; load LSB from address
 	lda	[\3 + 1]
 	ld	\1, a		; load MSB from address+1
+		IF preserve_AF == 1
 	pop	af
+		ENDC
 	ENDM
 
 ; same deal as var_GetLowRamWord. Stores register pair in memory
 ; at specified address in ram. Sets LSB @address, MSB @address+1
-; doesn't trash registers
+; doesn't trash registers unless "Trash AF" passed as 4th argument.
 ; register A or F is not allowed because we make use of A
 ; FAST:	17/14	17 cycles, 14 bytes
 var_SetWord: MACRO
@@ -95,12 +106,22 @@ var_SetWord: MACRO
 	IF STRIN("BCDEHL", STRUPR("\2")) == 0
 		FAIL	"require a register (but not A). Got \2"
 	ENDC
+preserve_AF	SET	1
+	IF _NARG == 4
+		IF STRCMP(STRUPR("\4"), "TRASH AF") == 0
+preserve_AF	SET	0
+		ENDC
+	ENDC
+		IF preserve_AF == 1
 	push	af	; save AF (we have to use A)
+		ENDC
 	lda	\2
 	ld	[\3], a		; store LSB at address
 	lda	\1
 	ld	[\3 + 1], a	; store MSB at address+1
+		IF preserve_AF == 1
 	pop	af
+		ENDC
 	ENDM
 
 ; increment a word. Doesn't trash registers
