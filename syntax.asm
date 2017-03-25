@@ -786,6 +786,46 @@ decrement: MACRO
 	ENDM
 
 
+; CASE 5, .end, roll_ball
+; evaluates A against 5. If equal, it runs the command roll_ball and then
+; breaks out of the switch statement by jumping to .end
+; otherwise it skips roll_ball and moves onto the line below (which is usually
+; another CASE statement)
+; there is no switch macro, only case. So for redability, prefix the set of
+; case statements with a .switch_<label> to explain what the switch-case is
+; doing.
+case: MACRO
+	cp	\2
+	IF (STRCMP("\1", "==") == 0) ; Z=1
+	jr	nz, .skip_case\@
+	ENDC
+	IF (STRCMP("\1", ">=") == 0) ; C=0
+	jr	c, .skip_case\@
+	ENDC
+	IF (STRCMP("\1", ">") == 0) ; C=0 & Z=0
+	jr	c, .skip_case\@
+	jr	z, .skip_case\@
+	ENDC
+	IF (STRCMP("\1", "<=") == 0) ; C=1 | Z=1
+	jr	c, .exec_case_cmd\@  ; immediately exec if C=1
+	jr	nz, .skip_case\@  ; fallthrough if Z=1. Otherwise, skip
+	ENDC
+	IF (STRCMP("\1", "<") == 0) ; C=1
+	jr 	nc, .skip_case\@
+	ENDC
+	IF (STRCMP("\1", "!=") == 0) ; Z=0
+	jr	z, .skip_case\@
+	ENDC				; support both != and <>
+	IF (STRCMP("\1", "<>") == 0) ; Z=0
+	jr	z, .skip_case\@
+	ENDC
+.exec_case_cmd\@
+	unpack_arg4_cmd
+	jp	\3	; BREAK. jump to end-of-switch label
+	; (yes, this is unlike standard C which requires a break. A break here
+	; is implicit)
+.skip_case\@
+	ENDM
 
 
 
