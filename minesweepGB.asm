@@ -62,6 +62,7 @@ include "matrix.asm"
 include "stack.asm"
 include "random.asm"
 include "rgb.asm"
+include "tileGraphics.asm"
 
 ; declare some variables
 	; set sprite variables
@@ -379,177 +380,6 @@ init_variables:
 	ret
 
 
-get_cell_font: MACRO
-	PUSHO	; push options so that I can change the meaning of .-oX
-	; change graphics characters. Start the line with ` (for graphics)
-	; . = 00
-	; - = 01
-	; o = 10
-	; X = 11
-	OPT	g.-oX
-
-	; Cell Graphic
-	DW	`o.......
-	DW	`o------.
-	DW	`o------.
-	DW	`o------.
-	DW	`o------.
-	DW	`o------.
-	DW	`o------.
-	DW	`oooooooo
-
-	; Flagged Cell Graphic
-	DW	`o.......
-	DW	`o--X---.
-	DW	`o--X---.
-	DW	`oXXXXX-.
-	DW	`o--X---.
-	DW	`o--X---.
-	DW	`o------.
-	DW	`oooooooo
-
-	; 1/4th of crosshairs. We flip (H and V) to create a surrounding box
-	DW	`X-X-X-X-
-	DW	`-.......
-	DW	`X.......
-	DW	`-.......
-	DW	`X.......
-	DW	`-.......
-	DW	`X.......
-	DW	`-.......
-
-	POPO	; restore default options (aka undo g.-oX)
-	ENDM
-
-get_number_font: MACRO
-	PUSHO	; push options so that I can change the meaning of . & X
-	; change graphics characters. Start the line with ` (for graphics)
-	; . = 00
-	; X = 01
-	OPT	g.X-o
-
-	; 0 number, completely removed from being visible
-	DW	`........
-	DW	`........
-	DW	`........
-	DW	`........
-	DW	`........
-	DW	`........
-	DW	`........
-	DW	`........
-
-	OPT	g.X-o	; realign X to be dark (but not darkest) shade
-	; numbers 1-9, shaded dark, but not black
-        DW      `..XX....
-        DW      `.XXX....
-        DW      `..XX....
-        DW      `..XX....
-        DW      `..XX....
-        DW      `..XX....
-        DW      `XXXXXX..
-        DW      `........
-
-        DW      `.XXXX...
-        DW      `XX..XX..
-        DW      `....XX..
-        DW      `..XXX...
-        DW      `.XX.....
-        DW      `XX..XX..
-        DW      `XXXXXX..
-        DW      `........
-
-	OPT	g.-Xo	; realign X to be dark (but not darkest) shade
-
-        DW      `.XXXX...
-        DW      `XX..XX..
-        DW      `....XX..
-        DW      `..XXX...
-        DW      `....XX..
-        DW      `XX..XX..
-        DW      `.XXXX...
-        DW      `........
-
-	OPT	g.-oX	; realign X to be dark (but not darkest) shade
-	; any cell 4 or greater should be colored as black as possible
-        DW      `...XXX..
-        DW      `..XXXX..
-        DW      `.XX.XX..
-        DW      `XX..XX..
-        DW      `XXXXXXX.
-        DW      `....XX..
-        DW      `...XXXX.
-        DW      `........
-
-        DW      `XXXXXX..
-        DW      `XX......
-        DW      `XXXXX...
-        DW      `....XX..
-        DW      `....XX..
-        DW      `XX..XX..
-        DW      `.XXXX...
-        DW      `........
-
-        DW      `..XXX...
-        DW      `.XX.....
-        DW      `XX......
-        DW      `XXXXX...
-        DW      `XX..XX..
-        DW      `XX..XX..
-        DW      `.XXXX...
-        DW      `........
-
-        DW      `XXXXXX..
-        DW      `XX..XX..
-        DW      `....XX..
-        DW      `...XX...
-        DW      `..XX....
-        DW      `..XX....
-        DW      `..XX....
-        DW      `........
-
-        DW      `.XXXX...
-        DW      `XX..XX..
-        DW      `XX..XX..
-        DW      `.XXXX...
-        DW      `XX..XX..
-        DW      `XX..XX..
-        DW      `.XXXX...
-        DW      `........
-
-        DW      `.XXXX...
-        DW      `XX..XX..
-        DW      `XX..XX..
-        DW      `.XXXXX..
-        DW      `....XX..
-        DW      `...XX...
-        DW      `.XXX....
-        DW      `........
-
-
-	POPO	; restore default options (aka undo g.-oX)
-	ENDM
-
-cell_gfx:
-	get_cell_font
-end_cellgfx:
-
-number_gfx:
-	get_number_font
-end_numbergfx
-
-load_graphics:
-	; copy cell, flagged-cell, and crosshairs graphics
-	ld	hl, cell_gfx
-	ld	de, _VRAM + Cell	; (Cell == 0. That part adds nothing)
-	ld	bc, end_cellgfx - cell_gfx
-	call	mem_CopyVRAM
-	; copy #0 graphics
-	ld	hl, number_gfx
-	ld	de, _VRAM + 16*"0"
-	ld	bc, end_numbergfx - number_gfx
-	call	mem_CopyVRAM
-	ret
-
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
@@ -567,7 +397,7 @@ begin:
 	stack_Init	toFlag
 	stack_Init	toUnflag
 	call	LoadFont
-	call	load_graphics
+	call	tileGraphics_Load
 	call	ClearSpriteTable
 	call	lcd_On
 	call	SpriteSetup
