@@ -7,10 +7,10 @@
 include "gbhw.inc"
 include "cgbhw.inc"
 include "ibmpc1.inc"
+include "dma.asm"
 
 
 
-DMACODELOC	EQU	$ff80
 ;IRQs
 ; whenever one of these IRQs is triggered, three things happen:
 ; 1) SP is loaded with the address of the interrupted instruction
@@ -51,18 +51,13 @@ section "start", HOME[$0100]
 ; we need to add it here after all the critical address-specific code
 ; has been laid out
 
+include "syntax.asm"
+include "memory.asm"
+include "vars.asm"
 include "sprite.inc"
 include "joypad.asm"
-	PRINTT	"jpad_rKeys @"
-	PRINTV	jpad_rKeys
-	PRINTT	"\njpad_rEdge @"
-	PRINTV	jpad_rEdge
-	PRINTT	"\n"
-include "memory.asm"
 include "lcd.asm"
-include "syntax.asm"
 include "math.asm"
-include "vars.asm"
 include "matrix.asm"
 include "stack.asm"
 include "random.asm"
@@ -559,7 +554,7 @@ begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	check_hardware
-	call	initdma
+	dma_Copy2HRAM
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
@@ -1410,23 +1405,3 @@ LoadFont:
 Title:  ; using (:) will save ROM address so that you can reference it in code
 	DB	"abcdefghijklmnopqrstuvwxyz"
 TitleEnd:
-
-; copies the dmacode to HIRAM. dmacode will get run each Vblank,
-; and it is resposible for copying sprite data from ram to vram.
-initdma:
-	ld	de, DMACODELOC
-	ld	hl, dmacode
-	ld	bc, dmaend - dmacode
-	call	mem_CopyVRAM
-	ret
-dmacode:
-	push	af
-	ld	a, OAMDATALOCBANK
-	ldh	[rDMA], a
-	ld	a, $28
-dma_wait:
-	dec	a
-	jr	nz, dma_wait
-	pop	af
-	ret	;no longer reti.because dma is now handled by a vblank routine
-dmaend:
