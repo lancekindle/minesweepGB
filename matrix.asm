@@ -441,12 +441,25 @@ mat_GetYX: MACRO
 	ENDM
 
 
-; set value @ memory offset specified. the offset must be hard-coded or
-; in register HL. Value to set is in register A (or a hard-coded #)
+; set value @ memory offset specified. the offset must be hard-coded or in
+; register HL, DE, or BC. Value to set is in register A (or a hard-coded #)
 ; mat_SetIndex		matrix_name, $00ff, 32
+; mat_SetIndex		color, hl, 4
+; mat_SetIndex		flags, bc, 0
+; macro ends with [HL] pointing to exact memory address of matrix
 mat_SetIndex: MACRO
+		IF STRCMP("BC", STRUPR("\2")) == 0
+	load	hl, \1, "arg1 of mat_SetIndex is matrix-name"
+	load	bc, \2, "arg2 of mat_SetIndex is address-offset"
+		ELSE
+			IF STRCMP("DE", STRUPR("\2")) == 0
+	load	hl, \1, "arg1 of mat_SetIndex is matrix-name"
+	load	de, \2, "arg2 of mat_SetIndex is address-offset"
+			ELSE
 	load	bc, \1, "arg1 of mat_SetIndex is matrix-name"
 	load	hl, \2, "arg2 of mat_SetIndex is address-offset"
+			ENDC
+		ENDC
 	load	a, \3, "arg3 of mat_SetIndex is value to place in matrix"
 	add	hl, bc		; compute location of matrix @ Index
 	; wait for vram (if it's accessing vram-space) unless user has
