@@ -148,7 +148,7 @@ bg_color_palettes:
 	rgb_Set	255,   0, 255	; magenta
 	; red on white (bad indicator)
 	rgb_Set 255, 255, 255	; white
-	rgb_Set	127,   0,   0	; light red
+	rgb_Set	255, 150, 150	; light red
 	rgb_Set	255,   0,   0	; red
 	rgb_Set	128,   0,   0	; dark red
 	; yellow on white
@@ -185,9 +185,10 @@ check_hardware:
 	ifa	==, $11, call init_colorgb_variables
 	ret
 .rom_incompatible_with_color
-	; we get here if rom does not tell the gbc that it's color compatible
+	; we get here if rom tells the gbc that it's NOT color compatible
 	; so even though we may detect gbc, gba hardware, we must NOT use any
-	; color features. Pretend we're on the original gameboy
+	; color features (because they won't be enabled in-hardware)
+	; Pretend we're on the original gameboy
 	pop	af
 	ret
 
@@ -252,7 +253,7 @@ init_variables:
 begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
-	call	check_hardware
+	call	check_hardware	; where we check for, and set up GBC & GBA vars
 	dma_Copy2HRAM
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
@@ -288,6 +289,10 @@ begin:
 	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
 
 
+; a macro that gets called in the middle of reading from the toReveal stack
+; the rules here are we must preserve HL from start to end,
+; and in this case, A & BC are loaded with values.
+; BC contains the Index of tile, and A contains the # to print
 writeColorCells2VRAM: MACRO
 	; preserve HL (stack-pointer) and DE (we don't use DE)
 	push	hl
@@ -311,6 +316,12 @@ writeColorCells2VRAM: MACRO
 	pop	hl
 	ENDM
 
+writeCells2VRAM: MACRO
+	push	hl
+	mat_SetIndex	_SCRN0, bc, a, vblank unsafe
+	pop	hl
+	ENDM
+
 
 ; this gets called v-blank. It has three purposes:
 ;  1) move sprite data
@@ -327,17 +338,19 @@ handle_vblank:
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
 	lda	[rGBC]
 	ifa	==, 0, jr .dmg_probe_display
-	stack_BatchRead		toReveal, writeColorCells2VRAM, A,B,C
 .cgb_probe_display
-	jr .move_sprite
+	stack_BatchRead		toReveal, writeColorCells2VRAM, A,B,C
+	jr .reveal_flag
 .dmg_probe_display
-	call	reveal_queued_probed_cells
-.move_sprite
+	stack_BatchRead		toReveal, writeCells2VRAM, A,B,C
+.reveal_flag
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	call	move_player_within_screen_bounds
 	if_	jpad_EdgeB, call	toggle_flag
-	call	reveal_queued_mines
 	call	reveal_queued_flags
+.reveal_mines
+	call	reveal_queued_mines ; (which only happens during game over)
+.move_sprite
+	call	move_player_within_screen_bounds
 	popall
 	reti
 
@@ -620,18 +633,6 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	ret
 
 
-; from queue of (count, index), write out count to index + _SCRN0.
-; since we assume this is called from within vblank, don't make safety checks
-reveal_queued_probed_cells:
-.reveal_loop
-	stack_Pop	toReveal, ABC
-	; if stack_Pop returns false (no more to pop), then we are done
-	ret	nc
-	; we assume this is during v-blank. Just do it
-	ldpair	h,l,	b,c
-	mat_SetIndex	_SCRN0, hl, a, vblank unsafe	; write count to screen background
-	jr .reveal_loop
-
 
 
 ; Reveal numbers indicating mine-count on background grid. In the gameboy
@@ -768,14 +769,10 @@ mine_probed:
 	call	shake_screen
 	push	hl	; store index
 	call	queue_color_mines_reveal
-	pop	hl	; restore index
-	lda	[rGBC]
-	ifa	==, 0, ret
-	push	hl
 .wait_for_empty_stack
 	stack_Size	minesToReveal
 	jr	c, .wait_for_empty_stack
-	; loop until no more mines to draw, then draw red-mine
+	; loop until no more mines to draw, then draw red-mine / exploded-mine
 	; Why? Because occasionally the red mine
 	; gets drawn over by the black mine that we reveal. To prevent that,
 	; I wait until the minesToReveal is empty, indicating that all mines
@@ -786,7 +783,7 @@ mine_probed:
 	ld	de, _SCRN0
 	add	hl, de	; get VRAM address for mine
 	ldpair	b,c,	h,l
-	ld	a, 4	; set color of probed mine to red (palette 4)
+	ld	a, "*" + 4	; set color of probed mine to red (palette 4)
 	stack_Push	minesToReveal, C,B,A, thread_safe
 	ret
 
@@ -908,6 +905,7 @@ queue_color_mines_reveal:
 	mat_GetIndex	flags, hl
 	; A=1 if flagged, A=0 if not. This perfectly corresponds with the
 	; desired palette, where palette 1 = green, 0 = greyscale
+	add	"*"	; add mine. If flagged, it'll equal a flagged-mine
 	pop	hl
 	ld	de, _SCRN0
 	add	hl, de	; HL = VRAM address of tile
@@ -926,17 +924,18 @@ reveal_queued_mines:
 	ret	nc	; return if stack_Pop came up empty
 	; A contains palette data, BC contains VRAM address of mine
 	; we need to write the mine, and change the color
-	ld	d, a	; move palette to d
+	ld	d, a	; move mine-graphic / palette into d
 	lda	[rGBC]
 	ifa	==, 0, jr .write_mine
 .write_color
 	lda	d	; load palette back into reg. A
+	sub	"*"	; subtract mine-graphic gets palette (0=normal, 1=green)
 	ld	hl, rVBK
 	ld	[hl], 1	; switch to VRAM color bank
 	ld	[bc], a	; write palette to VRAM
 	ld	[hl], 0	; switch back to VRAM tile-data bank
 .write_mine
-	lda	Mine	; load mine
+	lda	d	; reload mine-graphic into a
 	ld	[bc], a	; write mine to VRAM
 	jr	.loop	; continue revealing mines until all are gone
 

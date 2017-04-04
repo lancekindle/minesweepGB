@@ -13,9 +13,14 @@ tileGraphics_Load:
 	call	mem_CopyVRAM
 	; copy #0 graphics
 	ld	hl, number_gfx
-	ld	de, _VRAM + 16*"0" ; start copying over "0"-"9"
+	ld	de, _VRAM + 16 * "0" ; start copying over "0"-"9"
 	ld	bc, end_numbergfx - number_gfx
 	call	mem_CopyVRAM
+        ; copy Mine and flagged-Mine graphics
+        ld      hl, mine_gfx
+        ld      de, _VRAM + 16 * "*" ; start copying over *
+        ld      bc, end_minegfx - mine_gfx
+        call    mem_CopyVRAM
 	ret
 
 
@@ -60,6 +65,71 @@ get_cell_font: MACRO
 
 	POPO	; restore default options (aka undo g.-oX)
 	ENDM
+
+get_mine_font: MACRO
+	PUSHO	; push options so that I can change the meaning of .-oX
+	; change graphics characters. Start the line with ` (for graphics)
+	; . = 00
+	; - = 01
+	; o = 10
+	; X = 11
+	OPT	g.-oX
+
+        DW      `........
+        DW      `.XX..XX.
+        DW      `..XXXX..
+        DW      `XXXXXXXX
+        DW      `..XXXX..
+        DW      `.XX..XX.
+        DW      `........
+        DW      `........
+
+        ; graphic for flagged mine
+        DW      `........
+        DW      `.Xo..oX.
+        DW      `..XooX..
+        DW      `oooXXooo
+        DW      `..oXXo..
+        DW      `.oX..Xo.
+        DW      `.X....X.
+        DW      `........
+
+        ; graphic for untouched mine
+        DW      `........
+        DW      `.XX..XX.
+        DW      `..XXXX..
+        DW      `XXXXXXXX
+        DW      `..XXXX..
+        DW      `.XX..XX.
+        DW      `........
+        DW      `........
+
+        ; graphic for untouched mine
+        DW      `........
+        DW      `.XX..XX.
+        DW      `..XXXX..
+        DW      `XXXXXXXX
+        DW      `..XXXX..
+        DW      `.XX..XX.
+        DW      `........
+        DW      `........
+
+        ; graphic for exploded mine
+        ; needed so that when setting a palette of 4 (red) there's a
+        ; corresponding mine graphic
+        DW      `........
+        DW      `.oX..oX.
+        DW      `..XXoX..
+        DW      `XoXoXoXo
+        DW      `..XXoX..
+        DW      `.Xo..Xo.
+        DW      `........
+        DW      `........
+
+
+
+        POPO    ; restore options (before OPT g.-0X)
+        ENDM
 
 ; set # fonts such that original gameboy (non-color) shows #'s in increasingly
 ; dark shades depending on what # it is. Color Gameboy also sets the color
@@ -183,6 +253,10 @@ end_cellgfx:
 number_gfx:
 	get_number_font
 end_numbergfx
+
+mine_gfx:
+        get_mine_font
+end_minegfx
 
 
 
