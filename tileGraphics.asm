@@ -76,60 +76,60 @@ get_mine_font: MACRO
 	OPT	g.-oX
 
         DW      `........
-        DW      `.XX..XX.
-        DW      `..XXXX..
-        DW      `XXXXXXXX
-        DW      `..XXXX..
-        DW      `.XX..XX.
+        DW      `.XX.XX..
+        DW      `..XXX...
+        DW      `XXXXXXX.
+        DW      `..XXX...
+        DW      `.XX.XX..
         DW      `........
         DW      `........
 
         ; graphic for flagged mine
+        ; (corresponds to palette 1 - green)
+        DW      `o......o
+        DW      `.o-..-o.
+        DW      `..o--o..
+        DW      `---oo---
+        DW      `..-oo-..
+        DW      `.-o--o-.
+        DW      `.o....o.
+        DW      `o......o
+
+        ; graphic for untouched mine
         DW      `........
-        DW      `.Xo..oX.
-        DW      `..XooX..
-        DW      `oooXXooo
-        DW      `..oXXo..
-        DW      `.oX..Xo.
-        DW      `.X....X.
+        DW      `.XX.XX..
+        DW      `..XXX...
+        DW      `XXXXXXX.
+        DW      `..XXX...
+        DW      `.XX.XX..
+        DW      `........
         DW      `........
 
         ; graphic for untouched mine
         DW      `........
-        DW      `.XX..XX.
-        DW      `..XXXX..
-        DW      `XXXXXXXX
-        DW      `..XXXX..
-        DW      `.XX..XX.
-        DW      `........
-        DW      `........
+        DW      `.XX.XX..
+        DW      `..XXX...
+        DW      `XXXXXXX.
+        DW      `..XXX...
+        DW      `.XX.XX..
+        DW      `.........
+        DW      `.........
 
-        ; graphic for untouched mine
-        DW      `........
-        DW      `.XX..XX.
-        DW      `..XXXX..
-        DW      `XXXXXXXX
-        DW      `..XXXX..
-        DW      `.XX..XX.
-        DW      `........
-        DW      `........
-
-        ; graphic for exploded mine
-        ; needed so that when setting a palette of 4 (red) there's a
-        ; corresponding mine graphic
-        DW      `........
-        DW      `.oX..oX.
-        DW      `..XXoX..
-        DW      `XoXoXoXo
-        DW      `..XXoX..
-        DW      `.Xo..Xo.
-        DW      `........
-        DW      `........
-
+        ; Exploded Mine
+        ; (corresponds to palette 4 - Red)
+        DW      `...X....
+        DW      `..XoXX..
+        DW      `.XooooX.
+        DW      `Xoo-oooX
+        DW      `.Xo--oX.
+        DW      `.ooooXX.
+        DW      `..ooXX..
+        DW      `....X...
 
 
         POPO    ; restore options (before OPT g.-0X)
         ENDM
+
 
 ; set # fonts such that original gameboy (non-color) shows #'s in increasingly
 ; dark shades depending on what # it is. Color Gameboy also sets the color
