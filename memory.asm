@@ -182,42 +182,6 @@ mem_CopyVRAM::
 	jr	nz,.loop
 	ret
 
-;***************************************************************************
-;*
-;* mem_InitDMA - Copy DMA code to high-memory. You can call / initiate the
-;*				 DMA by calling dmacode, which is the address of the dma
-;*				 routine in memory
-;*
-;* input:
-;*	 None
-;*
-;***************************************************************************
-DMACODE EQU $ff80
-DMA_DATA_SRC 	EQU		_RAM/$100   ;oam data location / $100
-; BECAUSE the DMA code takes a byte XX and uses it as shorthand for $XX00
-; hence why we take _RAM and divide by $100.  $8000 -> $80
-; DMA copies 160 bytes from $XX00 to $fe00 thru $fe9f
-; in more Explicit terms, it copies 160 bytes to the OAM (Object Attribute
-; Memory) area. It always copies 160 bytes, fully overwriting the 
-; from where you store the variables of your sprite and puts it into the
-; oam data bank. The destination is a hard-coded $fe00  (or _OAMRAM)
-; does it always overwrite OAMRAM?
-mem_InitDMA:
-	ld	de, DMACODE
-	ld	hl, dma_src
-	ld	bc, dma_src_end-dma_src
-	call	mem_CopyVRAM			; copy when VRAM is available
-	ret
-dma_src:
-	push	af
-	ld	a, DMA_DATA_SRC		; bank where OAM DATA is stored
-	ldh	[rDMA], a		; Start DMA  (ldh == LD High: $ff00 is added to rDMA)
-	ld	a, $28				; 160ns
-.dma_wait:
-	dec	a
-	jr	nz, .dma_wait
-	pop	af
-	ret
-dma_src_end:
+
 
         ENDC    ;MEMORY_ASM

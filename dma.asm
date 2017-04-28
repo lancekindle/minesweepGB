@@ -9,6 +9,10 @@ DMACODELOC	EQU	$ff80
 ; dma_Copy2HRAM trashes all registers
 ; actual dma code preserves all registers
 dma_Copy2HRAM: MACRO
+; we include memory.asm INSIDE this macro call because DMA.ASM by design,
+; generates no code in the ROM when included.
+; This is important because DMACODELOC is referenced before we can load the
+; actual dmacode. So we must use only macros & defines in this file
 include "memory.asm"
 .copy_dma_into_memory\@
         ld      de, DMACODELOC
@@ -25,7 +29,7 @@ dma_wait\@:                     ;<-|
         dec	a               ;  |    keep looping until DMA finishes
         jr	nz, dma_wait\@  ; _|
         pop	af
-        ret	;if this were jumped to by the v-blank interrupt, we'd
+        ret	; if this were jumped to by the v-blank interrupt, we'd
                 ; want to reti (re-enable interrupts) instead.
 dmaend\@:
         ENDM
