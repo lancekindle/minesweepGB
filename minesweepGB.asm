@@ -26,7 +26,7 @@ section "Vblank", HOME[$0040]
 		; this saves on number of returns (and cpu cycles)
 	jp	handle_vblank
 section "LCDC", HOME[$0048]
-	jp	shake_screen_interrupt
+	jp	handle_lcd_line_interrupt
 section "Timer_Overflow", HOME[$0050]
 	reti
 section "Serial", HOME[$0058]
@@ -52,6 +52,7 @@ section "start", HOME[$0100]
 ; has been laid out
 
 include "syntax.asm"
+include "irq.asm"
 include "memory.asm"
 include "vars.asm"
 include "sprite.inc"
@@ -79,6 +80,7 @@ include "crosshairs.asm"
 	var_LowRamWord	rCellsRemaining
 	var_LowRamByte	rCorrectFlags
 	var_LowRamByte	rWrongFlags
+	var_LowRamByte	rShakeScreen
 	var_LowRamWord	rShakeCounter
 
 	mat_Declare	_SCRN0, SCRN_VY_B, SCRN_VX_B	; setup screen matrix
@@ -241,6 +243,7 @@ init_variables:
 	ld	[rMinesCount], a
 	ld	[rCorrectFlags], a
 	ld	[rWrongFlags], a
+	ld	[rShakeScreen], a
 	; set jpad variables
 	call	move_InitJpadVariables
 	; others
@@ -281,7 +284,11 @@ begin:
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
 	call	remove_dense_mines
-	call	lcd_EnableVBlankInterrupt
+	; vblank handles updating graphics
+	irq_EnableVBLANK
+	; lcdc handles joypad and queueing up graphics changes
+	irq_EnableLCDC_AtLine	100
+; mainloop handles probing cells and endgame logic
 .mainloop:
 	halt	; should get interrupted every vblank...
 	nop
@@ -348,21 +355,39 @@ handle_vblank:
 .dmg_probe_display
 	stack_BatchRead		toReveal, writeCells2VRAM, A,B,C
 .reveal_flag
-	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	if_	jpad_EdgeB, call	toggle_flag
 	call	reveal_queued_flags
 .load_vram_bytes
+	; for loading specific byte-changes (tile-alteration or otherwise)
 	call	load_bytes_into_vram
 .reveal_mines
 	call	reveal_queued_mines ; (which only happens during game over)
-; below here can safely happen after vblank
-.move_sprite
-	call	move_player_within_screen_bounds
-	call	update_smoke_particles
 .done
 	popall
 	reti
 
+; handle interrupts thrown when lcd screen is at a certain point
+; this will be set to just before VBLANK occurs. So this means the lcd-line
+; interrupt will handle all per-frame logic not needed during vblank, which
+; includes:
+;	* move player & crosshairs
+;	* queue flag / unflag
+;	* queue byte changes within vram
+handle_lcd_line_interrupt:
+	pushall
+.move
+	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	call	move_player_within_screen_bounds	; & move crosshairs
+.flag
+	if_	jpad_EdgeB, call	toggle_flag
+.shake_screen
+; needs to be called only if we've exploded
+	lda	[rShakeScreen]
+	ifa	==, 0, jr .smoke
+	call	shake_screen_interrupt
+.smoke
+	call	update_smoke_particles
+	popall
+	reti
 
 ; start screen text
 startscreen:
@@ -772,7 +797,7 @@ only_mines_left:
 ; HL = index corresponding to Y,X of probed mine
 ; A = 1  (indicating yes, it's a mine)
 mine_probed:
-	call	shake_screen
+	call	shake_screen_init
 	push	hl	; store index
 	call	create_smoke_particles
 	call	queue_color_mines_reveal
@@ -798,41 +823,24 @@ mine_probed:
 ; use to shake screen around after exploding on mine
 ; change x,y once per vblank, essentially. Blocking: meaning no other
 ; valuable computation may occur during this shake effect
-shake_screen:
-	; set lcd interrupt
-	di	; we'll enable interrupts after bumping the screen
+shake_screen_init:
 	push	af
 	push	bc
-	push	hl
-	; select line-interrupt to occur on line 100
-	ld	hl, rLYC
-	ld	[hl], 100	; vblank is at lines 144-153
-	; set LCD to throw interrupt
-	ld	hl, rSTAT
-	lda	[hl]
-	or	STATF_LYC	; enable LY-compare
-	ld	[hl], a
-	; set interrupt flag to enable lcd line-interrupt
-	ld	hl, rIE
-	lda	[hl]	; get state of interrupts
-	or	IEF_LCDC	; enable lcd line-interrupt
-	ld	[hl], a
 	; set up shake-counter so that effect ends after ... 700ms?
 	ld	bc, $001F
 	inc	c
 	inc	b	; increment so that loop counter works
 	var_SetWord	b,c, rShakeCounter, trash AF
-	pop	hl
+	; enable shaking of screen
+	lda	$FF
+	ld	[rShakeScreen], a
+	; restore registers
 	pop	bc
 	pop	af
-	;shake screen to start (will also enable interrupts)
-	jp	shake_screen_interrupt
+	ret
 
 
 shake_screen_interrupt:
-	push	af
-	push	bc
-	push	hl
 	var_GetWord	b,c, rShakeCounter, trash AF
 .bump_x_frame
 	rand_A
@@ -867,31 +875,15 @@ shake_screen_interrupt:
 	jr	z, .fully_done
 .frame_done
 	var_SetWord	b,c, rShakeCounter, trash AF
-	pop	hl
-	pop	bc
-	pop	af
-	reti
+	ret
 .fully_done	; shake effect complete.
-	; disable lcdc IRQ
-	ld	hl, rIE
-	lda	[hl]	; get state of interrupts
-	or	IEF_LCDC	; ensure lcd line-interrupt enabled
-	xor	IEF_LCDC	; then disable lcd line-interrupt
-	ld	[hl], a
-	; stop LCD from throwing interrupts
-	ld	hl, rSTAT
-	lda	[hl]
-	or	STATF_LYC	; enable LY-compare
-	xor	STATF_LYC	; then disable LY-compare
-	ld	[hl], a
-	; Now we restore x,y to (0,0)
 	xor	a
+	; disable shake variable
+	ld	[rShakeScreen], a
+	; Now we restore x,y to (0,0)
 	ld	[rSCX], a
 	ld	[rSCY], a
-	pop	hl
-	pop	bc
-	pop	af
-	reti
+	ret
 
 
 queue_color_mines_reveal:
