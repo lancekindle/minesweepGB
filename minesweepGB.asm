@@ -306,7 +306,7 @@ writeColorCells2VRAM: MACRO
 	ld	[hl], a	; write number to screen
 	ifa	==, "0", jr .done\@ ; don't need to change palette for empty cell
 .change_color\@
-	ldpair	b,c,	h,l	; move VRAM address to bc
+	ldpair	bc, hl	; move VRAM address to bc
 	ld	hl, rVBK
 	ld	[hl], 1	; change to VRAM bank 1 (color bank)
 	sub	"0"	; get integer palette # corresponding to string count
@@ -319,6 +319,7 @@ writeColorCells2VRAM: MACRO
 	pop	hl
 	ENDM
 
+; this macro write cell #'s to vram. It needs to preserve HL & DE (it does)
 writeCells2VRAM: MACRO
 	push	hl
 	mat_SetIndex	_SCRN0, bc, a, vblank unsafe
@@ -374,7 +375,7 @@ startscreen_end:
 display_startscreen:
 	mat_GetYX	_SCRN0, 5, 2
 	; HL contains address @ 5,5
-	ldpair	d,e,	h,l	; destination is screen
+	ldpair	de, hl	; destination is screen
 	ld	hl, startscreen	; source is screen letters
 	ld	bc, startscreen_end - startscreen	; # of bytes to write
 	call	mem_CopyVRAM
@@ -561,7 +562,7 @@ probe_cell:
 	mat_SetIndex	probed, hl, 1	; indicate we've probed this cell
 	call	get_player_yx_in_de
 .add_DE_to_stack
-	ldpair	b,c,	d,e	; Y,X in BC now
+	ldpair	bc, de	; Y,X in BC now
 	stack_Push	toExplore, c,b	; store X,Y in stack
 .explore_stack	; pop X,Y into E,D
 	stack_Pop	toExplore, de
@@ -600,7 +601,7 @@ probe_cell:
 	mat_SetIndex	probed, hl, 1	; NOW we set cell to probed
 					; before we add it to stack
 	mat_IterYX	mines	; get Y,X of current iteration in D,E
-	ldpair	b,c,	d,e	; move Y,X into BC
+	ldpair	bc, de	; move Y,X into BC
 	stack_Push	toExplore, c, b	; push X, Y
 	jr	.loop_push_neighbors
 
@@ -628,7 +629,7 @@ count_and_display_nearby_mines:   ; now we need to probe (y-1, x-1):(y+1,x+1)
 	var_WordDecrement	rCellsRemaining
 	lda	[rNearbyCount]
 	pop	hl	; pop matrix index
-	ldpair	b,c,	h,l	; move Index to b,c
+	ldpair	bc, hl	; move Index to b,c
 	add	"0"	; create string equivalent of count
 .pushing
 	; push Index and mine-count for later reveal during vblank
@@ -653,7 +654,7 @@ reveal_color_queued_probed_cells:
 	ld	[hl], a	; write number to screen
 	ifa	==, "0", jr .reveal_loop ; don't need to change palette for empty cell
 .change_color
-	ldpair b,c,	h,l	; move VRAM address to bc
+	ldpair	bc, hl	; move VRAM address to bc
 	ld	hl, rVBK
 	ld	[hl], 1	; change to VRAM bank 1 (color bank)
 	sub	"0"	; get integer palette # corresponding to string count
@@ -788,7 +789,7 @@ mine_probed:
 .color_exploded_mine
 	ld	de, _SCRN0
 	add	hl, de	; get VRAM address for mine
-	ldpair	b,c,	h,l
+	ldpair	bc, hl
 	ld	a, "*" + 4	; set color of probed mine to red (palette 4)
 	stack_Push	minesToReveal, C,B,A, thread_safe
 	ret
@@ -915,7 +916,7 @@ queue_color_mines_reveal:
 	pop	hl
 	ld	de, _SCRN0
 	add	hl, de	; HL = VRAM address of tile
-	ldpair	b,c,	h,l
+	ldpair	bc, hl
 .push2stack
 	stack_Push	minesToReveal, C,B,A, thread_safe
 	jr	nc, .push2stack	; keep trying until stack is open
@@ -949,7 +950,7 @@ reveal_queued_mines:
 copyByte2VRAM: MACRO
 	; REG:	A holds byte
 	; 	BC holds VRAM address to which to write the byte
-	; HL must be preserved
+	; HL, DE must be preserved
 	ld	[bc], a
 	ENDM
 

@@ -498,7 +498,7 @@ ldhard: MACRO
 ; ldpair_explicit	b,c,	h,l	; for example
 ; parameters are dest1, dest2,     src1, src2
 ; where dest1 & 2 must combine to form a register pair, and same with src1 & 2
-ldpair: MACRO
+ldpair_old: MACRO
 	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
 		PRINTT "\nldpair only takes register pairs separated by commas"
 		FAIL ".Got \1,\2 as first two arguments instead."
@@ -523,7 +523,7 @@ ldpair_explicit: MACRO
 	ld	\2, \4
 	ENDM
 
-ldpair2: MACRO
+ldpair: MACRO
 	IF STRIN("BC,DE,HL",STRUPR("\1")) == 0	; no match...
 		FAIL	"must supply register pair as arg1"
 	ENDC
@@ -536,10 +536,10 @@ ldpair2: MACRO
 		ELSE
 		IF STRCMP("HL", STRUPR("\2")) == 0
 			ldpair_explicit	b,c,	h,l
-		ENDC
 		ELSE
 		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC
+		ENDC ; end arg2 == HL
+		ENDC ; end arg2 == DE
 	ELSE
 	IF STRCMP("DE", STRUPR("\1")) == 0
 		IF STRCMP("BC", STRUPR("\2")) == 0
@@ -547,11 +547,10 @@ ldpair2: MACRO
 		ELSE
 		IF STRCMP("HL", STRUPR("\2")) == 0
 			ldpair_explicit	d,e,	h,l
-		ENDC
 		ELSE
 		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC
-	ENDC	; end arg1 == DE
+		ENDC ; end arg2 == HL
+		ENDC ; end arg2 == BC
 	ELSE
 	IF STRCMP("HL", STRUPR("\1")) == 0
 		IF STRCMP("BC", STRUPR("\2")) == 0
@@ -559,13 +558,14 @@ ldpair2: MACRO
 		ELSE
 		IF STRCMP("DE", STRUPR("\2")) == 0
 			ldpair_explicit	h,l,	d,e
-		ENDC
 		ELSE
 		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC
-	ENDC	; end arg1 == HL
+		ENDC ; end arg2 == BC
+		ENDC ; end arg2 == DE
 	ELSE
 		FAIL	"expected arg1 and arg2 to be two register pairs. Got \1, \2"
+	ENDC	; end arg1 == DE
+	ENDC	; end arg1 == HL
 	ENDC	; end arg1 == BC
 	ENDM
 

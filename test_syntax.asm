@@ -370,10 +370,10 @@ test_negate: MACRO
 		negate	\1
 		; move negated register pair to DE
 		IF STRCMP("HL",STRUPR("\1")) == 0
-			ldpair	d,e,	h,l
+			ldpair	de, hl
 		ENDC
 		IF STRCMP("BC",STRUPR("\1")) == 0
-			ldpair	d,e,	b,c
+			ldpair	de, bc
 		ENDC
 		; we'll store \3 in HL
 		ld	hl, \3

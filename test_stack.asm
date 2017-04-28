@@ -15,7 +15,7 @@ verify_stack_address_at_beginning: MACRO
 	ld	c, [hl]
 	increment	hl
 	ld	b, [hl]		; load BC with stack_pointer from ram
-	ldpair	h,l,	b,c	; place stack_pointer (from ram) into hl
+	ldpair	hl, bc	; place stack_pointer (from ram) into hl
 	if_not_hl	\1, .failed	; verify that HL (ptr from ram)
 					; equals stack (ptr from compiler)
 	ENDM
@@ -25,7 +25,7 @@ verify_stack_address_at_end: MACRO
 	ld	c, [hl]
 	increment	hl
 	ld	b, [hl]		; load BC with stack_pointer from ram
-	ldpair	h,l,	b,c	; place stack_pointer (from ram) into hl
+	ldpair	hl, bc	; place stack_pointer (from ram) into hl
 	; verify that HL (ptr from ram) == stack_end (ptr from compiler)
 	if_not_hl	\1_stack_end, .failed	
 	ENDM

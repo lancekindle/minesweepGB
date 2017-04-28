@@ -123,7 +123,7 @@ A\@	SET	0
 	ld	[hl], D
 	dec	hl
 	ld	[hl], E	; Reset stack so that it's top-of-stack is the start
-	ldpair	h,l,	b,c
+	ldpair	hl, bc
 	; HL points to original stack-top. DE contains stack-start
 .read_stack_bytes\@
 	ld	\3, [hl]
@@ -358,14 +358,14 @@ thread_safe	set	1
 		ELSE
 		IF STRIN("BC",STRUPR("\2")) >= 1	;+BC+
 			call	stack_PopDE
-			ldpair	b,c,	d,e
+			ldpair	bc, de
 		ELSE
 		IF STRIN("DE",STRUPR("\2")) >= 1		;+DE+
 			call	stack_PopDE
 		ELSE
 		IF STRIN("HL",STRUPR("\2")) >= 1			;+HL+
 			call	stack_PopDE
-			ldpair	h,l,	d,e
+			ldpair	hl, de
 		ELSE
 		IF STRIN("ABC",STRUPR("\2")) >= 1			;+ABC+
 			call	stack_PopABC
@@ -472,7 +472,7 @@ stack_PopABC:
 	dec	HL	; [HL] points to next value. (C)
 	ld	c, [hl]	; pop value C from stack
 	dec	HL	; advance to next unread byte
-	ldpair	d,e,	h,l	; move stack pointer to [DE]
+	ldpair	de, hl	; move stack pointer to [DE]
 	pop	hl	; [HL] points to ramspace where we store DE, the
 			; pointer to top-of-stack
 	ld	[hl], d	; store MSB of stack-top-pointer

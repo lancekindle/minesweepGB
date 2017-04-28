@@ -233,14 +233,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 	IF (\2 == 3)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		add	hl, hl	; HL=A*2
 		add	hl, bc	; HL+A = A*3
 	ENDC
 	IF (\2 == 5)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		add	hl, hl	; HL=A*2
 		add	hl, hl	; HL=A*4
 		add	hl, bc	; HL+A = A*5
@@ -249,14 +249,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
-		ldpair	b,c,	h,l	; store value of 2A
+		ldpair	bc, hl	; store value of 2A
 		add	hl, hl	; HL=4A
 		add	hl, bc	; HL+2A = 6A
 	ENDC
 	IF (\2 == 9)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		math_Multiply8HL; HL=8A
 		add	hl, bc	; HL+A = 9A
 	ENDC
@@ -264,7 +264,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
-		ldpair	b,c,	h,l	; store value of 2A
+		ldpair	bc, hl	; store value of 2A
 		add	hl, hl	; HL=4A
 		add	hl, hl	; HL=8A
 		add	hl, bc	; HL+2A = 10A
@@ -274,14 +274,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
 		add	hl, hl	; HL=4A
-		ldpair	b,c,	h,l	; store value of 4A
+		ldpair	bc, hl	; store value of 4A
 		add	hl, hl	; HL=8A
 		add	hl, bc	; HL+4A = 12A
 	ENDC
 	IF (\2 == 17)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		math_Multiply8HL; HL=8A
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+A = 17A
@@ -290,7 +290,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
-		ldpair	b,c,	h,l	; store value of 2A
+		ldpair	bc, hl	; store value of 2A
 		math_Multiply8HL; HL=16A
 		add	hl, bc	; HL+2A = 18A
 	ENDC
@@ -299,7 +299,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
 		add	hl, hl	; HL=4A
-		ldpair	b,c,	h,l	; store value of 4A
+		ldpair	bc, hl	; store value of 4A
 		add	hl, hl	; HL=8A
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+4A = 20A
@@ -308,14 +308,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
-		ldpair	b,c,	h,l	; store value of 8A
+		ldpair	bc, hl	; store value of 8A
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+8A = 24A
 	ENDC
 	IF (\2 == 33)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		math_Multiply8HL; HL=8A
 		add	hl, hl	; HL=16A
 		add	hl, hl	; HL=32A
@@ -325,7 +325,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
-		ldpair	b,c,	h,l	; store value of 2A
+		ldpair	bc, hl	; store value of 2A
 		math_Multiply8HL; HL=16A
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+2A = 33A
@@ -335,7 +335,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
 		add	hl, hl	; HL=4A
-		ldpair	b,c,	h,l	; store value of 4A
+		ldpair	bc, hl	; store value of 4A
 		math_Multiply8HL; HL=32A
 		add	hl, bc	; HL+4A = 36A
 	ENDC
@@ -343,7 +343,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
-		ldpair	b,c,	h,l	; store value of 8A
+		ldpair	bc, hl	; store value of 8A
 		add	hl, hl	; HL=16A
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+8A = 40A
@@ -353,14 +353,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
 		add	hl, hl	; HL=16A
-		ldpair	b,c,	h,l	; store value of 16A
+		ldpair	bc, hl	; store value of 16A
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+16A = 48A
 	ENDC
 	IF (\2 == 65)
 		ld	h, 0
 		ld	l, a	; HL = A
-		ldpair	b,c,	h,l	; store value of A
+		ldpair	bc, hl	; store value of A
 		math_Multiply8HL; HL=8A
 		math_Multiply8HL; HL=64A
 		add	hl, bc	; HL+A = 65A
@@ -369,7 +369,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
-		ldpair	b,c,	h,l	; store value of 2A
+		ldpair	bc, hl	; store value of 2A
 		math_Multiply8HL; HL=16A
 		add	hl, hl	; HL=32A
 		add	hl, hl	; HL=64A
@@ -380,7 +380,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
 		add	hl, hl	; HL=4A
-		ldpair	b,c,	h,l	; store value of 4A
+		ldpair	bc, hl	; store value of 4A
 		math_Multiply8HL; HL=32A
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+4A = 68A
@@ -389,7 +389,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
-		ldpair	b,c,	h,l	; store value of 8A
+		ldpair	bc, hl	; store value of 8A
 		math_Multiply8HL; HL=64A
 		add	hl, bc	; HL+8A = 72A
 	ENDC
@@ -398,7 +398,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
 		add	hl, hl	; HL=16A
-		ldpair	b,c,	h,l	; store value of 16A
+		ldpair	bc, hl	; store value of 16A
 		add	hl, hl	; HL=32A
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+16A = 80A
@@ -409,7 +409,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		math_Multiply8HL; HL=8A
 		add	hl, hl	; HL=16A
 		add	hl, hl	; HL=32A
-		ldpair	b,c,	h,l	; store value of 32A
+		ldpair	bc, hl	; store value of 32A
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+32A = 96A
 	ENDC
