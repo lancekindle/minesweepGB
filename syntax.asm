@@ -510,6 +510,18 @@ ldpair: MACRO
 	ld	\1, \3
 	ld	\2, \4
 	ENDM
+ldpair_explicit: MACRO
+	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
+		PRINTT "\nldpair only takes register pairs separated by commas"
+		FAIL ".Got \1,\2 as first two arguments instead."
+	ENDC
+	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\3","\4"))) == 0
+		PRINTT "\nldpair only takes register pairs separated by commas"
+		FAIL ".Got \3,\4 as last two arguments instead."
+	ENDC
+	ld	\1, \3
+	ld	\2, \4
+	ENDM
 
 ldpair2: MACRO
 	IF STRIN("BC,DE,HL",STRUPR("\1")) == 0	; no match...
