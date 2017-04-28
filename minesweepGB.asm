@@ -91,6 +91,8 @@ include "crosshairs.asm"
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 32
 	stack_Declare	minesToReveal, 10
+	stack_Declare	VRAMBytesToLoad, 3*3	; hold 3 tiles to load
+include "smoke.asm"
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -264,6 +266,7 @@ begin:
 	stack_Init	toExplore
 	stack_Init	toReveal
 	stack_Init	minesToReveal
+	stack_Init	VRAMBytesToLoad
 	stack_Init	toFlag
 	stack_Init	toUnflag
 	call	LoadFont
@@ -347,10 +350,15 @@ handle_vblank:
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	if_	jpad_EdgeB, call	toggle_flag
 	call	reveal_queued_flags
+.load_vram_bytes
+	call	load_bytes_into_vram
 .reveal_mines
 	call	reveal_queued_mines ; (which only happens during game over)
+; below here can safely happen after vblank
 .move_sprite
 	call	move_player_within_screen_bounds
+	call	update_smoke_particles
+.done
 	popall
 	reti
 
@@ -768,6 +776,7 @@ only_mines_left:
 mine_probed:
 	call	shake_screen
 	push	hl	; store index
+	call	create_smoke_particles
 	call	queue_color_mines_reveal
 .wait_for_empty_stack
 	stack_Size	minesToReveal
@@ -939,6 +948,18 @@ reveal_queued_mines:
 	ld	[bc], a	; write mine to VRAM
 	jr	.loop	; continue revealing mines until all are gone
 
+
+copyByte2VRAM: MACRO
+	; REG:	A holds byte
+	; 	BC holds VRAM address to which to write the byte
+	; HL must be preserved
+	ld	[bc], a
+	ENDM
+
+; read from stack VRAMBytesToLoad and load tiles into VRAM.
+load_bytes_into_vram:
+	stack_BatchRead	VRAMBytesToLoad, copyByte2VRAM, A,B,C
+	ret
 
 ; makes use of include "ibmpc1.inc"
 ASCII_TILES_LOC:

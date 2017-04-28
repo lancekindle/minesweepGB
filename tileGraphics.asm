@@ -246,6 +246,23 @@ get_number_font: MACRO
 	POPO	; restore default options (aka undo g.-oX)
 	ENDM
 
+get_smoke_font: MACRO
+	PUSHO	; push options so that I can change the meaning of .-oX
+	OPT	g.-oX
+        ; smoke MASK
+        ; apply this mask to a randomly-generated tile to get
+        DW      `....X...
+        DW      `.X.X.X..
+        DW      `..X.X.X.
+        DW      `.X.X.X.X
+        DW      `X.X.X.X.
+        DW      `.X.X.X..
+        DW      `..X.X.X.
+        DW      `...X....
+
+        POPO    ; restore options (before OPT g.-0X)
+        ENDM
+
 cell_gfx:
 	get_cell_font
 end_cellgfx:
@@ -257,6 +274,10 @@ end_numbergfx
 mine_gfx:
         get_mine_font
 end_minegfx
+
+smoke_font:
+        get_smoke_font
+smoke_font_end:
 
 
 
