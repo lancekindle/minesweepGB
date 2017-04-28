@@ -89,8 +89,8 @@ include "crosshairs.asm"
 	stack_Declare	toExplore, 255	; just a random stack size
 		; will hold a temporary storage of searchable cells
 	; toReveal holds coordinates and value to place on cells
-	stack_Declare	toReveal, 32
-	stack_Declare	minesToReveal, 10
+	stack_Declare	toReveal, 10*3	; reveal up to 10 squares per vblank
+	stack_Declare	minesToReveal, 4*3	; reveal +4 mines per vblank
 	stack_Declare	VRAMBytesToLoad, 3*3	; hold 3 tiles to load
 include "smoke.asm"
 	; toFlag holds coordinates of cells to flag.
@@ -389,9 +389,6 @@ display_startscreen:
 		; of starting the randomizer based on when user pressed a key
 	ret
 
-
-get_true:
-	ret_true
 
 ; press keyboard_A to toggle flag
 ; toggles on/off flag and keeps track of whether you've flagged a correct

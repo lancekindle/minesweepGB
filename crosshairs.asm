@@ -97,7 +97,8 @@ crosshairs_move_halfway_to_player:
 	jp	c, .negativeY	; handle case where cross_Y > player_Y
 	; A is positive here. We add half that to crosshair_y
 	srl	a	; divide offset by 2
-	; if A=0, then before divide by 2 it was 1. Reload 1
+	; if A=0 now, then before A / 2 (srl A) it was 1. Reload 1 so that
+	; crosshairs will reach destination
 	if_flag	z, ld	a, 1
 	jp .add_half_y_offset
 .negativeY
