@@ -33,12 +33,25 @@ sprite_RS	SET OAMDATALOC
 ; location.
 SpriteAttr:	MACRO
 	RSSET	sprite_RS
-\1YAddr		RB	1
-\1XAddr		RB	1
-\1TileNum	RB	1
-\1Flags		RB	1
+\1_YAddr		RB	1
+\1_XAddr		RB	1
+\1_TileNum	RB	1
+\1_Flags		RB	1
 sprite_RS	SET	_RS  ; keep backup of _RS, because _RS will change
 		ENDM
+
+; change tile. This will swap the graphic with which the sprite is drawn
+sprite_PutTile: MACRO
+	load	a, \2
+	ld	[\1_TileNum], a
+	ENDM
+
+; change flags. This will set the full flags-byte. Flags include properties:
+; palette#, Xflip, Yflip, priority, etc...
+sprite_PutFlags: MACRO
+	load	a, \2
+	ld	[\1_Flags], a
+	ENDM
 
 ;set XAddr of sprite.
 ;format:
@@ -48,7 +61,7 @@ PutSpriteXAddr:	MACRO
 		push	af
 		ld	a,\2
 		add	8	
-		ld	[\1XAddr],a
+		ld	[\1_XAddr], a
 		pop	af
 		ENDM
 
@@ -60,17 +73,17 @@ PutSpriteYAddr:	MACRO
 		push	af
 		ld	a,\2
 		add	16	
-		ld	[\1YAddr],a
+		ld	[\1_YAddr], a
 		pop	af
 		ENDM
 
 GetSpriteXAddr:	MACRO
-		ld	a,[\1XAddr]
+		ld	a,[\1_XAddr]
 		sub	8
 		ENDM
 
 GetSpriteYAddr:	MACRO
-		ld	a,[\1YAddr]
+		ld	a,[\1_YAddr]
 		sub	16
 		ENDM
 

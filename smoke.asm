@@ -34,11 +34,11 @@ create_smoke_particles:
 	call	mem_Copy	; copy to ram
 	; setup sprite images so that they point to smoke particles
 	ld	a, 3
-	ld	[Spr_Smoke1TileNum], a	; sprite3
+	sprite_PutTile	Spr_Smoke1, a	; sprite3
 	inc	a
-	ld	[Spr_Smoke2TileNum], a	; sprite4
+	sprite_PutTile	Spr_Smoke2, a	; sprite4
 	inc	a
-	ld	[Spr_Smoke3TileNum], a	; sprite5
+	sprite_PutTile	Spr_Smoke3, a	; sprite5
 	; get player coordinates (Actual pixel #) in de
 	lda	[rPlayerY]
 	ld	d, a

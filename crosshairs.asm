@@ -30,19 +30,19 @@ CROSSHAIRS_ASM	SET	1
 crosshairs_setup:
 	; set crosshairs to tile#2
 	ld	a, 2
-	ld	[Spr_UpperLeftTileNum], a
-	ld	[Spr_LowerLeftTileNum], a
-	ld	[Spr_UpperRightTileNum], a
-	ld	[Spr_LowerRightTileNum], a
-	; flip crosshairs to they all have a corresponding orientation
+	sprite_PutTile	Spr_UpperLeft, a
+	sprite_PutTile	Spr_LowerLeft, a
+	sprite_PutTile	Spr_UpperRight, a
+	sprite_PutTile	Spr_LowerRight, a
+	; flip crosshairs so they all have a corresponding orientation
 	ld	a, %00000000
-	ld	[Spr_UpperLeftFlags], a
+	sprite_PutFlags	Spr_UpperLeft, a
 	set	5, a	; set horizontal flip flag
-	ld	[Spr_UpperRightFlags], a
+	sprite_PutFlags	Spr_UpperRight, a
 	set	6, a	; set vertical flip flag
-	ld	[Spr_LowerRightFlags], a
+	sprite_PutFlags	Spr_LowerRight, a
 	res	5, a	; undo horizontal flip
-	ld	[Spr_LowerLeftFlags], a
+	sprite_PutFlags	Spr_LowerLeft, a
 	; push sprite positions to vram
 	call	crosshairs_update
 	call	DMACODELOC
