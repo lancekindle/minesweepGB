@@ -72,6 +72,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rGBC	; set to > 0 if color gameboy present
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 					
+	var_LowRamByte	rDifficulty	; 0-255 = chance to lay mine. 0=easy
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
@@ -249,7 +250,8 @@ init_variables:
 	; set jpad variables
 	call	move_InitJpadVariables
 	; others
-	xor	a	; reset A -> 0
+	lda	30
+	ld	[rDifficulty], a	; store default difficulty of 30
 	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
 	var_SetWord	b,c,	rCellsRemaining
 	ld	a, 1
@@ -483,10 +485,12 @@ fill_mines:
 .iterate
 	mat_IterNext	mines
 	ret	nc	; return if mines iterator done
-	push	hl
+	lda	[rDifficulty]
+	ld	b, a	; store difficulty in B (default was 30)
 	rand_A
-	pop	hl
-	ifa	>, 30, jr .iterate
+	ifa	>, b, jr .iterate
+	; we place mine below this point
+	; [HL] (from abover iterNext of mines) will place mine @ location
 	ld	a, 1
 	ld	[hl], a		; place mine
 	ld	hl, rMinesCount
