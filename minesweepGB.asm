@@ -26,7 +26,7 @@ section "Vblank", HOME[$0040]
 		; this saves on number of returns (and cpu cycles)
 	jp	handle_vblank
 section "LCDC", HOME[$0048]
-	jp	handle_lcd_line_interrupt
+	jp	handle_lcdc_line_interrupt
 section "Timer_Overflow", HOME[$0050]
 	reti
 section "Serial", HOME[$0058]
@@ -77,6 +77,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rCellX
 	var_LowRamByte	rFirstProbe
 	var_LowRamByte	rMinesCount
+	var_LowRamByte	rGameOver
 	var_LowRamWord	rCellsRemaining
 	var_LowRamByte	rCorrectFlags
 	var_LowRamByte	rWrongFlags
@@ -241,6 +242,7 @@ init_variables:
 	ld	[rCellY], a
 	ld	[rCellX], a
 	ld	[rMinesCount], a
+	ld	[rGameOver], a
 	ld	[rCorrectFlags], a
 	ld	[rWrongFlags], a
 	ld	[rShakeScreen], a
@@ -372,20 +374,24 @@ handle_vblank:
 ;	* move player & crosshairs
 ;	* queue flag / unflag
 ;	* queue byte changes within vram
-handle_lcd_line_interrupt:
+handle_lcdc_line_interrupt:
 	pushall
 .move
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
+	lda	[rGameOver]
+	ifa	>=, 1, jr .smoke
 	call	move_player_within_screen_bounds	; & move crosshairs
-.flag
-	if_	jpad_EdgeB, call	toggle_flag
-.shake_screen
-; needs to be called only if we've exploded
-	lda	[rShakeScreen]
-	ifa	==, 0, jr .smoke
-	call	shake_screen_interrupt
+	jr	.flag
 .smoke
 	call	update_smoke_particles
+.shake_screen
+; needs to be called only if we've exploded (in which case rGameOver == 1)
+	lda	[rShakeScreen]
+	ifa	==, 0, jr .flag
+	call	shake_screen_interrupt
+.flag
+	if_	jpad_EdgeB, call	toggle_flag
+.done
 	popall
 	reti
 
@@ -796,15 +802,19 @@ only_mines_left:
 ; call this directly from probe_cell if we probed a mine. At start,
 ; HL = index corresponding to Y,X of probed mine
 ; A = 1  (indicating yes, it's a mine)
+; this function returns back to mainloop (so not necessary to preserve HL
 mine_probed:
 	call	shake_screen_init
 	push	hl	; store index
 	call	create_smoke_particles
+	call	crosshairs_disappear
+	lda	$FF
+	ld	[rGameOver], a
 	call	queue_color_mines_reveal
 .wait_for_empty_stack
 	stack_Size	minesToReveal
 	jr	c, .wait_for_empty_stack
-	; loop until no more mines to draw, then draw red-mine / exploded-mine
+	; loop until no more mines to draw, then draw red & exploded-mine
 	; Why? Because occasionally the red mine
 	; gets drawn over by the black mine that we reveal. To prevent that,
 	; I wait until the minesToReveal is empty, indicating that all mines
@@ -812,8 +822,8 @@ mine_probed:
 	; FOR SURE not get drawn over.
 	pop	hl	; restore index
 .color_exploded_mine
-	ld	de, _SCRN0
-	add	hl, de	; get VRAM address for mine
+	ld	bc, _SCRN0
+	add	hl, bc	; get VRAM address for mine
 	ldpair	bc, hl
 	ld	a, "*" + 4	; set color of probed mine to red (palette 4)
 	stack_Push	minesToReveal, C,B,A, thread_safe
@@ -823,9 +833,8 @@ mine_probed:
 ; use to shake screen around after exploding on mine
 ; change x,y once per vblank, essentially. Blocking: meaning no other
 ; valuable computation may occur during this shake effect
+; USES:	af, bc
 shake_screen_init:
-	push	af
-	push	bc
 	; set up shake-counter so that effect ends after ... 700ms?
 	ld	bc, $001F
 	inc	c
@@ -834,9 +843,6 @@ shake_screen_init:
 	; enable shaking of screen
 	lda	$FF
 	ld	[rShakeScreen], a
-	; restore registers
-	pop	bc
-	pop	af
 	ret
 
 

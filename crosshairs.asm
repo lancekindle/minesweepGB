@@ -129,4 +129,31 @@ crosshairs_move_halfway_to_player:
 	ret
 
 
+; call this to "disappear" the crosshairs by setting the sprite to " " (blank)
+; and setting their coordinates to (0,0) offscreen
+; NOTE: This won't be permanent. It'll be invisible, but if you continue
+; updating positions of the crosshairs, those sprites will invisibly
+; return to the player's position
+crosshairs_disappear:
+	; position at 0,0
+	xor	a
+	ld	[rCrosshairX], a
+	ld	[rCrosshairY], a	; set crosshairs at 0,0
+	ld	[Spr_UpperLeft_XAddr], a
+	ld	[Spr_UpperLeft_YAddr], a
+	ld	[Spr_UpperRight_XAddr], a
+	ld	[Spr_UpperRight_YAddr], a
+	ld	[Spr_LowerLeft_XAddr], a
+	ld	[Spr_LowerLeft_YAddr], a
+	ld	[Spr_LowerRight_XAddr], a	; set all 4 sprites to 0,0
+	ld	[Spr_LowerRight_YAddr], a	; (which puts it offscreen)
+	; change graphic to space
+	lda	" "
+	sprite_PutTile	Spr_UpperLeft, a
+	sprite_PutTile	Spr_UpperRight, a
+	sprite_PutTile	Spr_LowerLeft, a
+	sprite_PutTile	Spr_LowerRight, a
+	ret
+
+
 	ENDC	; end defining crosshairs
