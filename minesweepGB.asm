@@ -70,6 +70,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 					
 	var_LowRamByte	rDifficulty	; 0-255 = chance to lay mine. 0=easy
+	var_LowRamByte	rDifficultyRamp	; increase after winning
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
 	var_LowRamByte	rCellX
@@ -93,7 +94,9 @@ include "crosshairs.asm"
 	stack_Declare	toReveal, 10*3	; reveal up to 10 squares per vblank
 	stack_Declare	minesToReveal, 4*3	; reveal +4 mines per vblank
 	stack_Declare	VRAMBytesToLoad, 3*3	; hold 3 tiles to load
+; smoke and tile need VRAMBytesToLoad stack pre-declared
 include "smoke.asm"
+include "title.asm"
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -249,6 +252,7 @@ init_variables:
 	; others
 	lda	30
 	ld	[rDifficulty], a	; store default difficulty of 30
+	ld	[rDifficultyRamp], a
 	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
 	var_SetWord	b,c,	rCellsRemaining
 	ld	a, 1
@@ -281,7 +285,7 @@ begin:
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
 	call	init_variables
-	call	display_startscreen	; and wait for user input
+	call	title_LevelSelect	; blocks until difficulty selected
 	; redirect vlbank to our main logic handler
 	irq_DisableVBLANK
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
@@ -399,32 +403,6 @@ handle_lcdc_line_interrupt:
 .done
 	popall
 	reti
-
-; start screen text
-startscreen:
-	DB	"Press any Button"
-startscreen_end:
-
-; displays startscreen and waits for user input before returning
-; runs a tight loop so that when the user presses a button,
-; it initializes the random-value generator (not tied to vblank)
-display_startscreen:
-	mat_GetYX	_SCRN0, 5, 2
-	; HL contains address @ 5,5
-	ldpair	de, hl	; destination is screen
-	ld	hl, startscreen	; source is screen letters
-	ld	bc, startscreen_end - startscreen	; # of bytes to write
-	call	mem_CopyVRAM
-	; now we run in a tight loop waiting for user input
-.wait4input
-	call	jpad_GetKeys
-	or	a	; set zero-flag if no user input
-	jr	z, .wait4input
-	; now we've got the keypress in a
-	rand_seed	; seed random#-generator with keypress
-	rand_A	; immediately calculate random#. This has the effect
-		; of starting the randomizer based on when user pressed a key
-	ret
 
 
 ; press keyboard_A to toggle flag
