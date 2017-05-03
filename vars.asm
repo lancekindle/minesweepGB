@@ -6,12 +6,15 @@
 VARS_ASM	SET     1
 
 include "gbhw.inc"
+include "dma.asm"
 
 LowRamBase      SET     _RAM + $A0      ; available ram after OAM data
 ; (OAM data is the $A0 added to _RAM)
 LowRamLimit     SET     LowRamBase + $1FF ; 512 bytes (variables) available
 MidRamBase      SET     LowRamLimit
 MidRamLimit     SET     MidRamBase + $0FFF ; 4096 bytes (var+space) available
+HighRamBase	SET	DMA_END_LOC	; add 12... (size of dma code)
+HighRamLimit	SET	HighRamBase + 20	; limit of 20 variables
 ; OAM data is just a holding place where you can modify it. The OAM data
 ; will then get copied to OAM location in Video-Ram [$FE00 - $FEA0)
 
@@ -36,6 +39,19 @@ LowRamBase	Set	LowRamBase + 2	; \1 points to two bytes
 	IF (LowRamBase >= LowRamLimit)
 		PRINTT	"\n\1 was last LowRamWord declared. "
 		FAIL    "too many variables declared"
+	ENDC
+	ENDM
+
+
+; call var_HighRamByte to allocate a variable in HIRAM. This is a critical 127
+; bytes occupied by DMA-code and the stack. If we use to many variables, we
+; run the risk of the stack overrunning into these. 
+var_HighRamByte: MACRO
+\1	EQU	HighRamBase
+HighRamBase	Set	HighRamBase + 1
+	IF (HighRamBase >= HighRamLimit)
+		PRINTT	"\n\1 was last HighRamByte declared. "
+		FAIL    "too many HIRAM variables declared"
 	ENDC
 	ENDM
 
