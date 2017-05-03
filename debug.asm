@@ -1,3 +1,32 @@
+
+; this is a macro that stores in memory a debug message. This message will
+; be skipped by the actual hardware, but in BGB or No$GMB it will display
+; in their "debug messages" window
+; ( I have not yet tried this one, but I see gists that show this. Should work)
+bug_message: MACRO
+	ld	d, d
+	jr .end\@
+	DW $6464
+	DW $0000
+	DB \1
+.end\@
+	ENDM
+
+; call this macro to automatically break / halt execution when this instruction
+; is reached. This macro uses the bug_message macro, so you must pass a
+; message into this macro as well
+; ( I have not yet tried this one )
+bug_break: MACRO
+	bug_message	\1
+	ld	b, b
+	; I'm not sure if the below instructions are required, but I figure
+	; it's important to try
+	jr .end\@
+	DW $6464
+	DW $0000
+.end\@
+	ENDM
+
 ; debug file is meant as a way to debug (LIVE!) running programs
 ; pass bug_ macros the text you wish to display, and it'll be written
 ; (in serial fashion) to rDIV, aka the address $FF04. Since most people don't
