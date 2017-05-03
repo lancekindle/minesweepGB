@@ -21,12 +21,9 @@ include "dma.asm"
 ; to rIE  (register Interrupt Enable). Search gbhw.inc for interrupt
 ; to see what flags are available  (i.e. IEF_SERIAL, IEF_VBLANK, IEF_TIMER)
 section "Vblank", HOME[$0040]
-		; trickery. Since dma returns and enables interrupts
-		; we can just jp to the dma code immediately
-		; this saves on number of returns (and cpu cycles)
-	jp	handle_vblank
+	jp	irq_HandleVBLANK
 section "LCDC", HOME[$0048]
-	jp	handle_lcdc_line_interrupt
+	jp	irq_HandleLCDC
 section "Timer_Overflow", HOME[$0050]
 	reti
 section "Serial", HOME[$0058]
@@ -285,12 +282,18 @@ begin:
 	call	lcd_ShowSprites
 	call	init_variables
 	call	display_startscreen	; and wait for user input
+	; redirect vlbank to our main logic handler
+	irq_DisableVBLANK
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
 	call	remove_dense_mines
+	; reread keys so that pressing A won't trigger probe
+	call	jpad_GetKeys
 	; vblank handles updating graphics
+	irq_CallFromVBLANK	handle_vblank
 	irq_EnableVBLANK
 	; lcdc handles joypad and queueing up graphics changes
+	irq_CallFromLCDC	handle_lcdc_line_interrupt
 	irq_EnableLCDC_AtLine	100
 ; mainloop handles probing cells and endgame logic
 .mainloop:
@@ -349,7 +352,7 @@ writeCells2VRAM: MACRO
 ;	only gets run once
 ; This 3rd task is another function that has a small list of to-run functions
 handle_vblank:
-	pushall
+	;pushall is handled by irq_HandleVBLANK
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
 	lda	[rGBC]
 	ifa	==, 0, jr .dmg_probe_display
@@ -366,7 +369,7 @@ handle_vblank:
 .reveal_mines
 	call	reveal_queued_mines ; (which only happens during game over)
 .done
-	popall
+	;popall is handled by irq_HandleVBLANK
 	reti
 
 ; handle interrupts thrown when lcd screen is at a certain point
