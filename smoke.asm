@@ -45,6 +45,7 @@ create_smoke_particles:
 	lda	[rPlayerX]
 	ld	e, a
 	; update coordinates of smoke particles to be 'nearby' explosion
+	; place in a triangular pattern so the smoke is spread out
 	; place smoke 1 @ (X-3,Y-3)
 	lda	d
 	sub	3
@@ -52,13 +53,13 @@ create_smoke_particles:
 	lda	e
 	sub	3
 	PutSpriteXAddr	Spr_Smoke1, a
-	; place smoke 2 @ (X + 2, Y)
+	; place smoke 2 @ (X + 5, Y)
 	lda	d
 	PutSpriteYAddr	Spr_Smoke2, a
 	lda	e
 	add	5
 	PutSpriteXAddr	Spr_Smoke2, a
-	; place smoke 3 @ (X, Y + 2)
+	; place smoke 3 @ (X, Y + 5)
 	lda	d
 	add	5
 	PutSpriteYAddr	Spr_Smoke3, a
@@ -67,10 +68,7 @@ create_smoke_particles:
 	ret
 
 
-; move smoke particles in a random direction, 1 pixel at a time. Movement will
-; be slow and each particle should move 1 after another, with delays between
-; each particles movement. Additionally, update (slightly faster) each smoke
-; particle-image such that it changes over time
+; update each smoke particle-image such that it changes over time
 update_smoke_particles:
 	ld	hl, smoke_font
 	ld	de, rSmokeTile1
@@ -88,7 +86,6 @@ update_smoke_particles:
 	ld	a, 5; tile right after select-box tile
 	call	randomly_alter_tile
 	ret
-	;jp	move_smoke_particles
 
 
 ; REG:	DE points to ram address for tile to update

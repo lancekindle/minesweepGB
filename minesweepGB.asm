@@ -286,17 +286,14 @@ begin:
 	call	lcd_ShowSprites
 	call	init_variables
 	call	title_LevelSelect	; blocks until difficulty selected
-	; redirect vlbank to our main logic handler
 	irq_DisableVBLANK
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
 	call	remove_dense_mines
-	; reread keys so that pressing A won't trigger probe
-	call	jpad_GetKeys
-	; vblank handles updating graphics
+	; redirect vlbank to our main logic handler (updating graphics)
 	irq_CallFromVBLANK	handle_vblank
 	irq_EnableVBLANK
-	; lcdc handles joypad and queueing up graphics changes
+	; lcdc handles joypad, crosshairs, flags,& queueing graphics changes
 	irq_CallFromLCDC	handle_lcdc_line_interrupt
 	irq_EnableLCDC_AtLine	100
 ; mainloop handles probing cells and endgame logic
@@ -307,7 +304,7 @@ begin:
 	; queue_color_mines_reveal is dmg compatible. The actual reveal
 	; loop is the one that needs to be color-sensitive
 	if_	only_mines_left, call queue_color_mines_reveal
-	jp	.mainloop; jr is Jump Relative (it's quicker than jp)
+	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
 
 
 ; a macro that gets called in the middle of reading from the toReveal stack
