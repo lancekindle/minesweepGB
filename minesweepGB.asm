@@ -265,6 +265,8 @@ begin:
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	check_hardware	; where we check for, and set up GBC & GBA vars
 	dma_Copy2HRAM
+reset:
+	di
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
@@ -294,17 +296,23 @@ begin:
 	irq_CallFromVBLANK	handle_vblank
 	irq_EnableVBLANK
 	; lcdc handles joypad, crosshairs, flags,& queueing graphics changes
-	irq_CallFromLCDC	handle_lcdc_line_interrupt
+	irq_CallFromLCDC	handle_lcdc_main_game
 	irq_EnableLCDC_AtLine	100
 ; mainloop handles probing cells and endgame logic
 .mainloop:
-	halt	; should get interrupted every vblank...
-	nop
 	if_	jpad_EdgeA, call	probe_cell
 	; queue_color_mines_reveal is dmg compatible. The actual reveal
 	; loop is the one that needs to be color-sensitive
 	if_	only_mines_left, call queue_color_mines_reveal
+	lda	[rGameOver]
+	ifa	>=, 1, jr .exploded_mainloop
 	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
+; exploded mainloop handles game over logic
+.exploded_mainloop
+	; exploded mainloop monitors for keypress, then resets gameboy
+	call	jpad_GetKeys
+	if_	jpad_EdgeA, jp	reset
+	jr .exploded_mainloop
 
 
 ; a macro that gets called in the middle of reading from the toReveal stack
@@ -380,26 +388,26 @@ handle_vblank:
 ;	* move player & crosshairs
 ;	* queue flag / unflag
 ;	* queue byte changes within vram
-handle_lcdc_line_interrupt:
-	pushall
+handle_lcdc_main_game:
+	;pushall is handled by irq handler
 .move
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
-	lda	[rGameOver]
-	ifa	>=, 1, jr .smoke
 	call	move_player_within_screen_bounds	; & move crosshairs
-	jr	.flag
-.smoke
-	call	update_smoke_particles
-.shake_screen
-; needs to be called only if we've exploded (in which case rGameOver == 1)
-	lda	[rShakeScreen]
-	ifa	==, 0, jr .flag
-	call	shake_screen_interrupt
 .flag
 	if_	jpad_EdgeB, call	toggle_flag
 .done
-	popall
-	reti
+	;popall is handled by irq handler
+	ret
+
+; handle smoke particles and screen shake. mainloop will handle joypad
+handle_lcdc_exploded:
+	call	update_smoke_particles
+.shake_screen
+	lda	[rShakeScreen]
+	ifa	==, 0, jr .done
+	call	shake_screen_interrupt
+.done
+	ret
 
 
 ; press keyboard_A to toggle flag
@@ -786,8 +794,10 @@ only_mines_left:
 ; A = 1  (indicating yes, it's a mine)
 ; this function returns back to mainloop (so not necessary to preserve HL
 mine_probed:
+	push	hl	; store index of mine
+	; change lcdc handler to shake screen & update smoke particles
+	irq_CallFromLCDC	handle_lcdc_exploded
 	call	shake_screen_init
-	push	hl	; store index
 	call	create_smoke_particles
 	call	crosshairs_disappear
 	lda	$FF
@@ -797,7 +807,7 @@ mine_probed:
 	stack_Size	minesToReveal
 	jr	c, .wait_for_empty_stack
 	; loop until no more mines to draw, then draw red & exploded-mine
-	; Why? Because occasionally the red mine
+	; Why? Because usually the red mine
 	; gets drawn over by the black mine that we reveal. To prevent that,
 	; I wait until the minesToReveal is empty, indicating that all mines
 	; have been drawn and then push it to the stack again so that it'll
