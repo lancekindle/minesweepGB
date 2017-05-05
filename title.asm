@@ -48,7 +48,7 @@ title_LevelSelect:
 	screen_write	EASY_Y, 5, "Easy"
 	screen_write	MEDIUM_Y, 5, "Medium"
 	screen_write	HARD_Y, 5, "Hard"
-	lda	8 + 2*8	; offset + X*grid
+	lda	8 + 3 + 2*8	; offset + X*grid
 	ld	[rPlayerX], a
 	ld	[rCrosshairX], a
 	lda	EASY_Y * 8
@@ -80,12 +80,14 @@ title_vblank:
 	ret
 
 MoveDownLevels:
+	if_	Player@Hard, ret	; don't move down past Hard
 	ld	hl, rPlayerY
 	lda	[hl]
 	add	16
 	ld	[hl], a
 	ret
 MoveUpLevels:
+	if_	Player@Easy, ret	; don't move above Easy
 	ld	hl, rPlayerY
 	lda	[hl]
 	sub	16
