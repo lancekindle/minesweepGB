@@ -6,7 +6,7 @@
 include "syntax.asm"
 include "matrix.asm"
 include "crosshairs.asm"
-include "dma.asm"
+include "dma.inc"
 include "math.asm"
 include "debug.asm"
 ; holds methods for displaying the title-screen

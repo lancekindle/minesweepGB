@@ -7,7 +7,7 @@
 include "gbhw.inc"
 include "cgbhw.inc"
 include "ibmpc1.inc"
-include "dma.asm"
+include "dma.inc"
 
 
 

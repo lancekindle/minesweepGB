@@ -13,7 +13,7 @@
 
 include "vars.asm"
 include "sprite.inc"
-include "dma.asm"
+include "dma.inc"
 
 	IF !DEF(CROSSHAIRS_ASM)
 CROSSHAIRS_ASM	SET	1
