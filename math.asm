@@ -18,6 +18,7 @@ MATH_ASM	SET	1
 ; when this procedure returns, it sets the carry flag if H > 0
 ; aka, the carry flag will be 0 if the resulting # is only 8bits large
 ; in that case, the L register would hold the number
+; COST: Fastest (64 Cycles / 53 Bytes) vs Slowest (72 Cycles / 61 Bytes)
 math_MultiplyAC:
 	ld	b, 0
 	ld	h, b
@@ -109,7 +110,7 @@ math_Mult: MACRO
 	; basically, check if \2 is one of these numbers:
 	; 3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33, 34, 36, 40, 48, 65, 66,
 	; 68, 72, 80, 96,
-	IF (\2 == 3) || (\2 == 5) || (\2 == 6) || (\2 == 9) || (\2 == 10) || (\2 == 12) || (\2 == 17) || (\2 == 18) || (\2 == 20) || (\2 == 24) || (\2 == 33) || (\2 == 34) || (\2 == 36) || (\2 == 40) || (\2 == 48) || (\2 == 65) || (\2 == 66) || (\2 == 68) || (\2 == 72) || (\2 == 80) || (\2 == 96)
+	IF (\2 == 3) || (\2 == 5) || (\2 == 6) || (\2 == 9) || (\2 == 10) || (\2 == 12) || (\2 == 17) || (\2 == 18) || (\2 == 20) || (\2 == 24) || (\2 == 33) || (\2 == 34) || (\2 == 36) || (\2 == 40) || (\2 == 48) || (\2 == 65) || (\2 == 66) || (\2 == 68) || (\2 == 72) || (\2 == 80) || (\2 == 96) || (\2 == 129) || (\2 == 130) || (\2 == 132) || (\2 == 136) || (\2 == 144) || (\2 == 160)
 		PRINTT "\nUsing ComplexPowerOf2 multiplication for \1 * \2\n"
 		math_MultiplyComplicatedPowerOf2	a, \2
 	ELSE
@@ -130,6 +131,7 @@ math_Mult: MACRO
 
 
 ; multiply HL by 8
+; COST: (6 Cycles / 3 Bytes)
 math_Multiply8HL: MACRO
 	add	hl, hl	; x2
 	add	hl, hl	; x4
@@ -148,49 +150,49 @@ math_MultiplyPowerOf2: MACRO
 		ld	h, 0
 		ld	l, a	; HL = A. DONE.
 	ENDC
-	IF \2 == 2
+	IF \2 == 2	; COST: 5 / 4
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL = A*2. DONE.
 	ENDC
-	IF \2 == 4
+	IF \2 == 4	; COST: 7 / 5
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL = A*2
 		add	hl, hl	; HL = A*4. DONE.
 	ENDC
-	IF \2 == 8
+	IF \2 == 8	; COST: 9 / 6
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8. Done.
 	ENDC
-	IF \2 == 16
+	IF \2 == 16	; COST: 11 / 7
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
 		add	hl, hl		; HL = A*16. DONE.
 	ENDC
-	IF \2 == 32
+	IF \2 == 32	; COST: 13 / 8
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
 		add	hl, hl		; HL = A*16
 		add	hl, hl		; HL = A*32. Done
 	ENDC
-	IF \2 == 64
+	IF \2 == 64	; COST: 15 / 9
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
 		math_Multiply8HL	; HL = A*64. Done
 	ENDC
-	IF \2 == 128
+	IF \2 == 128	; COST: 17 / 10
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
 		math_Multiply8HL	; HL = A*64
 		add	hl, hl		; HL = A*128. Done
 	ENDC
-	IF \2 == 256
+	IF \2 == 256	; COST: 19 / 11
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
@@ -198,7 +200,7 @@ math_MultiplyPowerOf2: MACRO
 		add	hl, hl		; HL = A*128
 		add	hl, hl		; HL = A*256. Done
 	ENDC
-	IF \2 == 512
+	IF \2 == 512	; COST: 21 / 12
 		ld	h, 0
 		ld	l, a		; HL = A
 		math_Multiply8HL	; HL = A*8
@@ -227,17 +229,17 @@ math_MultiplyPowerOf2: MACRO
 ; a list of hard-coded #'s to which this will apply:
 ; 3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33,
 ; 34, 36, 40, 48, 65, 66, 68, 72, 80, 96,
-; 129, 130, 132, 136, 144, 160, 192	<= I haven't yet coded this last row
+; 129, 130, 132, 136, 144, 160, 192	<= I haven't short-coded last #
 math_MultiplyComplicatedPowerOf2: MACRO
 	load	a, \1		; we already assume A is loaded
-	IF (\2 == 3)
+	IF (\2 == 3)	; COST: 9 / 7
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
 		add	hl, hl	; HL=A*2
 		add	hl, bc	; HL+A = A*3
 	ENDC
-	IF (\2 == 5)
+	IF (\2 == 5)	; COST: 11 / 8
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
@@ -245,7 +247,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=A*4
 		add	hl, bc	; HL+A = A*5
 	ENDC
-	IF (\2 == 6)
+	IF (\2 == 6)	; COST: 11 / 8
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -253,14 +255,14 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=4A
 		add	hl, bc	; HL+2A = 6A
 	ENDC
-	IF (\2 == 9)
+	IF (\2 == 9)	; COST: 13 / 9
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
 		math_Multiply8HL; HL=8A
 		add	hl, bc	; HL+A = 9A
 	ENDC
-	IF (\2 == 10)
+	IF (\2 == 10)	; COST: 13 / 9
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -269,7 +271,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=8A
 		add	hl, bc	; HL+2A = 10A
 	ENDC
-	IF (\2 == 12)
+	IF (\2 == 12)	; COST: 13 / 9
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -278,7 +280,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=8A
 		add	hl, bc	; HL+4A = 12A
 	ENDC
-	IF (\2 == 17)
+	IF (\2 == 17)	; COST: 15 / 10
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
@@ -286,7 +288,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+A = 17A
 	ENDC
-	IF (\2 == 18)
+	IF (\2 == 18)	; COST: 15 / 10
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -294,7 +296,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		math_Multiply8HL; HL=16A
 		add	hl, bc	; HL+2A = 18A
 	ENDC
-	IF (\2 == 20)
+	IF (\2 == 20)	; COST: 15 / 10
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -304,7 +306,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+4A = 20A
 	ENDC
-	IF (\2 == 24)
+	IF (\2 == 24)	; COST: 15 / 10
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -312,7 +314,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=16A
 		add	hl, bc	; HL+8A = 24A
 	ENDC
-	IF (\2 == 33)
+	IF (\2 == 33)	; COST: 17 / 11
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
@@ -321,7 +323,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+A = 33A
 	ENDC
-	IF (\2 == 34)
+	IF (\2 == 34)	; COST: 17 / 11
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -330,7 +332,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+2A = 33A
 	ENDC
-	IF (\2 == 36)
+	IF (\2 == 36)	; COST: 17 / 11
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -339,7 +341,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		math_Multiply8HL; HL=32A
 		add	hl, bc	; HL+4A = 36A
 	ENDC
-	IF (\2 == 40)
+	IF (\2 == 40)	; COST: 17 / 11
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -348,7 +350,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+8A = 40A
 	ENDC
-	IF (\2 == 48)
+	IF (\2 == 48)	; COST: 17 / 11
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -357,7 +359,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=32A
 		add	hl, bc	; HL+16A = 48A
 	ENDC
-	IF (\2 == 65)
+	IF (\2 == 65)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		ldpair	bc, hl	; store value of A
@@ -365,7 +367,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		math_Multiply8HL; HL=64A
 		add	hl, bc	; HL+A = 65A
 	ENDC
-	IF (\2 == 66)
+	IF (\2 == 66)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -375,7 +377,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+2A = 66A
 	ENDC
-	IF (\2 == 68)
+	IF (\2 == 68)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		add	hl, hl	; HL=2A
@@ -385,7 +387,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+4A = 68A
 	ENDC
-	IF (\2 == 72)
+	IF (\2 == 72)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -393,7 +395,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		math_Multiply8HL; HL=64A
 		add	hl, bc	; HL+8A = 72A
 	ENDC
-	IF (\2 == 80)
+	IF (\2 == 80)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -403,7 +405,7 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+16A = 80A
 	ENDC
-	IF (\2 == 96)
+	IF (\2 == 96)	; COST: 19 / 12
 		ld	h, 0
 		ld	l, a	; HL = A
 		math_Multiply8HL; HL=8A
@@ -413,9 +415,67 @@ math_MultiplyComplicatedPowerOf2: MACRO
 		add	hl, hl	; HL=64A
 		add	hl, bc	; HL+32A = 96A
 	ENDC
-	IF (\2 == 129)
-		ld	b, 0	;   Ax1
-		ld	c, 7	; + Ax128
+	IF (\2 == 129)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		ldpair	bc, hl	; store value of A
+		math_Multiply8HL; HL=8A
+		math_Multiply8HL; HL=64A
+		add	hl, hl	; HL = 128A
+		add	hl, bc	; HL+A = 129A
+	ENDC
+	IF (\2 == 130)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL = 2A
+		ldpair	bc, hl	; store value of 2A
+		math_Multiply8HL; HL=16A
+		math_Multiply8HL; HL=128A
+		add	hl, bc	; HL+2A = 130A
+	ENDC
+	IF (\2 == 132)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		add	hl, hl	; HL = 2A
+		add	hl, hl	; HL = 4A
+		ldpair	bc, hl	; store value of 4A
+		math_Multiply8HL; HL=32A
+		add	hl, hl	; HL = 64A
+		add	hl, hl	; HL = 128A
+		add	hl, bc	; HL+4A = 132A
+	ENDC
+	IF (\2 == 136)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		ldpair	bc, hl	; store value of 8A
+		math_Multiply8HL; HL=64A
+		add	hl, hl	; HL = 128A
+		add	hl, bc	; HL+8A = 136A
+	ENDC
+	IF (\2 == 144)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL = 16A
+		ldpair	bc, hl	; store value of 16A
+		math_Multiply8HL; HL = 128A
+		add	hl, bc	; HL+16A = 144A
+	ENDC
+	IF (\2 == 160)	; COST: 21 / 13
+		ld	h, 0
+		ld	l, a	; HL = A
+		math_Multiply8HL; HL=8A
+		add	hl, hl	; HL = 16A
+		add	hl, hl	; HL = 32A
+		ldpair	bc, hl	; store value of 32A
+		add	hl, hl	; HL = 64A
+		add	hl, hl	; HL = 128A
+		add	hl, bc	; HL+32A = 160A
+	ENDC
+	IF (\2 == 192)
+		ld	b, 6	;   Ax64
+		ld	c, 1	; + Ax128
 		call	math_PowerA2B_Plus_A2BC_2	; the procedure way
 	ENDC
 	ENDM

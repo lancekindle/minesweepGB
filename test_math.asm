@@ -96,6 +96,12 @@ test_12_math_Mult_Shortcuts:
 	math_Mult_Test	50, 72
 	math_Mult_Test	50, 80, 4000
 	math_Mult_Test	50, 96
+	math_Mult_Test	50, 129
+	math_Mult_Test	50, 130
+	math_Mult_Test	50, 132
+	math_Mult_Test	50, 136
+	math_Mult_Test	50, 144
+	math_Mult_Test	50, 160
 .passed_0D
 	ld	a, 1
 	TestResult	1, 2
