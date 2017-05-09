@@ -460,6 +460,8 @@ math_Divide_A_by_C:
 
 ; macro to set-up variables and call math_Divide. Will opt for speed-shortcuts
 ; wherever possible.
+; if denominator is static, power-of-2 number, it will opt for the speed
+; shortcut, meaning that only registers A & F will be altered (result in A).
 math_Div: MACRO
 	load	a, \1, "byte to be divided"
 	; now we just need to check what kind of argument \2 is, and perform
@@ -473,21 +475,52 @@ math_Div: MACRO
 	; check if \2 is a divisor that can be done fast computationallly
 	; these divisors are in the form 2^C
 	; basically, check if \2 is one of these numbers:
-	; 8 (yep that's all for now)
-	IF (\2 == 8)
+	; 2, 4, 8 (yep that's all for now)
+	IF (\2 == 2) || (\2 == 4) || (\2 == 8) || (\2 == 16) || (\2 == 32) || (\2 == 64) || (\2 == 128)
 		PRINTT "\nUsing fast division for \1 / \2\n"
-		math_DivideFastPowerOf2	a, \2
+		math_DivFast	a, \2
 	ENDC
 	ENDC
 	ENDM
 
 
-math_DivideFastPowerOf2: MACRO
+; DivFast divides A by a power of 2: 2,4,8,16,32,64,128
+; The result remains in A, no other registers (except F) are altered
+math_DivFast: MACRO
 	load	a, \1, "byte to be divided"
+	; SRL shifts 0 into bit 7. Other bits shift right
+	IF (\2 == 2)
+		SRL	a	; A/2
+	ENDC
+	IF (\2 == 4)
+		SRL	a	; A/2
+		SRL	a	; A/4
+	ENDC
 	IF (\2 == 8)
-		shift_right	a
-		shift_right	a
-		shift_right	a
+		RRA		; A/2    (except bit 7 is carried from bit 0)
+		RRA		; A/4
+		RRA		; A/8
+		AND	%00011111	; mask out top 3 bits which were
+	ENDC				; rotated in
+	IF (\2 == 16)
+		swap	a	; place top 4 bits into lower 4 bits (& vice versa)
+		and	%00001111	; mask out top 4 bits
+	ENDC
+	IF (\2 == 32)
+		; multiply, overflow, & masking trick == /32
+		RLCA
+		RLCA
+		RLCA	; move bits 5-7 into bits 0-2
+		and	%00000111	; save only bits 0-2
+	ENDC
+	IF (\2 == 64)
+		RLCA
+		RLCA	; move bits 6-7 into bits 0-1
+		and	%00000011	; save only bits 0-1
+	ENDC
+	IF (\2 == 128)
+		RLCA	; move bit 7 into bit 0
+		and	%00000001	; save only bit 0
 	ENDC
 	ENDM
 

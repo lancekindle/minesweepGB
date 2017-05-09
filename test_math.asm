@@ -113,11 +113,25 @@ math_Divide_Test: MACRO
 	ld	c, \2
 	call	math_Divide_A_by_C
 	IF _NARG == 3
-		ifa	<>, \3, jp .failed_0E
+		ifa	<>, \3, jp .failed_13
 	ELSE
-		ifa	<>, \1 / \2, jp .failed_0E
+		ifa	<>, \1 / \2, jp .failed_13
 	ENDC
 	ENDM
+
+; divide \1 by \2
+; compare to \3  (or if not supplied, (\1) / (\2)
+; This differs from math_Divide_Test in that it may use shortcuts
+; and may not include a remainder
+math_Div_Test: MACRO
+	math_Div	\1, \2
+	IF _NARG == 3
+		ifa	<>, \3, jp .failed_13
+	ELSE
+		ifa	<>, \1 / \2, jp .failed_13
+	ENDC
+	ENDM
+
 
 
 ; test that division fxn behaves as expected. It should divide and
@@ -135,9 +149,23 @@ test_13_math_Divide_A_by_C:
 	math_Divide_Test	255, 1, 255
 	math_Divide_Test	255, 240, 1
 	math_Divide_Test	240, 250, 0
-.passed_0E
+	; test shortcut division >= 1
+	math_Div_Test	8, 8
+	math_Div_Test	19, 16
+	math_Div_Test	250, 32
+	math_Div_Test	250, 64
+	math_Div_Test	250, 128
+	; test just barely < 2
+	math_Div_Test	15, 8
+	math_Div_Test	31, 16
+	math_Div_Test	63, 32
+	math_Div_Test	127, 64
+	math_Div_Test	255, 128
+	; test optional 3rd argument (result)
+	math_Div_Test	32, 16, 2
+.passed_13
 	ld	a, 1
 	TestResult	1, 3
-.failed_0E
+.failed_13
 	ld	a, 0
 	TestResult	1, 3

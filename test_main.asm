@@ -5,7 +5,9 @@
 ;---------------------------------------------------------------------------
 ; Newest Test is on bottom of file
 	IF !DEF(RUNNING_MAIN_TEST)
-RUNNING_MAIN_TEST	SET	1
+RUNNING_MAIN_TEST	SET	1	; (Used to detect when user compiles
+					; a test module rather than this
+					; test_main.asm file)
 
 include "gbhw.inc"
 include "ibmpc1.inc"
