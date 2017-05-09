@@ -684,18 +684,18 @@ shift_left: MACRO
 	ENDC
 	IF _NARG == 4
 		SLA	\4	; shift left, into carry-flag. Bit 0 becomes 0
-		RL	\3	; rotate left, bit7 into carry-flag.
-		RL	\2	; carry-flag rotates into bit0
-		RL	\1
+		RLfast	\3	; rotate left, bit7 into carry-flag.
+		RLfast	\2	; carry-flag rotates into bit0
+		RLfast	\1
 	ENDC
 	IF _NARG == 3
 		SLA	\3
-		RL	\2
-		RL	\1
+		RLfast	\2
+		RLfast	\1
 	ENDC
 	IF _NARG == 2
-		SLA	\2
-		RL	\1
+		SLA	\2	; 2, 2
+		RLfast	\1	; 2, 2  (or 1,1 if A)
 	ENDC
 	IF _NARG == 1
 		SLA	\1
@@ -711,16 +711,40 @@ shift_right: MACRO
 	ENDC
 	SRL	\1	; shift right, into carry-flag. Bit 7 becomes 0
 	IF _NARG == 4
-		RR	\2	; rotate right, bit0 into carry-flag.
-		RR	\3	; carry-flag rotates into bit7
-		RR	\4
+		RRfast	\2	; rotate right, bit0 into carry-flag.
+		RRfast	\3	; carry-flag rotates into bit7
+		RRfast	\4
 	ENDC
 	IF _NARG == 3
-		RR	\2
-		RR	\3
+		RRfast	\2
+		RRfast	\3
 	ENDC
 	IF _NARG == 2
-		RR	\2
+		RRfast	\2
+	ENDC
+	ENDM
+
+; used to call RL [register], but calls RLA (faster) if it's just register A
+RLfast: MACRO
+	IF _NARG != 1
+		FAIL "RLfast takes only 1 argument"
+	ENDC
+	IF STRCMP("A", STRUPR("\1")) == 0
+		RLA
+	ELSE
+		RL	\1
+	ENDC
+	ENDM
+
+; used to call RR [register], but calls RRA (faster) if it's just register A
+RRfast: MACRO
+	IF _NARG != 1
+		FAIL "RRfast takes only 1 argument"
+	ENDC
+	IF STRCMP("A", STRUPR("\1")) == 0
+		RRA
+	ELSE
+		RR	\1
 	ENDC
 	ENDM
 
