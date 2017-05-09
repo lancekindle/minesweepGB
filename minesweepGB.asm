@@ -265,12 +265,15 @@ begin:
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	check_hardware	; where we check for, and set up GBC & GBA vars
 reset:		; also called after player loses and is resetting
-	dma_Copy2HRAM
 	di
+	ld	sp, $ffff	; reset stack to top
+	dma_Copy2HRAM
 	irq_DisableAll	; disable all interrupts
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
+	lda	[rGBC]
+	ifa	>=, 1, rgb_InitVRAMColorBank	0
 	mat_Init	mines, 0	; setup variables
 	mat_Init	flags, 0
 	mat_Init	probed, 0

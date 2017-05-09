@@ -1,6 +1,7 @@
 include "gbhw.inc"
 include "cgbhw.inc"
 include "syntax.asm"
+include "memory.asm"
 
 ; library to help with colors on the gameboy color
 
@@ -53,6 +54,18 @@ rgb_LoadVRAMTileBank: MACRO
 	ld	a, $00		; select bank 0 (tile-data bank)
 	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
+
+; initializes the tiles with color \1 (a hard-coded #)
+; this assumes the LCD is stopped and/or safe to write to
+rgb_InitVRAMColorBank: MACRO
+	rgb_LoadVRAMColorBank
+	ldhard	a, \1
+	ld	hl, _SCRN0
+	ld	bc, SCRN_VX_B * SCRN_VY_B ;256 tiles in a 32x32 screen area
+	call	mem_Set
+	rgb_LoadVRAMTileBank
+	ENDM
+
 
 ; Note:
 ;	Testing of register STAT is done to allow setting
