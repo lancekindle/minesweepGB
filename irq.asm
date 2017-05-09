@@ -37,6 +37,14 @@ irq_DisableVBLANK: MACRO
 	pop	af
 	ENDM
 
+; used to disable all known interrupts (IRQ's).
+irq_DisableAll: MACRO
+	push	af
+	xor	a
+	ldh	[rIE], a
+	pop	af
+	ENDM
+
 ; enable LCD interrupt when at a specific line
 ; requires line # from 0-153. (lines 140-153 are during vblank, so avoid those)
 irq_EnableLCDC_AtLine: MACRO
