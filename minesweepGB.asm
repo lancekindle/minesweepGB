@@ -93,7 +93,7 @@ include "crosshairs.asm"
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 10*3	; reveal up to 10 squares per vblank
 	stack_Declare	minesToReveal, 4*3	; reveal +4 mines per vblank
-	stack_Declare	VRAMBytesToLoad, 3*3	; hold 3 tiles to load
+	stack_Declare	VRAMBytesToLoad, 5*3	; hold 5 bytes to load
 ; smoke and tile need VRAMBytesToLoad stack pre-declared
 include "smoke.asm"
 include "title.asm"
@@ -210,8 +210,8 @@ init_colorgb_variables:
 	ld	hl, bg_color_palettes
 	call	rgb_SetAllBGP
 	xor	a
-	ld	hl, rgb_StandardPalette
-	call	rgb_SetSingleOBJP  ; set sprite palette 0 (reg. A) to greyscale
+	ld	hl, bg_color_palettes
+	call	rgb_SetAllOBJP	; set sprite palettes to mirror bg
 	ret
 
 ; this properly switches the cpu to double speed mode (cbg-only).
