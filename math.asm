@@ -15,23 +15,23 @@ MATH_ASM	SET	1
 ; multiply two 8-bit registers together
 ; final result will reside in HL. (a 16-bit register is required)
 ; The two numbers should be in registers A & C (B will be set to 0)
-; COST: Fastest (64 Cycles / 53 Bytes) vs Slowest (72 Cycles / 61 Bytes)
+; COST: Fastest (44 Cycles) vs Slowest (52 Cycles)
 math_MultiplyAC:
 	ld	b, 0
-	ld	h, b
-	ld	l, b	; set HL to 0
-	; shift a to right by 1. In this case, RRCA (rotate "a" right) is the
-	; same operation as SRA, but faster.
-	; If 1 was rotated into the carry-flag, then we add BC to HL
-	; then we multiply C by 2 (shift bc left)
-	; do that 8 times, and you'll have multiplied C by A
-	REPT	7	; (do the following 7 times)
-		RRCA
+	ld	l, b
+	ld	h, a	; set HL to $A0
+	REPT	8	; (do the following 8 times)
+; The trick here is to combine shifting bits out of A, and shifting BC
+; appropriately into one step: add HL, HL
+; Previously we RIGHT-shifted A and added C (as BC) to HL if CY=1, then
+; LEFT-shifted BC unconditionally
+; By LEFT-shifting A, we must start with BC = $XX00, where XX=multiplier.
+; we then add BC to HL if CY=1, then RIGHT-shift BC unconditionally.
+; this LEFT-shifting of A and (by left-shifting HL) RIGHT-shifting of BC
+; can happen in one step: ADD HL, HL .... if H=A,L=0,B=0,C=C
+		add	hl, hl
 		if_flag	c,	add	hl, bc
-		shift_left	b, c
 	ENDR
-	RRCA	; (8th time)
-	if_flag	c,	add	hl, bc
 	ret
 
 ; A is number to multiply by a power of 2
