@@ -77,6 +77,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rFirstProbe
 	var_LowRamByte	rMinesCount
 	var_LowRamByte	rGameOver
+	var_LowRamByte	rWinner
 	var_LowRamWord	rCellsRemaining
 	var_LowRamByte	rCorrectFlags
 	var_LowRamByte	rWrongFlags
@@ -97,6 +98,7 @@ include "crosshairs.asm"
 ; smoke and tile need VRAMBytesToLoad stack pre-declared
 include "smoke.asm"
 include "title.asm"
+include "firework.asm"
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -250,13 +252,17 @@ init_variables:
 	; set jpad variables
 	call	move_InitJpadVariables
 	; others
-	lda	30
-	ld	[rDifficulty], a	; store default difficulty of 30
-	ld	[rDifficultyRamp], a
 	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
 	var_SetWord	b,c,	rCellsRemaining
 	ld	a, 1
 	ld	[rFirstProbe], a
+	ret
+init_startup_variables:
+	lda	30
+	ld	[rDifficulty], a	; store default difficulty of 30
+	ld	[rDifficultyRamp], a
+	lda	0
+	ld	[rWinner], a
 	ret
 
 
@@ -264,11 +270,13 @@ begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	check_hardware	; where we check for, and set up GBC & GBA vars
+	call	init_startup_variables
+	dma_Copy2HRAM
 reset:		; also called after player loses and is resetting
 	di
 	ld	sp, $ffff	; reset stack to top
-	dma_Copy2HRAM
-	irq_DisableAll	; disable all interrupts
+	irq_DisableAll	; disable all interrupts. So irq won't mess w/ state
+	call	init_variables
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
@@ -290,8 +298,8 @@ reset:		; also called after player loses and is resetting
 	call	SpriteSetup
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
-	call	init_variables
-	call	title_LevelSelect	; blocks until difficulty selected
+	lda	[rWinner]
+	ifa	==, 0, call title_LevelSelect
 	irq_DisableVBLANK
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
@@ -304,19 +312,21 @@ reset:		; also called after player loses and is resetting
 	irq_EnableLCDC_AtLine	100
 ; mainloop handles probing cells and endgame logic
 .mainloop:
+	; TEMPORARY to trigger wingame
+	call	win_game
 	if_	jpad_EdgeA, call	probe_cell
 	; queue_color_mines_reveal is dmg compatible. The actual reveal
 	; loop is the one that needs to be color-sensitive
-	if_	only_mines_left, call queue_color_mines_reveal
+	if_	only_mines_left, call win_game
 	lda	[rGameOver]
-	ifa	>=, 1, jr .exploded_mainloop
+	ifa	>=, 1, jr .won_lost_mainloop
 	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
-; exploded mainloop handles game over logic
-.exploded_mainloop
+; won/lost mainloop handles game over logic (waiting for keypress to reset)
+.won_lost_mainloop
 	; exploded mainloop monitors for keypress, then resets gameboy
 	call	jpad_GetKeys
 	if_	jpad_EdgeA, jp	reset
-	jr .exploded_mainloop
+	jr .won_lost_mainloop
 
 
 ; a macro that gets called in the middle of reading from the toReveal stack
@@ -783,6 +793,26 @@ all_mines_flagged:
 	ret_false
 
 
+win_game:
+	di
+	irq_DisableAll
+	irq_EnableVBLANK
+	call	firework_create_particles
+	irq_CallFromLCDC	firework_HandleLCDC
+	irq_EnableLCDC_AtLine	100
+	ei
+	lda	$FF
+	ld	[rWinner], a	; both winner and GameOver need to be set
+	ld	[rGameOver], a
+	ld	a, [rDifficultyRamp]
+	ld	hl, rDifficulty
+	add	[hl]
+	ld	[hl], a ; difficulty = difficulty + ramp
+	call	crosshairs_disappear
+	call	queue_color_mines_reveal
+	ret
+
+
 ; returns true/false if all non-mine cells have been probed
 only_mines_left:
 	var_GetWord	b,c,	rCellsRemaining
@@ -806,6 +836,8 @@ mine_probed:
 	call	crosshairs_disappear
 	lda	$FF
 	ld	[rGameOver], a
+	xor	a
+	ld	[rWinner], a
 	call	queue_color_mines_reveal
 .wait_for_empty_stack
 	stack_Size	minesToReveal
@@ -964,8 +996,9 @@ LoadFont:
 	ld	bc, ASCII_TILES_END - ASCII_TILES_LOC
 	call	mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
 	ret
-
-
-Title:  ; using (:) will save ROM address so that you can reference it in code
-	DB	"abcdefghijklmnopqrstuvwxyz"
-TitleEnd:
+	; Yes, ours is monochrome. An interesting thing about the mem_CopyMono
+	; fxn: it copies each byte from rom font TWICE. Each time to a
+	; sequential destination. But why? Because the gameboy takes 1 bit
+	; from each of two bytes to determine a pixel's shade in a row.
+	; To see RGBDS's syntax for handling this in a human-readable graphic,
+	; see my tileGraphics.asm. (Hint: preface each row with ` character)
