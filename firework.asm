@@ -14,6 +14,7 @@ include "cgbhw.inc"
 include "random.asm"
 include "smoke.asm"	; for its randomly_alter_tile
 include "tileGraphics.asm"
+include "movement.asm"
 
 TILE_SIZE	  =	16
 FIREWORK_HTILE	  =	3
@@ -22,11 +23,11 @@ FIREWORK_CTILE	  =	5
 FIREWORK_PALETTE  =	7
 
 	var_LowRamByte	rFW_CenterY
-	var_LowRamByte	rFW_CenterX
-	var_LowRamByte	rFW_Tick
-	var_LowRamByte	rFW_VY
-	var_LowRamByte	rFW_VX
-	var_LowRamByte	rFW_Offset
+	var_LowRamByte	rFW_CenterX	; center of firework explosion
+	var_LowRamByte	rFW_Radius	; radius of explosion
+	var_LowRamByte	rFW_DestY
+	var_LowRamByte	rFW_DestX	; where explosion will occur
+	var_LowRamByte	rFW_Tick	; timing tick. Firework repeats if<=1
 
 	var_LowRamByte	rFireworkRandByte	; holds onto byte # to change
 	var_LowRamWord	rFireworkMask	; holds onto mask address
@@ -50,6 +51,8 @@ FIREWORK_PALETTE  =	7
 ; sprites are flipped (vertically and horizontally) according to their
 ; position.
 firework_create_particles:
+	; INIT firework TICK variable
+	call	firework_cycle_init
 	; copy over firework particles to ram (not VRAM)
 	ld	bc, TILE_SIZE
 	ld	hl, mine_gfx + 4 * TILE_SIZE
@@ -95,9 +98,6 @@ firework_create_particles:
 	ld	bc, firework_font
 	; set FireworkMask to be full firework
 	var_SetWord	b,c, rFireworkMask	; holds onto mask address
-	xor	a
-	ld	[rFW_Tick], a
-	ld	[rFW_Offset], a
 	ret
 
 
@@ -107,6 +107,13 @@ firework_HandleLCDC:
 	call	firework_alter_tiles
 	ret
 
+; call this ONCE to initiate fireworks and get ready to launch
+firework_cycle_init:
+	lda	89
+	ld	[rFW_Tick], a
+	xor	a
+	ld	[rFW_Radius], a
+	ret
 
 ; cycle fireworks. Explode, expand, disappear, repeat
 ; does not handle color of fireworks, nor tile changes
@@ -118,47 +125,23 @@ firework_cycle:
 	ifa	<, 10, jp .explosion_expand_fast
 	ifa	<, 15, jp .explosion_expand_medium
 	ifa	<, 30, jp .explosion_expand_slow
-.explosion_hang_in_air
-	; set explosion mask to minimal
-	ld	bc, firework_font + 3*TILE_SIZE
-	var_SetWord	b, c, rFireworkMask
-	ld	hl, rFW_Tick
-	lda	[hl]
-	ifa	<, 80, jp .done 	; don't need to move fireworks at all
-	; if we get here, fireworks have finished and need to "disappear"
-	lda	200
-	ld	[rFW_CenterX], a
-	ld	[rFW_CenterY], a
-	xor	a
-	ld	[rFW_Offset], a
-	lda	[hl]
-	ifa	>, 120, ld	[hl], 0
-	; reset firework mask to full
-	ld	bc, firework_font
-	var_SetWord	b,c, rFireworkMask
-	jp .done
+	ifa	<, 80, jp .explosion_hang_in_air
+	ifa	<, 90, jp .hide_firework
+	ifa	==, 90, jp .calculate_destination
+	ifa	<, 200, jp .launch_firework
 .explosion_start
-	rand_A	; get a random number
-	ifa	>, 128, math_Div a, 2	; keep value <= 128
-	ld	[rFW_CenterY], a
-	ld	d, a
-	rand_A	; get 2nd random number for X
-	ifa	>, 128, math_Div a, 2
-	ld	[rFW_CenterX], a
-	ld	e, a
 	; bundle fireworks all at the center
 	xor	a
-	ld	[rFW_Offset], a
+	ld	[rFW_Radius], a
 	lda	[rFW_Tick]
-	inc	a
-	ld	[rFW_Tick], a	; increment firework so that it won't remain
-				; in explosion start for too long
+	inc	a		; increment tick so that it won't remain
+	ld	[rFW_Tick], a	; in explosion start for too long
 	ld	bc, firework_font
 	var_SetWord	b, c, rFireworkMask
 	; now call the function to arrange the fireworks
 	jp	.done
 .explosion_expand_fast
-	ld	hl, rFW_Offset
+	ld	hl, rFW_Radius
 	inc	[hl]
 	lda	[rFW_Tick]
 	RRCA
@@ -168,20 +151,79 @@ firework_cycle:
 	var_SetWord	b, c, rFireworkMask
 	jp	.done
 .explosion_expand_medium
-	ld	hl, rFW_Offset
+	ld	hl, rFW_Radius
 	inc [hl]	; offset moves at 0.5 pixels per tick (average)
 	; set firework mask to diminished firework
 	ld	bc, firework_font + 1*TILE_SIZE
 	var_SetWord	b, c, rFireworkMask
 	jp	.done
 .explosion_expand_slow
-	ld	hl, rFW_Offset
+	ld	hl, rFW_Radius
 	lda	[rFW_Tick]
 	RRCA
 	if_flag	c, inc [hl]	; offset moves at 0.5 pixels per tick (average)
 	; set firework mask to vastly diminished firework
 	ld	bc, firework_font + 2*TILE_SIZE
 	var_SetWord	b, c, rFireworkMask
+.explosion_hang_in_air
+	; set explosion mask to minimal
+	ld	bc, firework_font + 3*TILE_SIZE
+	var_SetWord	b, c, rFireworkMask
+	jp	.done
+.hide_firework
+	; if we get here, fireworks have finished and need to "disappear"
+	lda	200
+	ld	[rFW_CenterX], a
+	ld	[rFW_CenterY], a
+	xor	a
+	ld	[rFW_Radius], a
+	; reset firework mask to full-brightness
+	ld	bc, firework_font
+	var_SetWord	b,c, rFireworkMask
+	jp	.done
+.calculate_destination
+	rand_A	; get a random number
+	; corrall firework in bounds of 30>= Y =<90
+	ifa	>, 100, math_Div a, 2	; keep value <= 90
+	; may have to divide twice... to get it below 80
+	ifa	>, 100, math_Div a, 2	; keep value <= 90
+	ifa	<, 30, add 60		; center firework if < 30
+	ld	[rFW_DestY], a
+	rand_A	; get 2nd random number for X
+	ifa	>, 100, math_Div a, 2
+	ifa	>, 100, math_Div a, 2
+	ifa	<, 25, add 50		; center firework if < 20
+	ld	[rFW_DestX], a
+	jp	.done
+.launch_firework
+	; firework has been hidden. Now we need to launch firework into air
+	; from below screen. Once firework reaches destination, trigger
+	; explosion (tick=0)
+	; load source coordinates
+	lda	[rFW_CenterY]
+	ld	b, a
+	lda	[rFW_CenterX]
+	ld	c, a
+	; load destination coordinates
+	lda	[rFW_DestY]
+	ld	d, a
+	lda	[rFW_DestX]
+	ld	e, a
+	; load updated coordinates
+	call	move_BC_quarterway_to_DE
+	lda	b
+	ld	[rFW_CenterY], a
+	lda	c
+	ld	[rFW_CenterX], a
+	; reset tick (and start explosion) if firework at destination
+	lda	b
+	ifa	<>, d, jp .done
+	lda	c
+	ifa	<>, e, jp .done
+	; we get here if BC == DE
+	xor	a
+	ld	[rFW_Tick], a
+	jp	firework_cycle	; start firework explosion immediately
 .done
 	call	fireworks_center_offset
 	ret
@@ -195,9 +237,9 @@ firework_cycle:
 ; 25% offset + 50% offset
 ; this'll allow you to simply set an integer offset, and call this function
 ; to get a circle of fireworks around rFW_CenterX & rFW_CenterY at an offset
-; distance of rFW_Offset
+; distance of rFW_Radius
 fireworks_center_offset:
-	lda	[rFW_Offset]
+	lda	[rFW_Radius]
 	ld	b, a	; preserve offset in B
 	math_Div	a, 2
 	ld	c, a	; preserve 25% offset
