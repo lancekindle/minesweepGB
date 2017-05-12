@@ -70,6 +70,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 					
 	var_LowRamByte	rDifficulty	; 0-255 = chance to lay mine. 0=easy
+	var_LowRamByte	rDenseDifficulty
 	var_LowRamByte	rDifficultyRamp	; increase after winning
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
@@ -261,6 +262,8 @@ init_startup_variables:
 	lda	30
 	ld	[rDifficulty], a	; store default difficulty of 30
 	ld	[rDifficultyRamp], a
+	lda	100
+	ld	[rDenseDifficulty], a	; 200 used to be default. Small=easy
 	lda	0
 	ld	[rWinner], a
 	ret
@@ -523,8 +526,10 @@ remove_dense_mines:
 	ifa	>=,3, jp .maybe_remove_mine
 	jp .iterate
 .maybe_remove_mine
+	lda	[rDenseDifficulty]	; default value of 200
+	ld	b, a	; small DenseDifficulty = easy: mine removed more often
 	rand_A
-	ifa	>,200, jp .iterate
+	ifa	>, b, jp .iterate
 	mat_IterYX	_SCRN0; get Y,X in DE
 	mat_GetYX	mines, d, e
 	ifa	==, 0, jp .iterate	; there's no mine. Go back to iteration
