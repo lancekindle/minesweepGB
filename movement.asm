@@ -22,8 +22,6 @@ include "sprite.inc"
 	var_LowRamByte	rPlayerY
 	var_LowRamByte	rPlayerX
 
-include "crosshairs.asm"	; requires rPLayerX & Y
-
 	; hold onto last-pressed buttons. If it changes, we want to respond
 	; to user input immediately.
 	var_LowRamByte	rJPAD_LastButtons
@@ -61,7 +59,8 @@ move_InitJpadVariables:
 	ret
 
 
-; responsible for moving the crosshairs / selection box within borders.
+; responsible for moving the player within borders. The selection box is
+; separate that needs to be called with crosshairs_move_halfway_to_player
 ; will also control repeat rate of direction(s) if joypad held down.
 ; each time we trigger a keypress, we increase the rate of repeat
 move_player_within_screen_bounds:
@@ -99,13 +98,13 @@ move_player_within_screen_bounds:
 	ifa	<, SCRN_Y - 8,	call move_if_down
 	pop	af
 	ifa	>, 0,		call move_if_up
-	jr	.move_crosshairs
+	jr	.done
 .Dpad_not_pressed
 	; cooldown variable allows a brief lapse between button presses while
 	; still maintaining the same repeat rate. If cooldown expires, we reset
 	ld	hl, rJPAD_Cooldown
 	dec	[hl]	; sets 0-flag if cooldown == 0
-	jr	nz, .move_crosshairs
+	jr	nz, .done
 	; if cooldown == 0, reset jpad vars
 .reset_jpad_variables
 	ld	hl, rJPAD_Charge
@@ -114,7 +113,7 @@ move_player_within_screen_bounds:
 	ld	[hl], JPAD_RepeatRate_Init
 	ld	hl, rJPAD_RepeatInc
 	ld	[hl], JPAD_RepeatInc_Init
-	jr	.move_crosshairs
+	jr	.done
 .skip_button_press
 	; we get here if buttons are pressed, but aren't triggering a repeat
 	; so lets check if there's a newly-pressed button and trigger that
@@ -124,11 +123,11 @@ move_player_within_screen_bounds:
 	and	jpad_dpad_mask	; sets zero-flag if no newly pressed dpad keys
 	jp	nz, move_player_direction_just_pressed
 	; we get here if buttons are held down with no changes
-.move_crosshairs
-	jp	crosshairs_update
+.done
+	ret
 
 
-; moves player direction just pressed. Updates crosshairs, AND resets
+; moves player direction just pressed. AND resets
 ; jpad charge so that the key can't get instantly triggered (Again) the next
 ; vblank
 move_player_direction_just_pressed:
@@ -146,7 +145,6 @@ move_player_direction_just_pressed:
 	ifa	<, SCRN_Y - 8,	call move_once_if_down
 	pop	af
 	ifa	>, 0,		call move_once_if_up
-	jp	crosshairs_update
 	ret
 
 
@@ -204,6 +202,97 @@ move_once_if_down:
 	ld	a, [rPlayerY]
 	add	8
 	ld	[rPlayerY], a
+	ret
+
+
+; moves BC (source) halfway to the DE (desination). B,C, are coordinates
+; respectively moving towards D,E. I usually put Y in B, D and X in C, E
+; but it doesn't matter, so long as DE contains the destination coordinates.
+; If called repeatedly, this will ensure that BC eventually matches DE.
+; USES: AF, BC, DE
+move_BC_halfway_to_DE:
+	lda	d
+	sub	b	; calculate Destination_B - source_B
+	jp	z, .update_C	; skip updating B if it's already equal
+	jp	c, .negativeB	; handle case where source_B > Destination_B
+	; regiter A is positive here. We add half that to source_B
+	srl	a	; divide offset by 2. Sets Zero-flag if a==0
+	; if A=0 now, then before A / 2 (srl A) it was 1. Reload 1 so that
+	; source will reach destination
+	if_flag	z, ld	a, 1
+	jp .add_half_B_offset
+.negativeB
+	sra	a	; divide by 2 (for signed/negative numbers)
+	; unlike unsigned #s, -1 never goes away when divided by 2. $FF stays
+	; $FF when using sra (which keeps the same bit 7)
+	; so it's correct to use the result of "sra a" as the offset
+.add_half_B_offset
+	add	b	; apply offset to source_B
+	ld	b, a	; B now contains updated coordinate
+.update_C
+	lda	e
+	sub	c	; calculate Destination_C - source_C
+	ret 	z	; skip updating C if it's already equal
+	jp 	c, .negativeC	; handle case where source_C > Destination_C
+	srl	a	; divide offset by 2
+	; if A=0, then our offset was one. Load 1 as offset
+	if_flag	z, ld	a, 1
+	jp .add_half_C_offset
+.negativeC
+	sra	a	; divide by 2 (for signed/negative numbers)
+.add_half_C_offset
+	add	c	; apply offset to crosshair_x
+	ld	c, a	; C now contains updated coordinate
+	ret
+
+
+; moves BC (source) one-quarter of the way to the DE (desination).
+; B,C, are coordinates respectively moving towards D,E.
+; I usually put Y in B, D and X in C, E but it doesn't matter, so long
+; as DE contains the destination coordinates.
+; once distance between coordinates <=3, the distance will change by 1
+; each time.
+; If called repeatedly, this will ensure that BC eventually matches DE.
+; USES: AF, BC, DE
+move_BC_quarterway_to_DE:
+	lda	d
+	sub	b	; calculate Destination_B - source_B
+	jp	z, .update_C	; skip updating B if it's already equal
+	jp	c, .negativeB	; handle case where source_B > Destination_B
+	; regiter A is positive here. We add half that to source_B
+	srl	a
+	srl	a	; divide offset by 4
+	; if A=0 now, then before A / 4 (2x'srl A') it was <=3. Reload 1 so
+	; that source will reach destination in <=3 calls
+	if_flag	z, ld	a, 1
+	jp .add_half_B_offset
+.negativeB
+	sra	a
+	sra	a	; divide by 4 (for signed/negative numbers)
+	; unlike unsigned #s, -1 never goes away when divided by 2. $FF stays
+	; $FF when using sra (which keeps the same bit 7)
+	; so it's correct to use the result of "sra a" as the offset
+.add_half_B_offset
+	add	b	; apply offset to source_B
+	ld	b, a	; B now contains updated coordinate
+.update_C
+	lda	e
+	sub	c	; calculate Destination_C - source_C
+	ret 	z	; skip updating C if it's already equal
+	jp 	c, .negativeC	; handle case where source_C > Destination_C
+	srl	a
+	srl	a	; divide offset by 4
+	; if A=0, then our offset was one. Load 1 as offset
+	if_flag	z, ld	a, 1
+	jp .add_half_C_offset
+.negativeC
+	sra	a
+	sra	a	; divide by 4 (for signed/negative numbers)
+	; (the smallest a negative number can get when calling "SRA A" is
+	;  -1, so we don't need to perform any checks on # post-division)
+.add_half_C_offset
+	add	c	; apply offset to crosshair_x
+	ld	c, a	; C now contains updated coordinate
 	ret
 
 

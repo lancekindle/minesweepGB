@@ -407,6 +407,7 @@ handle_lcdc_main_game:
 .move
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_player_within_screen_bounds	; & move crosshairs
+	call	crosshairs_move_halfway_to_player
 .flag
 	if_	jpad_EdgeB, call	toggle_flag
 .done
