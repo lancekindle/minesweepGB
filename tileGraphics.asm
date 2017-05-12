@@ -165,8 +165,11 @@ get_number_font: MACRO
 	DW	`........
 	DW	`........
 
-	OPT	g.@~*	; realign @ to be dark (but not darkest) shade
-	; numbers 1~9, shaded dark, but not black
+	OPT	g.@~*	; realign @ to be light-ish shade
+        ; numbers 1 & 2 are lightest (but still visible) shades
+        ; this makes it such that they appear LIGHT on the original gameboy
+        ; but can otherwise be colored any color (and as dark as desired)
+        ; on the gameboy color
         DW      `..@@....
         DW      `.@@@....
         DW      `..@@....
@@ -186,7 +189,7 @@ get_number_font: MACRO
         DW      `........
 
 	OPT	g.~@*	; realign @ to be dark (but not darkest) shade
-
+        ; #3 is darkish
         DW      `.@@@@...
         DW      `@@..@@..
         DW      `....@@..
@@ -196,7 +199,7 @@ get_number_font: MACRO
         DW      `.@@@@...
         DW      `........
 
-	OPT	g.~*@	; realign @ to be dark (but not darkest) shade
+	OPT	g.~*@
 	; any cell 4 or greater should be colored as black as possible
         DW      `...@@@..
         DW      `..@@@@..
@@ -273,6 +276,70 @@ get_smoke_font: MACRO
         POPO    ; restore options (before OPT g.~0@)
         ENDM
 
+get_firework_font: MACRO
+	PUSHO	; push options so that I can change the meaning of .~*@
+	OPT	g.~*@
+
+        ; full firework
+        DW      `....@...
+        DW      `.@@@@@..
+        DW      `..@@@@@.
+        DW      `.@@@@@@@
+        DW      `@@@@@@@.
+        DW      `.@@@@@..
+        DW      `..@@@@@.
+        DW      `...@....
+
+        ; half firework
+        DW      `....@...
+        DW      `.@.@.@..
+        DW      `..@.@.@.
+        DW      `.@.@.@.@
+        DW      `@.@.@.@.
+        DW      `.@.@.@..
+        DW      `..@.@.@.
+        DW      `...@....
+
+        ; quarter firework
+        DW      `........
+        DW      `...@....
+        DW      `....@.@.
+        DW      `.@.@.@..
+        DW      `..@.@.@.
+        DW      `.@.@....
+        DW      `....@...
+        DW      `........
+
+        ; barely firework
+        DW      `........
+        DW      `...@....
+        DW      `......@.
+        DW      `...@....
+        DW      `....@...
+        DW      `.@......
+        DW      `....@...
+        DW      `........
+
+
+        POPO    ; restore options (before OPT g.~0@)
+        ENDM
+
+get_blank_font: MACRO
+	PUSHO	; push options so that I can change the meaning of .~*@
+	OPT	g.~*@
+
+        DW      `........
+        DW      `........
+        DW      `........
+        DW      `........
+        DW      `........
+        DW      `........
+        DW      `........
+        DW      `........
+
+        POPO    ; restore options (before OPT g.~0@)
+        ENDM
+
 cell_gfx:
 	get_cell_font
 end_cellgfx:
@@ -289,6 +356,13 @@ smoke_font:
         get_smoke_font
 smoke_font_end:
 
+firework_font:
+        get_firework_font
+firework_font_end:
+
+blank_font:
+        get_blank_font
+blank_font_end:
 
 
         ENDC    ; end tiles_gfx_asm defines
