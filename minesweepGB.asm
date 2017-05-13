@@ -157,7 +157,7 @@ bg_color_palettes:
 	rgb_Set	255,   0, 255	; magenta
 	; red on white (bad indicator)
 	rgb_Set 255, 255, 255	; white
-	rgb_Set	255, 150, 150	; light red
+	rgb_Set	255, 100, 100	; light red
 	rgb_Set	255,   0,   0	; red
 	rgb_Set	128,   0,   0	; dark red
 	; yellow on white

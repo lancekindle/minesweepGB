@@ -154,6 +154,7 @@ firework_cycle:
 	ifa	<, 10, jp .explosion_expand_fast
 	ifa	<, 15, jp .explosion_expand_medium
 	ifa	<, 30, jp .explosion_expand_slow
+	ifa	<, 60, jp .explosion_expand_no_more
 	ifa	<, 80, jp .explosion_hang_in_air
 	ifa	<, 90, jp .hide_firework
 	ifa	==, 90, jp .calculate_destination
@@ -175,22 +176,21 @@ firework_cycle:
 	lda	[rFW_Tick]
 	RRCA
 	if_flag	c, inc [hl]	; offset moves at 1.5 pixels per tick (average)
-	; set firework mask to diminished firework
-	ld	bc, firework_font
-	var_SetWord	b, c, rFireworkMask
+	; (given that we move 1 pixel every tick + .5 from the above command)
 	jp	.done
 .explosion_expand_medium
 	ld	hl, rFW_Radius
-	inc [hl]	; offset moves at 0.5 pixels per tick (average)
-	; set firework mask to diminished firework
-	ld	bc, firework_font + 1*TILE_SIZE
-	var_SetWord	b, c, rFireworkMask
+	inc [hl]	; offset moves at 1 pixel per tick
 	jp	.done
 .explosion_expand_slow
 	ld	hl, rFW_Radius
 	lda	[rFW_Tick]
 	RRCA
-	if_flag	c, inc [hl]	; offset moves at 0.5 pixels per tick (average)
+	if_flag	c, inc [hl]	; move an additional pixel if tick is odd
+	; set firework mask to diminished firework
+	ld	bc, firework_font + 1*TILE_SIZE
+	var_SetWord	b, c, rFireworkMask
+.explosion_expand_no_more
 	; set firework mask to vastly diminished firework
 	ld	bc, firework_font + 2*TILE_SIZE
 	var_SetWord	b, c, rFireworkMask
