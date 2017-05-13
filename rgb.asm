@@ -1,10 +1,12 @@
+	IF	!DEF(RGB_ASM)	; prevent multiple includes of this file
+RGB_ASM	SET	1
+
 include "gbhw.inc"
 include "cgbhw.inc"
 include "syntax.asm"
 include "memory.asm"
 
 ; library to help with colors on the gameboy color
-
 
 ;*
 ;* Set GameBoy Colo(u)r palettes
@@ -13,8 +15,8 @@ include "memory.asm"
 ;* v1.1 - Fixed interrupt bugs
 ;*
 
-	IF	!DEF(RGB_ASM)	; prevent multiple includes of this file
-RGB_ASM	SET	1
+rgb_PALETTE_MASK	=	%00000111
+
 
 ;	This RGBSet Macro uses RGB values from 0 to 255.
 ; Even though this is a greater color range than the

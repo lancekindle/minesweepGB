@@ -7,10 +7,11 @@
 FIREWORK_ASM	SET	1
 
 include "syntax.asm"
-include "vars.asm"
-include "irq.asm"
 include "gbhw.inc"
 include "cgbhw.inc"
+include "vars.asm"
+include "irq.asm"
+include "rgb.asm"
 include "random.asm"
 include "smoke.asm"	; for its randomly_alter_tile
 include "tileGraphics.asm"
@@ -76,17 +77,20 @@ firework_create_particles:
 	sprite_PutTile	Spr_FW_Corner_DL, a	; sprite5
 	; now lets set the Horizontal, Vertical flip flags
 	; Upper Left are normal, we flip for right & down
-	ld	a, FIREWORK_PALETTE
+	rand_A
+	and	rgb_PALETTE_MASK
+	or	1	; set palette to >= 1 (don't use boring palette 0)
+	ld	b, a	; store palette in b
 	sprite_PutFlags	Spr_FW_Horiz_L, a
 	set	5, a	; set horizontal flip flag
 	sprite_PutFlags	Spr_FW_Horiz_R, a
 	; set vertcal flip flags
-	ld	a, FIREWORK_PALETTE
+	lda	b	; restore palette
 	sprite_PutFlags	Spr_FW_Vert_U, a	; sprite4
 	set	6, a	; set vertical flip flag
 	sprite_PutFlags	Spr_FW_Vert_D, a	; sprite4
 	; set corner flags
-	ld	a, FIREWORK_PALETTE
+	lda	b	; restore palette
 	sprite_PutFlags	Spr_FW_Corner_UL, a	; sprite5
 	set	5, a	; set horizontal flip flag
 	sprite_PutFlags	Spr_FW_Corner_UR, a	; sprite5
@@ -98,6 +102,31 @@ firework_create_particles:
 	ld	bc, firework_font
 	; set FireworkMask to be full firework
 	var_SetWord	b,c, rFireworkMask	; holds onto mask address
+	ret
+
+; AND mask C, then OR mask B (in that order)
+firework_apply_palette_masks: MACRO
+	sprite_GetFlags	\1
+	and	c
+	or	b
+	sprite_PutFlags	\1, a
+	ENDM
+
+firework_change_palette:
+	rand_A
+	and	rgb_PALETTE_MASK
+	ifa	==, 0, lda 1	; do not use boring palette 0 (greyscale)
+	ld	b, a	; load palette into B
+	ld	a, %11111111 ^ rgb_PALETTE_MASK
+	ld	c, a	; load anti-palette mask into C
+	firework_apply_palette_masks	Spr_FW_Horiz_L
+	firework_apply_palette_masks	Spr_FW_Horiz_R
+	firework_apply_palette_masks	Spr_FW_Vert_U
+	firework_apply_palette_masks	Spr_FW_Vert_D
+	firework_apply_palette_masks	Spr_FW_Corner_UL
+	firework_apply_palette_masks	Spr_FW_Corner_UR
+	firework_apply_palette_masks	Spr_FW_Corner_DL
+	firework_apply_palette_masks	Spr_FW_Corner_DR
 	ret
 
 
@@ -180,6 +209,7 @@ firework_cycle:
 	; reset firework mask to full-brightness
 	ld	bc, firework_font
 	var_SetWord	b,c, rFireworkMask
+	call	firework_change_palette
 	jp	.done
 .calculate_destination
 	rand_A	; get a random number
