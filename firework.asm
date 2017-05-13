@@ -240,16 +240,18 @@ firework_cycle:
 	lda	[rFW_DestX]
 	ld	e, a
 	; load updated coordinates
-	call	move_BC_quarterway_to_DE
+	call	move_BC_sixteenth_to_DE
 	lda	b
 	ld	[rFW_CenterY], a
 	lda	c
 	ld	[rFW_CenterX], a
 	; reset tick (and start explosion) if firework at destination
 	lda	b
-	ifa	<>, d, jp .done
+	ifa	==, d, jp .restart_firework_explosion
 	lda	c
-	ifa	<>, e, jp .done
+	ifa	==, e, jp .restart_firework_explosion
+	jp	.done
+.restart_firework_explosion
 	; we get here if BC == DE
 	xor	a
 	ld	[rFW_Tick], a

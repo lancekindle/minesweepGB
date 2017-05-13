@@ -296,6 +296,64 @@ move_BC_quarterway_to_DE:
 	ret
 
 
+; moves BC (source) 1/16th of the way to the DE (desination).
+; B,C, are coordinates respectively moving towards D,E.
+; I usually put Y in B, D and X in C, E but it doesn't matter, so long
+; as DE contains the destination coordinates.
+; once distance between coordinates <=3, the distance will change by 1
+; each time.
+; If called repeatedly, this will ensure that BC eventually matches DE.
+; USES: AF, BC, DE
+move_BC_sixteenth_to_DE:
+	lda	d
+	sub	b	; calculate Destination_B - source_B
+	jp	z, .update_C	; skip updating B if it's already equal
+	jp	c, .negativeB	; handle case where source_B > Destination_B
+	; regiter A is positive here. We add half that to source_B
+	srl	a
+	srl	a	; divide offset by 4
+	srl	a
+	srl	a	; / 16
+	; if A=0 now, then before A / 4 (2x'srl A') it was <=3. Reload 1 so
+	; that source will reach destination in <=3 calls
+	if_flag	z, ld	a, 1
+	jp .add_B_offset
+.negativeB
+	sra	a
+	sra	a	; divide by 4 (for signed/negative numbers)
+	sra	a
+	sra	a
+	; unlike unsigned #s, -1 never goes away when divided by 2. $FF stays
+	; $FF when using sra (which keeps the same bit 7)
+	; so it's correct to use the result of "sra a" as the offset
+.add_B_offset
+	add	b	; apply offset to source_B
+	ld	b, a	; B now contains updated coordinate
+.update_C
+	lda	e
+	sub	c	; calculate Destination_C - source_C
+	ret 	z	; skip updating C if it's already equal
+	jp 	c, .negativeC	; handle case where source_C > Destination_C
+	srl	a
+	srl	a	; divide offset by 4
+	srl	a
+	srl	a
+	; if A=0, then our offset was one. Load 1 as offset
+	if_flag	z, ld	a, 1
+	jp .add_C_offset
+.negativeC
+	sra	a
+	sra	a	; divide by 4 (for signed/negative numbers)
+	sra	a
+	sra	a
+	; (the smallest a negative number can get when calling "SRA A" is
+	;  -1, so we don't need to perform any checks on # post-division)
+.add_C_offset
+	add	c	; apply offset to crosshair_x
+	ld	c, a	; C now contains updated coordinate
+	ret
+
+
 
 
 	ENDC	; end movement of player
