@@ -95,7 +95,7 @@ include "crosshairs.asm"
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 10*3	; reveal up to 10 squares per vblank
 	stack_Declare	minesToReveal, 4*3	; reveal +4 mines per vblank
-	stack_Declare	VRAMBytesToLoad, 5*3	; hold 5 bytes to load
+	stack_Declare	VRAMBytesToLoad, 9*3	; hold 9 bytes to load
 ; smoke and tile need VRAMBytesToLoad stack pre-declared
 include "smoke.asm"
 include "title.asm"
@@ -315,8 +315,6 @@ reset:		; also called after player loses and is resetting
 	irq_EnableLCDC_AtLine	100
 ; mainloop handles probing cells and endgame logic
 .mainloop:
-	; TEMPORARY to trigger wingame
-	call	win_game
 	if_	jpad_EdgeA, call	probe_cell
 	; queue_color_mines_reveal is dmg compatible. The actual reveal
 	; loop is the one that needs to be color-sensitive
@@ -410,7 +408,7 @@ handle_lcdc_main_game:
 .move
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_player_within_screen_bounds	; & move crosshairs
-	call	crosshairs_move_halfway_to_player
+	call	crosshairs_update
 .flag
 	if_	jpad_EdgeB, call	toggle_flag
 .done
