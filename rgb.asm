@@ -46,13 +46,13 @@ rgb_InvertedPalette:
 ; USES: A
 rgb_LoadVRAMColorBank: MACRO
 	ld	a, $01		; select bank 1 (color bank)
-	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; USES: A
 rgb_LoadVRAMTileBank: MACRO
 	ld	a, $00		; select bank 0 (tile-data bank)
-	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; initializes the tiles with color \1 (a hard-coded #)
@@ -89,12 +89,12 @@ rgb_SetSingleBGP:
 	add	a,a		; a = pal # * 4
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
-	ld	[rBCPS],a
+	ldh	[rBCPS],a
 	ld	bc,$0869	; b = 8, c = rBCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -109,12 +109,12 @@ rgb_SetSingleBGP:
 ; Entry: HL = pntr to data for 8 palettes
 rgb_SetAllBGP:
 	ld	a,%10000000	; bit 7 = auto-increment. Bits 0-6 = index 0
-	ld	[rBCPS],a
+	ldh	[rBCPS],a
 	ld	bc,$4069	; b = 64, c = rBCPD	(when using ld [c], a)
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -133,12 +133,12 @@ rgb_SetSingleOBJP:
 	add	a,a		; a = pal # * 4
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
-	ld	[rOCPS],a
+	ldh	[rOCPS],a
 	ld	bc,$086b	; b = 8, c = rOCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -153,12 +153,12 @@ rgb_SetSingleOBJP:
 ; Entry: HL = pntr to data for 8 palettes
 rgb_SetAllOBJP:
 	ld	a,$80
-	ld	[rOCPS],a
+	ldh	[rOCPS],a
 	ld	bc,$406b	; b = 64, c = rOCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]

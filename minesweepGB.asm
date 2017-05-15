@@ -222,20 +222,20 @@ init_colorgb_variables:
 ; gameboy will hang. We avoid it by disabling interruption by the keypad
 ; (see Cycle-Accurate Game Boy Docs by AntonioND)
 cpu_doublespeed_switch:
-	ld	a, [rIE]
+	ldh	a, [rIE]
 	ld	b, a	; save Interrupt-enable's for later
 	xor	a, a
-	ld	[rIE], a	; clear Interrupt-enables
+	ldh	[rIE], a	; clear Interrupt-enables
 	ld	a, $30
 	ld	[rP1], a  ; briefly disable joypad from triggering interrupts
 	ld	a, $01
-	ld	[rKEY1], a	; tell cpu "prepare for hammer-time!"
+	ldh	[rKEY1], a	; tell cpu "prepare for hammer-time!"
 	stop ; Switch speed.
 	; stop normally halts cpu (in a bad way). But since we've just
 	; enabled double-speed mode, the cpu will pick up (After a screen
 	; flicker) in double-speed mode
 	ld a,b
-	ld [rIE],a		; restore Interrupt-enable's
+	ldh [rIE],a		; restore Interrupt-enable's
 	ret ; Restore IE.<Paste>
 
 
@@ -921,8 +921,8 @@ shake_screen_interrupt:
 	; disable shake variable
 	ld	[rShakeScreen], a
 	; Now we restore x,y to (0,0)
-	ld	[rSCX], a
-	ld	[rSCY], a
+	ldh	[rSCX], a
+	ldh	[rSCY], a
 	ret
 
 
