@@ -15,6 +15,8 @@ include "memory.asm"
 ;* v1.1 - Fixed interrupt bugs
 ;*
 
+; PALETTE_MASK can be applied to change only the palette on a sprite's
+; flags. Useful for reading / writing palette #
 rgb_PALETTE_MASK	=	%00000111
 
 
@@ -46,26 +48,26 @@ rgb_InvertedPalette:
 
 
 ; USES: A
-rgb_LoadVRAMColorBank: MACRO
+rgb_SwitchVRAM2ColorBank: MACRO
 	ld	a, $01		; select bank 1 (color bank)
 	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; USES: A
-rgb_LoadVRAMTileBank: MACRO
+rgb_SwitchVRAM2TileBank: MACRO
 	ld	a, $00		; select bank 0 (tile-data bank)
 	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; initializes the tiles with color \1 (a hard-coded #)
-; this assumes the LCD is stopped and/or safe to write to
+; this assumes the LCD is stopped and/or safe to write to (aka VRAM accessible)
 rgb_InitVRAMColorBank: MACRO
-	rgb_LoadVRAMColorBank
+	rgb_SwitchVRAM2ColorBank
 	ldhard	a, \1
 	ld	hl, _SCRN0
 	ld	bc, SCRN_VX_B * SCRN_VY_B ;256 tiles in a 32x32 screen area
 	call	mem_Set
-	rgb_LoadVRAMTileBank
+	rgb_SwitchVRAM2TileBank
 	ENDM
 
 
