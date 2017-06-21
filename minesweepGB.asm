@@ -259,6 +259,7 @@ init_variables:
 	ld	[rFirstProbe], a
 	ret
 init_startup_variables:
+	; Difficulty variables are now RESET by title.asm
 	lda	30
 	ld	[rDifficulty], a	; store default difficulty of 30
 	ld	[rDifficultyRamp], a
@@ -502,10 +503,8 @@ fill_mines:
 
 ; re-iterates current mine count and potentially removes a mine @ a location
 ; where there are >= 3 mines nearby. Should help remove dense clusters of mines
-; but leave edge-mines in place. This'll make it more likely that there will
-; stragglers around the edges
 remove_dense_mines:
-	mat_IterInit	_SCRN0, 1, SCRN_Y_B - 1,   1, SCRN_X_B - 1
+	mat_IterInit	_SCRN0, 0, SCRN_Y_B,   0, SCRN_X_B
 .iterate
 	mat_IterNext	_SCRN0
 	ret	nc	; return if iteration done
