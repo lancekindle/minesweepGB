@@ -13,7 +13,8 @@
 
 include "vars.asm"
 include "sprite.inc"
-include "dma.asm"
+include "dma.inc"
+include "movement.asm"
 
 	IF !DEF(CROSSHAIRS_ASM)
 CROSSHAIRS_ASM	SET	1
@@ -88,43 +89,18 @@ crosshairs_move_halfway_to_player:
 ;	ld	[rCrosshairY], a
 ;	ld	a, [rPlayerX]
 ;	ld	[rCrosshairX], a
-	; update Y position
-	ld	a, [rCrosshairY]
+	lda	[rCrosshairY]
 	ld	b, a
-	ld	a, [rPlayerY]
-	sub	b	; calculate player_y - crosshar_y
-	jp	z, .update_X	; skip updating Y if it's already equal
-	jp	c, .negativeY	; handle case where cross_Y > player_Y
-	; A is positive here. We add half that to crosshair_y
-	srl	a	; divide offset by 2
-	; if A=0 now, then before A / 2 (srl A) it was 1. Reload 1 so that
-	; crosshairs will reach destination
-	if_flag	z, ld	a, 1
-	jp .add_half_y_offset
-.negativeY
-	sra	a	; divide by 2 (for signed/negative numbers)
-	; unlike unsigned #s, -1 never goes away when divided by 2. $FF stays
-	; $FF when using sra (which keeps the same bit 7)
-	; so it's totally cool to use the exact result as the offset
-.add_half_y_offset
-	add	b	; apply offset to crosshair_y
+	lda	[rCrosshairX]
+	ld	c, a
+	lda	[rPlayerY]
+	ld	d, a
+	lda	[rPlayerX]
+	ld	e, a
+	call	move_BC_halfway_to_DE
+	lda	b
 	ld	[rCrosshairY], a
-	; update X position
-.update_X
-	ld	a, [rCrosshairX]
-	ld	b, a
-	ld	a, [rPlayerX]
-	sub	b	; calculate player_X - crosshar_X
-	ret 	z	; skip updating X if it's already equal
-	jp 	c, .negativeX	; handle case where cross_X > player_X
-	srl	a	; divide offset by 2
-	; if A=0, then our offset was one. Load 1 as offset
-	if_flag	z, ld	a, 1
-	jp .add_half_x_offset
-.negativeX
-	sra	a	; divide by 2 (for signed/negative numbers)
-.add_half_x_offset
-	add	b	; apply offset to crosshair_x
+	lda	c
 	ld	[rCrosshairX], a
 	ret
 

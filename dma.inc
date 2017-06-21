@@ -1,6 +1,6 @@
 
-	IF ! DEF(DMA_ASM)
-DMA_ASM SET	1
+	IF ! DEF(DMA_INC)
+DMA_INC SET	1
 
 DMACODELOC	EQU	$ff80
 ; end location was experimentally determined
@@ -11,7 +11,7 @@ DMA_END_LOC	EQU	$ff80 + 13
 ; dma_Copy2HRAM trashes all registers
 ; actual dma code preserves all registers
 dma_Copy2HRAM: MACRO
-; we include memory.asm INSIDE this macro call because DMA.ASM by design,
+; we include memory.asm INSIDE this macro call because dma.inc by design,
 ; generates no code in the ROM when included.
 ; This is important because DMACODELOC is referenced before we can load the
 ; actual dmacode. So we must use only macros & defines in this file
@@ -58,4 +58,4 @@ dmaend\@:
 ; bytes every H-blank
 
 
-	ENDC	; end dma.asm define
+	ENDC	; end dma.inc define

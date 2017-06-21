@@ -1,10 +1,12 @@
+	IF	!DEF(RGB_ASM)	; prevent multiple includes of this file
+RGB_ASM	SET	1
+
 include "gbhw.inc"
 include "cgbhw.inc"
 include "syntax.asm"
 include "memory.asm"
 
 ; library to help with colors on the gameboy color
-
 
 ;*
 ;* Set GameBoy Colo(u)r palettes
@@ -13,8 +15,10 @@ include "memory.asm"
 ;* v1.1 - Fixed interrupt bugs
 ;*
 
-	IF	!DEF(RGB_ASM)	; prevent multiple includes of this file
-RGB_ASM	SET	1
+; PALETTE_MASK can be applied to change only the palette on a sprite's
+; flags. Useful for reading / writing palette #
+rgb_PALETTE_MASK	=	%00000111
+
 
 ;	This RGBSet Macro uses RGB values from 0 to 255.
 ; Even though this is a greater color range than the
@@ -44,26 +48,26 @@ rgb_InvertedPalette:
 
 
 ; USES: A
-rgb_LoadVRAMColorBank: MACRO
+rgb_SwitchVRAM2ColorBank: MACRO
 	ld	a, $01		; select bank 1 (color bank)
-	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; USES: A
-rgb_LoadVRAMTileBank: MACRO
+rgb_SwitchVRAM2TileBank: MACRO
 	ld	a, $00		; select bank 0 (tile-data bank)
-	ld	[rVRAM_BANK], a		; aka ld [$FF4F], a
+	ldh	[rVRAM_BANK], a		; aka ld [$FF4F], a
 	ENDM
 
 ; initializes the tiles with color \1 (a hard-coded #)
-; this assumes the LCD is stopped and/or safe to write to
+; this assumes the LCD is stopped and/or safe to write to (aka VRAM accessible)
 rgb_InitVRAMColorBank: MACRO
-	rgb_LoadVRAMColorBank
+	rgb_SwitchVRAM2ColorBank
 	ldhard	a, \1
 	ld	hl, _SCRN0
 	ld	bc, SCRN_VX_B * SCRN_VY_B ;256 tiles in a 32x32 screen area
 	call	mem_Set
-	rgb_LoadVRAMTileBank
+	rgb_SwitchVRAM2TileBank
 	ENDM
 
 
@@ -89,12 +93,12 @@ rgb_SetSingleBGP:
 	add	a,a		; a = pal # * 4
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
-	ld	[rBCPS],a
+	ldh	[rBCPS],a
 	ld	bc,$0869	; b = 8, c = rBCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -109,12 +113,12 @@ rgb_SetSingleBGP:
 ; Entry: HL = pntr to data for 8 palettes
 rgb_SetAllBGP:
 	ld	a,%10000000	; bit 7 = auto-increment. Bits 0-6 = index 0
-	ld	[rBCPS],a
+	ldh	[rBCPS],a
 	ld	bc,$4069	; b = 64, c = rBCPD	(when using ld [c], a)
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -133,12 +137,12 @@ rgb_SetSingleOBJP:
 	add	a,a		; a = pal # * 4
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
-	ld	[rOCPS],a
+	ldh	[rOCPS],a
 	ld	bc,$086b	; b = 8, c = rOCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]
@@ -153,12 +157,12 @@ rgb_SetSingleOBJP:
 ; Entry: HL = pntr to data for 8 palettes
 rgb_SetAllOBJP:
 	ld	a,$80
-	ld	[rOCPS],a
+	ldh	[rOCPS],a
 	ld	bc,$406b	; b = 64, c = rOCPD
 .loop1:
 	di
 .loop2:
-	ld	a,[rSTAT]
+	ldh	a,[rSTAT]
 	and	2
 	jr	nz,.loop2
 	ld	a,[hl+]

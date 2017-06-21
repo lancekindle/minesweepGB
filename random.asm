@@ -48,7 +48,7 @@ random_xorshift_update:
 	ld	c, a	; hold rand#2
 	add	b	; rand#1 = rand#2 + xor-shifted-rand#1
 	ld	[random_LoByte2], a	; store rand#1  (in rand#2's ram spot)
-	lda	[rDIV]	; load divider register (time-based number that inc's)
+	ldh	a, [rDIV]	; load divider register (time-based number that inc's)
 	adc	b	; add rand#1 (pre-addition) + CY
 	sub	c	; rand#2 = [rDIV + rand#1(pre-add)] - rand#2
 	ld	[random_LoByte1], a	; store rand#2  (in rand#1's ram spot)

@@ -47,7 +47,7 @@ trash\@ = 1
 		push	af
 	ENDC
 .wait4vblank\@
-	ld	a, [rLY]
+	ldh	a, [rLY]
 	cp	145	; are we at line 145 yet?  (finished drawing screen then)
 	jr	nz, .wait4vblank\@
 	IF trash\@ == 0
@@ -56,25 +56,25 @@ trash\@ = 1
 	ENDM
 
 lcd_Stop:
-	ld	a, [rLCDC]  ; LCD-Controller
+	ldh	a, [rLCDC]  ; LCD-Controller
 	rlca		; rotate. IF LCD is On, bit 7 will carry (into carry flag)
 	ret	nc		; return if LCD is already off (carry-flag was 0)
 .wait4vblank
-	ld	a, [rLY]
+	ldh	a, [rLY]
 	cp	145	; are we at line 145 yet?  (finished drawing screen then)
 	jr	nz, .wait4vblank
 .stopLCD
-	ld	a, [rLCDC]
+	ldh	a, [rLCDC]
 	xor	LCDCF_ON	; XOR lcd-on bit with lcd control bits. (toggles LCD off)
-	ld	[rLCDC], a   ; `a` holds result of XOR operation
+	ldh	[rLCDC], a   ; `a` holds result of XOR operation
 	ret
 
 ; minimally turn on lcd. Preserve any Previous settings turned on
 ; AUGH. Objects were NOT turned on within the LCD, so my object never showed up
 lcd_On:
-	ld	a, [rLCDC]
+	ldh	a, [rLCDC]
 	or	LCDCF_ON
-	ld	[rLCDC], a
+	ldh	[rLCDC], a
 	ret
 
 ; beginner-style lcd-on command. Enables everything in the lcd and initializes
@@ -82,7 +82,7 @@ lcd_On:
 ; however. That one's important to enable once you're ready
 lcd_Begin:
 	ld	a, LCDCF_ON
-	ld	[rLCDC], a
+	ldh	[rLCDC], a
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
 	call	lcd_ScreenInit
@@ -90,26 +90,26 @@ lcd_Begin:
 
 ; enable all backgrounds
 lcd_ShowBackground:
-	ld a, [rLCDC]
-	or LCDCF_BG8000
-	or LCDCF_BG9800
-	or LCDCF_BGON
-	ld [rLCDC], a
+	ldh	a, [rLCDC]
+	or	LCDCF_BG8000
+	or	LCDCF_BG9800
+	or	LCDCF_BGON
+	ldh	[rLCDC], a
 	ret
 
 ; modify sprite lcd options to enable sprites of 8bit size
 ; LCDCF_OBJ16 and LCDCF_OBJ8 control which objects get displayed
 ; LCDCF_OBJON / LCDCF_OBJOFF control if objects get displayed at all
 lcd_ShowSprites:
-	ld a, [rLCDC]  ; load current LCD config|LCDCF_OBJ8|LCDCF_OBJON
-	or LCDCF_OBJON   ; add the "OBJECTS ON" option
-	or LCDCF_OBJ8    ; add the "Obj 8-bit" option
-	ld [rLCDC], a  ; push the new LCD config
+	ldh	 a, [rLCDC]  ; load current LCD config|LCDCF_OBJ8|LCDCF_OBJON
+	or	LCDCF_OBJON   ; add the "OBJECTS ON" option
+	or	LCDCF_OBJ8    ; add the "Obj 8-bit" option
+	ldh	[rLCDC], a  ; push the new LCD config
 	ret
 
 lcd_EnableVBlankInterrupt:
-	ld a, IEF_VBLANK
-	ld [rIE], a             ; config to only allow V-blank interrupts
+	ld	a, IEF_VBLANK
+	ldh	[rIE], a             ; config to only allow V-blank interrupts
 	ei						; actually enable interrupts ??? I left this out
 							; and it still worked
 	ret
@@ -117,12 +117,12 @@ lcd_EnableVBlankInterrupt:
 ; init screen. (x,y) == (0,0) and setup pallette to standard
 lcd_ScreenInit:
 	ld	a, 0		; set (x,y) to (0,0)
-	ld	[rSCX], a
-	ld	[rSCY], a
+	ldh	[rSCX], a
+	ldh	[rSCY], a
 	ld	a, %11100100	; setup pallette colors
-	ld	[rBGP], a	;  set background pallet
-	ld	[rOBP0], a	;  set sprite/obj pallete 0
-	ld	[rOBP1], a	;  set sprite/ obj pallete 1
+	ldh	[rBGP], a	;  set background pallet
+	ldh	[rOBP0], a	;  set sprite/obj pallete 0
+	ldh	[rOBP1], a	;  set sprite/ obj pallete 1
 	; lh   vs.   ldh.    ldh sets address to $ff00 and then adds (?) nn
 	; OR ldh sets address to nn BUT sets 2nd byte to ff
 	ret

@@ -46,11 +46,20 @@ sprite_PutTile: MACRO
 	ld	[\1_TileNum], a
 	ENDM
 
+; get current tile of sprite
+sprite_GetTile: MACRO
+	ld	a, [\1_TileNum]
+	ENDM
+
 ; change flags. This will set the full flags-byte. Flags include properties:
 ; palette#, Xflip, Yflip, priority, etc...
 sprite_PutFlags: MACRO
 	load	a, \2
 	ld	[\1_Flags], a
+	ENDM
+
+sprite_GetFlags: MACRO
+	ld	a, [\1_Flags]
 	ENDM
 
 ;set XAddr of sprite.

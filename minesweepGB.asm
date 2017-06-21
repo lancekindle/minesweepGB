@@ -7,7 +7,7 @@
 include "gbhw.inc"
 include "cgbhw.inc"
 include "ibmpc1.inc"
-include "dma.asm"
+include "dma.inc"
 
 
 
@@ -70,6 +70,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rGBA	; set to > 0 if running on gameboy advance
 					
 	var_LowRamByte	rDifficulty	; 0-255 = chance to lay mine. 0=easy
+	var_LowRamByte	rDenseDifficulty
 	var_LowRamByte	rDifficultyRamp	; increase after winning
 	var_LowRamByte	rNearbyCount
 	var_LowRamByte	rCellY
@@ -77,6 +78,7 @@ include "crosshairs.asm"
 	var_LowRamByte	rFirstProbe
 	var_LowRamByte	rMinesCount
 	var_LowRamByte	rGameOver
+	var_LowRamByte	rWinner
 	var_LowRamWord	rCellsRemaining
 	var_LowRamByte	rCorrectFlags
 	var_LowRamByte	rWrongFlags
@@ -93,10 +95,11 @@ include "crosshairs.asm"
 	; toReveal holds coordinates and value to place on cells
 	stack_Declare	toReveal, 10*3	; reveal up to 10 squares per vblank
 	stack_Declare	minesToReveal, 4*3	; reveal +4 mines per vblank
-	stack_Declare	VRAMBytesToLoad, 3*3	; hold 3 tiles to load
+	stack_Declare	VRAMBytesToLoad, 9*3	; hold 9 bytes to load
 ; smoke and tile need VRAMBytesToLoad stack pre-declared
 include "smoke.asm"
 include "title.asm"
+include "firework.asm"
 	; toFlag holds coordinates of cells to flag.
 	; (but will not flag it if it's marked as probed)
 	stack_Declare	toFlag, 2	; enough to queue 1 flag only
@@ -154,7 +157,7 @@ bg_color_palettes:
 	rgb_Set	255,   0, 255	; magenta
 	; red on white (bad indicator)
 	rgb_Set 255, 255, 255	; white
-	rgb_Set	255, 150, 150	; light red
+	rgb_Set	255, 100, 100	; light red
 	rgb_Set	255,   0,   0	; red
 	rgb_Set	128,   0,   0	; dark red
 	; yellow on white
@@ -210,8 +213,8 @@ init_colorgb_variables:
 	ld	hl, bg_color_palettes
 	call	rgb_SetAllBGP
 	xor	a
-	ld	hl, rgb_StandardPalette
-	call	rgb_SetSingleOBJP  ; set sprite palette 0 (reg. A) to greyscale
+	ld	hl, bg_color_palettes
+	call	rgb_SetAllOBJP	; set sprite palettes to mirror bg
 	ret
 
 ; this properly switches the cpu to double speed mode (cbg-only).
@@ -219,20 +222,20 @@ init_colorgb_variables:
 ; gameboy will hang. We avoid it by disabling interruption by the keypad
 ; (see Cycle-Accurate Game Boy Docs by AntonioND)
 cpu_doublespeed_switch:
-	ld	a, [rIE]
+	ldh	a, [rIE]
 	ld	b, a	; save Interrupt-enable's for later
 	xor	a, a
-	ld	[rIE], a	; clear Interrupt-enables
+	ldh	[rIE], a	; clear Interrupt-enables
 	ld	a, $30
 	ld	[rP1], a  ; briefly disable joypad from triggering interrupts
 	ld	a, $01
-	ld	[rKEY1], a	; tell cpu "prepare for hammer-time!"
+	ldh	[rKEY1], a	; tell cpu "prepare for hammer-time!"
 	stop ; Switch speed.
 	; stop normally halts cpu (in a bad way). But since we've just
 	; enabled double-speed mode, the cpu will pick up (After a screen
 	; flicker) in double-speed mode
 	ld a,b
-	ld [rIE],a		; restore Interrupt-enable's
+	ldh [rIE],a		; restore Interrupt-enable's
 	ret ; Restore IE.<Paste>
 
 
@@ -250,13 +253,20 @@ init_variables:
 	; set jpad variables
 	call	move_InitJpadVariables
 	; others
-	lda	30
-	ld	[rDifficulty], a	; store default difficulty of 30
-	ld	[rDifficultyRamp], a
 	ld	bc, SCRN_X_B * SCRN_Y_B	; number of cells (20x18 == 360)
 	var_SetWord	b,c,	rCellsRemaining
 	ld	a, 1
 	ld	[rFirstProbe], a
+	ret
+init_startup_variables:
+	; Difficulty variables are now RESET by title.asm
+	lda	30
+	ld	[rDifficulty], a	; store default difficulty of 30
+	ld	[rDifficultyRamp], a
+	lda	100
+	ld	[rDenseDifficulty], a	; 200 used to be default. Small=easy
+	lda	0
+	ld	[rWinner], a
 	ret
 
 
@@ -264,11 +274,13 @@ begin:
 	di    ; disable interrupts
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	check_hardware	; where we check for, and set up GBC & GBA vars
+	call	init_startup_variables
+	dma_Copy2HRAM
 reset:		; also called after player loses and is resetting
 	di
 	ld	sp, $ffff	; reset stack to top
-	dma_Copy2HRAM
-	irq_DisableAll	; disable all interrupts
+	irq_DisableAll	; disable all interrupts. So irq won't mess w/ state
+	call	init_variables
 	call	lcd_ScreenInit		; set up pallete and (x,y)=(0,0)
 	call	lcd_Stop
 	mat_Init	_SCRN0, Blank	; initialize screen background with " "
@@ -290,8 +302,8 @@ reset:		; also called after player loses and is resetting
 	call	SpriteSetup
 	call	lcd_ShowBackground
 	call	lcd_ShowSprites
-	call	init_variables
-	call	title_LevelSelect	; blocks until difficulty selected
+	lda	[rWinner]
+	ifa	==, 0, call title_LevelSelect
 	irq_DisableVBLANK
 	mat_Init	_SCRN0, 0	; initialize screen background with cells
 	call	fill_mines
@@ -307,16 +319,16 @@ reset:		; also called after player loses and is resetting
 	if_	jpad_EdgeA, call	probe_cell
 	; queue_color_mines_reveal is dmg compatible. The actual reveal
 	; loop is the one that needs to be color-sensitive
-	if_	only_mines_left, call queue_color_mines_reveal
+	if_	only_mines_left, call win_game
 	lda	[rGameOver]
-	ifa	>=, 1, jr .exploded_mainloop
+	ifa	>=, 1, jr .won_lost_mainloop
 	jr	.mainloop; jr is Jump Relative (it's quicker than jp)
-; exploded mainloop handles game over logic
-.exploded_mainloop
+; won/lost mainloop handles game over logic (waiting for keypress to reset)
+.won_lost_mainloop
 	; exploded mainloop monitors for keypress, then resets gameboy
 	call	jpad_GetKeys
 	if_	jpad_EdgeA, jp	reset
-	jr .exploded_mainloop
+	jr .won_lost_mainloop
 
 
 ; a macro that gets called in the middle of reading from the toReveal stack
@@ -397,6 +409,7 @@ handle_lcdc_main_game:
 .move
 	call	jpad_GetKeys  ; loads keys into register a, and jpad_rKeys
 	call	move_player_within_screen_bounds	; & move crosshairs
+	call	crosshairs_update
 .flag
 	if_	jpad_EdgeB, call	toggle_flag
 .done
@@ -490,10 +503,8 @@ fill_mines:
 
 ; re-iterates current mine count and potentially removes a mine @ a location
 ; where there are >= 3 mines nearby. Should help remove dense clusters of mines
-; but leave edge-mines in place. This'll make it more likely that there will
-; stragglers around the edges
 remove_dense_mines:
-	mat_IterInit	_SCRN0, 1, SCRN_Y_B - 1,   1, SCRN_X_B - 1
+	mat_IterInit	_SCRN0, 0, SCRN_Y_B,   0, SCRN_X_B
 .iterate
 	mat_IterNext	_SCRN0
 	ret	nc	; return if iteration done
@@ -512,8 +523,10 @@ remove_dense_mines:
 	ifa	>=,3, jp .maybe_remove_mine
 	jp .iterate
 .maybe_remove_mine
+	lda	[rDenseDifficulty]	; default value of 200
+	ld	b, a	; small DenseDifficulty = easy: mine removed more often
 	rand_A
-	ifa	>,200, jp .iterate
+	ifa	>, b, jp .iterate
 	mat_IterYX	_SCRN0; get Y,X in DE
 	mat_GetYX	mines, d, e
 	ifa	==, 0, jp .iterate	; there's no mine. Go back to iteration
@@ -783,6 +796,26 @@ all_mines_flagged:
 	ret_false
 
 
+win_game:
+	di
+	irq_DisableAll
+	irq_EnableVBLANK
+	call	firework_create_particles
+	irq_CallFromLCDC	firework_HandleLCDC
+	irq_EnableLCDC_AtLine	100
+	ei
+	lda	$FF
+	ld	[rWinner], a	; both winner and GameOver need to be set
+	ld	[rGameOver], a
+	ld	a, [rDifficultyRamp]
+	ld	hl, rDifficulty
+	add	[hl]
+	ld	[hl], a ; difficulty = difficulty + ramp
+	call	crosshairs_disappear
+	call	queue_color_mines_reveal
+	ret
+
+
 ; returns true/false if all non-mine cells have been probed
 only_mines_left:
 	var_GetWord	b,c,	rCellsRemaining
@@ -806,6 +839,8 @@ mine_probed:
 	call	crosshairs_disappear
 	lda	$FF
 	ld	[rGameOver], a
+	xor	a
+	ld	[rWinner], a
 	call	queue_color_mines_reveal
 .wait_for_empty_stack
 	stack_Size	minesToReveal
@@ -883,8 +918,8 @@ shake_screen_interrupt:
 	; disable shake variable
 	ld	[rShakeScreen], a
 	; Now we restore x,y to (0,0)
-	ld	[rSCX], a
-	ld	[rSCY], a
+	ldh	[rSCX], a
+	ldh	[rSCY], a
 	ret
 
 
@@ -964,8 +999,9 @@ LoadFont:
 	ld	bc, ASCII_TILES_END - ASCII_TILES_LOC
 	call	mem_CopyMono  ; copy a Monochrome font to ram. (our is monochrome?)
 	ret
-
-
-Title:  ; using (:) will save ROM address so that you can reference it in code
-	DB	"abcdefghijklmnopqrstuvwxyz"
-TitleEnd:
+	; Yes, ours is monochrome. An interesting thing about the mem_CopyMono
+	; fxn: it copies each byte from rom font TWICE. Each time to a
+	; sequential destination. But why? Because the gameboy takes 1 bit
+	; from each of two bytes to determine a pixel's shade in a row.
+	; To see RGBDS's syntax for handling this in a human-readable graphic,
+	; see my tileGraphics.asm. (Hint: preface each row with ` character)

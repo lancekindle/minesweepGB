@@ -6,7 +6,7 @@
 include "syntax.asm"
 include "matrix.asm"
 include "crosshairs.asm"
-include "dma.asm"
+include "dma.inc"
 include "math.asm"
 include "debug.asm"
 ; holds methods for displaying the title-screen
@@ -35,10 +35,13 @@ HARD_Y		SET	12
 
 EASY_DIFFICULTY	SET	30
 EASY_RAMP	SET	5
+EASY_DENSITY	SET	100
 MEDIUM_DIFFICULTY	SET	42
 MEDIUM_RAMP	SET	10
+MEDIUM_DENSITY	SET	200
 HARD_DIFFICULTY	SET	55
 HARD_RAMP	SET	15
+HARD_DENSITY	SET	230
 
 ; displays startscreen and waits for user input before returning
 ; runs a tight loop so that when the user presses a button,
@@ -124,18 +127,24 @@ set_difficulty_chosen:
 	ld	[rDifficulty], a
 	lda	EASY_RAMP
 	ld	[rDifficultyRamp], a
+	lda	EASY_DENSITY
+	ld	[rDenseDifficulty], a
 	ret
 .medium
 	lda	MEDIUM_DIFFICULTY
 	ld	[rDifficulty], a
 	lda	MEDIUM_RAMP
 	ld	[rDifficultyRamp], a
+	lda	MEDIUM_DENSITY
+	ld	[rDenseDifficulty], a
 	ret
 .hard
 	lda	HARD_DIFFICULTY
 	ld	[rDifficulty], a
 	lda	HARD_RAMP
 	ld	[rDifficultyRamp], a
+	lda	HARD_DENSITY
+	ld	[rDenseDifficulty], a
 	ret
 
 

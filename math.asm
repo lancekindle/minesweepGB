@@ -15,29 +15,23 @@ MATH_ASM	SET	1
 ; multiply two 8-bit registers together
 ; final result will reside in HL. (a 16-bit register is required)
 ; The two numbers should be in registers A & C (B will be set to 0)
-; when this procedure returns, it sets the carry flag if H > 0
-; aka, the carry flag will be 0 if the resulting # is only 8bits large
-; in that case, the L register would hold the number
-; COST: Fastest (64 Cycles / 53 Bytes) vs Slowest (72 Cycles / 61 Bytes)
+; COST: Fastest (44 Cycles) vs Slowest (52 Cycles)
 math_MultiplyAC:
 	ld	b, 0
-	ld	h, b
-	ld	l, b	; set HL to 0
-	; shift a to right by 1. In this case, RRA (rotate "a" right) is the
-	; same operation as SRA, but faster.
-	; If 1 was rotated into the carry-flag, then we add BC to HL
-	; then we multiply C by 2 (shift bc left)
-	; do that 8 times, and you'll have multiplied C by A
-	REPT	7	; (do the following 7 times)
-		RRA
+	ld	l, b
+	ld	h, a	; set HL to $A0
+	REPT	8	; (do the following 8 times)
+; The trick here is to combine shifting bits out of A, and shifting BC
+; appropriately into one step: add HL, HL
+; Previously we RIGHT-shifted A and added C (as BC) to HL if CY=1, then
+; LEFT-shifted BC unconditionally
+; By LEFT-shifting A, we must start with BC = $XX00, where XX=multiplier.
+; we then add BC to HL if CY=1, then RIGHT-shift BC unconditionally.
+; this LEFT-shifting of A and (by left-shifting HL) RIGHT-shifting of BC
+; can happen in one step: ADD HL, HL .... if H=A,L=0,B=0,C=C
+		add	hl, hl
 		if_flag	c,	add	hl, bc
-		shift_left	b, c
 	ENDR
-	RRA	; (8th time)
-	if_flag	c,	add	hl, bc
-	; Lastly, set carry flag if HL > 255
-	ld	a, %11111111
-	add	h	; will set carry flag if H > 0
 	ret
 
 ; A is number to multiply by a power of 2
@@ -46,8 +40,8 @@ math_MultiplyAC:
 math_PowerA2C:
 	ld	h, 0
 	ld	l, a	; store a in L. Now HL holds value of A
-	xor	a	; xors A unto itself. sets A=0. Faster than ld a, 0
-	or	c
+	inc	c
+	dec	c	; quickly check if C is 0
 	ret	z	; return if power (C) is 0. (which means HL == A * 1)
 .double_HL_per_C
 	add	hl, hl	; double value of HL
@@ -65,8 +59,8 @@ math_PowerA2C:
 math_PowerA2B_Plus_A2BC:
 	ld	h, 0
 	ld	l, a	; store a in L. Now HL holds value of A
-	xor	a	; xors A unto itself. sets A=0. Faster than ld a, 0
-	or	b	; check if B > 0
+	inc	b
+	dec	b	; to check if B > 0
 	jr	z, .second_step_A2BC	;if B=0, move to 2nd step (HL == A)
 .double_HL_per_B
 	add	hl, hl	; HL = HL*2
@@ -74,8 +68,8 @@ math_PowerA2B_Plus_A2BC:
 	jr	nz, .double_HL_per_B
 ; at this point, HL = A * 2^B
 .second_step_A2BC
-	xor	a	; again, set a=0
-	or	c
+	inc	c
+	dec	c	; to check if C > 0
 	ret	z	; if C=0, return with current result (A * 2^B) in HL
 	push	hl	; store A * 2^B
 .double_HL_per_C
@@ -211,9 +205,6 @@ math_MultiplyPowerOf2: MACRO
 		ld	c, 10	;2^10 = 1024
 		call	math_PowerA2C_2
 	ENDC
-	; set carry-flag if H > 0
-	ld	a, %11111111
-	add	h
 	ENDM
 
 

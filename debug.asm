@@ -46,18 +46,18 @@ bug_break: MACRO
 bug_snapshot:
 	di	; disable interrupts since we'll be doing some SP manipulation
 	push	af
-	ld	a, [rTIMA]	; preserve timer counter. We'll restore
+	ldh	a, [rTIMA]	; preserve timer counter. We'll restore
 	push	af		; at end of snapshot
-	ld	a, [rIF]	; preserve interrupt flags. We'll restore
+	ldh	a, [rIF]	; preserve interrupt flags. We'll restore
 	push	af		; at end of snapshot
 	push	hl
 	add	sp, 6		; backtrack past pushed HL & rIF & rTIMA values
 	pop	af		; get original AF
-	ld	[rDIV], a	; write A
+	ldh	[rDIV], a	; write A
 	add	sp, -1		; go forward 1 byte. To align SP with F (flags)
 				; (remember SP starts at top of memory)
 	pop	af		; now we pop off F? into AF
-	ld	[rDIV], a	; write F
+	ldh	[rDIV], a	; write F
 	; at this point, SP is +1 (1 byte before our pushed values began).
 	; it also is 1 byte into the return address (pushed when calling
 	; bug_snapshot)
@@ -67,39 +67,39 @@ bug_snapshot:
 			; (so SP is 8 bytes from top). From here we can Pop the
 			; return address -- aka PC before snapshot was called
 	ld	a, b
-	ld	[rDIV], a	; write b
+	ldh	[rDIV], a	; write b
 	ld	a, c
-	ld	[rDIV], a	; write c
+	ldh	[rDIV], a	; write c
 	ld	a, d
-	ld	[rDIV], a	; write d
+	ldh	[rDIV], a	; write d
 	ld	a, e
-	ld	[rDIV], a	; write e
+	ldh	[rDIV], a	; write e
 	ld	a, h
-	ld	[rDIV], a	; write h
+	ldh	[rDIV], a	; write h
 	ld	a, l
-	ld	[rDIV], a	; write l
+	ldh	[rDIV], a	; write l
 	ld	hl, sp+2	; get SP address (before fxn call)
 				; +2 basically offsets so that HL now holds
 				; where SP would have pointed right before this
 				; routine was called
 	ld	a, h
-	ld	[rDIV], a	; write S
+	ldh	[rDIV], a	; write S
 	ld	a, l
-	ld	[rDIV], a	; write P
+	ldh	[rDIV], a	; write P
 			; (remember, we left SP ready to pop off return addr)
 	pop	hl	; return address == PC before bug_snapshot was called
 			; SP is now 10 bytes away from top (PC,AF,AF,AF,HL)
 	add	sp, -10	; return SP to top of stack, ready to pop
 	ld	a, h
-	ld	[rDIV], a	; write P
+	ldh	[rDIV], a	; write P
 	ld	a, l
-	ld	[rDIV], a	; write C
+	ldh	[rDIV], a	; write C
 	; that's it! We've written to rDIV our entire register stack, in order.
 	; AF, BC, DE, HL, SP, PC
 	pop	hl
 	pop	af		; restore original interrupt flags (so that we
-	ld	[rIF], a	; interrupts to pre-snapshot state)
+	ldh	[rIF], a	; interrupts to pre-snapshot state)
 	pop	af
-	ld	[rTIMA], a	; restore timer to pre-snapshot state
+	ldh	[rTIMA], a	; restore timer to pre-snapshot state
 	pop	af	;get original AF values
 	reti		; return and enable interrupts

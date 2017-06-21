@@ -10,13 +10,16 @@ include	"syntax.asm"
 include "tileGraphics.asm"
 include "memory.asm"
 include "sprite.inc"
+include "random.asm"
 
 
 	var_LowRamByte	rSmokeRandByte	; holds onto byte # to change
 	var_MidRamBytes	rSmokeTile1, 16
 	var_MidRamBytes	rSmokeTile2, 16
 	var_MidRamBytes	rSmokeTile3, 16
+	var_MidRamBytes	rSmokeFireball, 16
 	; learn SpriteAttr from sprite.inc
+	SpriteAttr	Spr_SmokeFireball
 	SpriteAttr	Spr_Smoke1	; has attributes Spr_Smoke1TileNum, etc
 	SpriteAttr	Spr_Smoke2
 	SpriteAttr	Spr_Smoke3
@@ -31,7 +34,12 @@ create_smoke_particles:
 	ld	de, rSmokeTile2
 	preserve2 HL, BC,	call	mem_Copy	; copy to ram
 	ld	de, rSmokeTile3
+	push	bc
 	call	mem_Copy	; copy to ram
+	pop	bc	; same tile size (16 Bytes)
+	ld	de, rSmokeFireball
+	ld	hl, mine_gfx + 16*5	; get exploded mine graphic (5th one)
+	call	mem_Copy
 	; setup sprite images so that they point to smoke particles
 	ld	a, 3
 	sprite_PutTile	Spr_Smoke1, a	; sprite3
@@ -39,6 +47,12 @@ create_smoke_particles:
 	sprite_PutTile	Spr_Smoke2, a	; sprite4
 	inc	a
 	sprite_PutTile	Spr_Smoke3, a	; sprite5
+	lda	"*" + 5	; point sprite @ 5th mine sprite (exploded one)
+	sprite_PutTile	Spr_SmokeFireball, a	; sprite6
+	; set fireball palette to fire (7)
+	; first 3 bits are for palette. We don't care about other flags
+	lda	7
+	sprite_PutFlags Spr_SmokeFireball, a
 	; get player coordinates (Actual pixel #) in de
 	lda	[rPlayerY]
 	ld	d, a
@@ -65,8 +79,25 @@ create_smoke_particles:
 	PutSpriteYAddr	Spr_Smoke3, a
 	lda	e
 	PutSpriteXAddr	Spr_Smoke3, a
+	; place fireball @ player's location
+	lda	d
+	PutSpriteYAddr	Spr_SmokeFireball, a
+	lda	e
+	PutSpriteXAddr	Spr_SmokeFireball, a
 	ret
 
+; gets random-ish byte in the range 0-15, and updates itself
+smoke_increment_randomness: MACRO
+	lda	[rSmokeRandByte]
+	add	2
+	; load a with odd or even starting value to complement the previous
+	; loop on which it was operating. Since this loop resets values >= 17,
+	; rRandTileByte does not need to be initialized (though it'd be best
+	; practice to do so)
+	ifa	==, 16, lda 1
+	ifa	>=, 17, lda 0
+	ld	[rSmokeRandByte], a
+	ENDM
 
 ; update each smoke particle-image such that it changes over time
 update_smoke_particles:
@@ -78,13 +109,30 @@ update_smoke_particles:
 	; edit and re-load 2nd smoke particle
 	ld	hl, smoke_font
 	ld	de, rSmokeTile2
-	ld	a, 4; tile right after select-box tile
+	ld	a, 4
 	call	randomly_alter_tile
 	; edit and re-load 3rd smoke particle
 	ld	hl, smoke_font
 	ld	de, rSmokeTile3
-	ld	a, 5; tile right after select-box tile
+	ld	a, 5
 	call	randomly_alter_tile
+	; edit and load changed byte from smoke Fireball
+	rand_A
+	ifa	>, 99, jp .skip	; but only ~ half the time
+	ld	hl, mine_gfx + 4*16	; mask will be fireball
+	ld	de, rSmokeFireball	; ram destination will be SmokeFireball
+	ld	a, "*" + 5	; tile to update is 5th mine-tile
+	pushall
+	call	randomly_alter_tile	; alter fire graphic twice
+	popall
+	call	randomly_alter_tile	; so that byte-traversal is 5 (prime, odd)
+	jr .done
+.skip
+	; if we skip updating randomness by 2, we need to make sure it advances
+	; here. (so that full traversal of smoke & fire tile bytes still works)
+	smoke_increment_randomness
+	smoke_increment_randomness
+.done
 	ret
 
 
@@ -94,7 +142,7 @@ update_smoke_particles:
 ;	A holds tile # in VRAM onto which this byte-update will apply
 ; USES:	AF, BC, DE, HL
 randomly_alter_tile:
-	; tile is made of 16 bytes. change 1 byte of tile each update
+	; tile is made of 16 bytes. change 1 byte of tile each update.
 	; interestingly, the gameboy uses one bit from both bytes to define a
 	; pixel shade. Meaning, if you change 1 byte of a row's word at a time,
 	; it'll look more like a shading difference than an actual pixel
@@ -102,15 +150,7 @@ randomly_alter_tile:
 	; byte 0, then on the 2nd loop change every-other byte starting with
 	; byte 1.
 	ld	b, a	; preserve tile # in B
-	lda	[rSmokeRandByte]
-	add	2
-	; load a with odd or even starting value to complement the previous
-	; loop on which it was operating. Since this loop resets values >= 17,
-	; rRandTileByte does not need to be initialized (though it'd be best
-	; practice to do so)
-	ifa	==, 16, lda 1
-	ifa	>=, 17, lda 0
-	ld	[rSmokeRandByte], a
+	smoke_increment_randomness	; get random # in A
 	ld	c, a	; preserve pixel # (aka tile offset)
 	; add offset to random-tile address
 	; HL => HL + A
@@ -131,18 +171,16 @@ randomly_alter_tile:
 	and	[hl]	; apply mask
 	ld	[de], a	; write masked random byte to tile byte in ram
 	lda	b	; restore tile #
-	add	a, a	; x2
-	add	a, a	; x4
-	add	a, a	; x8
-	add	a, a	; x16	(for 16 bytes per tile)
-	add	c	; add byte offset within tile
+	math_Mult	a, 16	; uses shortcut so only HL is modified
+	;x16	(for 16 bytes per tile)
+	ld	b, 0
+	add	hl, bc	; add byte offset within tile (byte offset is in C)
+	; HL now holds tile byte address
 	ld	bc, _VRAM
-	add	c
-	ld	c, a
-	lda	0
-	adc	b
-	ld	b, a	; BC => _VRAM + tile byte address
-	lda	[de]	; load byte back into A
+	add	hl, bc
+	; HL now holds actual VRAM address of byte within tile to change
+	lda	[de]	; load modified byte back into A
+	ldpair	bc, hl	; move vram tile-byte address into bc
 	stack_Push	VRAMBytesToLoad, C,B,A
 	ret
 

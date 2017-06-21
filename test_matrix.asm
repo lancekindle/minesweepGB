@@ -18,11 +18,9 @@ test_21_matrix_DeclareInit:
 	if_not	matrix_initiated_with_single_value, jp .failed_0F
 	if_not	matrix_initated_with_preset_values, jp .failed_0F
 .passed_0F
-	lda	1
-	TestResult	2, 1	; TestResult is a macro from test_includes.asm
+	TestPassed	2, 1	; TestPassed is a macro from test_includes.asm
 .failed_0F
-	lda	0
-	TestResult	2, 1
+	TestFailed	2, 1
 
 
 ; initialize a 4x4 matrix with the value 5. Iterate through all 9
@@ -119,11 +117,9 @@ test_22_matrix_IterDeclareInit:
 	ifa	<>, 25, jp .failed	; verify all 25 bytes == 32
 	PRINTV	matrix
 .passed
-	lda	1
-	TestResult	2, 2
+	TestPassed	2, 2
 .failed
-	lda	0
-	TestResult	2, 2
+	TestFailed	2, 2
 
 mat5x5_begin:
 DB	 1, 2, 3, 4, 5
@@ -186,12 +182,20 @@ test_23_matrix_SubmatrixIter:
 	ifa	<>, 6, jp .failed	; verify count
 	mat_IterInit	m3, 1,3,  2,5
 	verify_submatrix	m3, submat5x5_13_25
+	; verify submatrix values hard coded here
+	mat_IterInit	m3, 0,2, 0,2	; 2x2 submatrix in top-left corner
+	mat_IterNext	m3
+	ifa	<>, 1, jp .failed
+	mat_IterNext	m3
+	ifa	<>, 2, jp .failed
+	mat_IterNext	m3
+	ifa	<>, 6, jp .failed
+	mat_IterNext	m3
+	ifa	<>, 7, jp .failed
 .passed
-	lda	1
-	TestResult	2, 3
+	TestPassed	2, 3
 .failed
-	lda	0
-	TestResult	2, 3
+	TestFailed	2, 3
 
 verify_de: MACRO
 	lda	d
