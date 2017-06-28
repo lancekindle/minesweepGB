@@ -366,16 +366,12 @@ writeCells2VRAM: MACRO
 	ENDM
 
 
-; this gets called v-blank. It has three purposes:
-;  1) move sprite data
+; this gets called during v-blank by irq_HandleVBLANK.
+; it's sole purpose is to update Video Ram (VRAM). This is done 4 ways:
+;  1) move sprite data (by calling DMA routine)
 ;  2) reveal all awaiting #'d cells: cells that have been queued up in probe
-;  3) read joypad
-;  4) move character according to movement keys.
-;  5) queue up probe and flag operations according to other keys
-;  3) queue task-handler operation to read joypad and do appropriate actions
-;	IF it doesn't already have that queued. It's important that the task
-;	only gets run once
-; This 3rd task is another function that has a small list of to-run functions
+;  3) reveal all queued flags
+;  4) load specific bytes into specific VRAM addresses. (for animations)
 handle_vblank:
 	;pushall is handled by irq_HandleVBLANK
 	call	DMACODELOC ; DMACODE copies data from _RAM / $100 to OAMDATA
@@ -395,7 +391,7 @@ handle_vblank:
 	call	reveal_queued_mines ; (which only happens during game over)
 .done
 	;popall is handled by irq_HandleVBLANK
-	reti
+	ret
 
 ; handle interrupts thrown when lcd screen is at a certain point
 ; this will be set to just before VBLANK occurs. So this means the lcd-line
