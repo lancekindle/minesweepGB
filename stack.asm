@@ -348,7 +348,9 @@ thread_safe	set	0
 thread_safe	set	1
 		ENDC
 	ENDC
-	di	; avoid multi-thread manipulation of stack
+	IF thread_safe
+		di	; avoid multi-thread manipulation of stack
+	ENDC
 	IF _NARG == 1
 		call	stack_PopA
 	ENDC
@@ -377,7 +379,9 @@ thread_safe	set	1
 		ENDC				;-A-
 		ENDC
 	ENDC; end if _narg=2
-	ei	; re-enable interrupts. Stack is safe to manipulate again
+	IF thread_safe
+		ei	; re-enable interrupts. Stack is now safe to manipulate
+	ENDC
 	IF _NARG >= 4
 		FAIL	"\nstack_Pop expects at most 2 arguments. Got more\n"
 	ENDC
