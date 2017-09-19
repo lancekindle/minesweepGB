@@ -15,12 +15,12 @@ MATH_ASM	SET	1
 ; multiply two 8-bit registers together
 ; final result will reside in HL. (a 16-bit register is required)
 ; The two numbers should be in registers A & C (B will be set to 0)
-; COST: Fastest (44 Cycles) vs Slowest (52 Cycles)
+; COST: Fastest (46 Cycles) vs Slowest (56 Cycles)
 math_MultiplyAC:
 	ld	b, 0
 	ld	l, b
 	ld	h, a	; set HL to $A0
-	REPT	8	; (do the following 8 times)
+	REPT	7	; (do the following 7 times)
 ; The trick here is to combine shifting bits out of A, and shifting BC
 ; appropriately into one step: add HL, HL
 ; Previously we RIGHT-shifted A and added C (as BC) to HL if CY=1, then
@@ -32,6 +32,9 @@ math_MultiplyAC:
 		add	hl, hl
 		if_flag	c,	add	hl, bc
 	ENDR
+	add	hl, hl
+	ret	nc	; return early if final addition not needed
+	add	hl, bc
 	ret
 
 ; A is number to multiply by a power of 2
