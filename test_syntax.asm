@@ -33,10 +33,9 @@ test_03_preserve2:
 	lda	b
 	cp 3
 	jp	nz, .failed03
-	TestResult	3
+	TestPassed	3
 .failed03
-	lda	0
-	TestResult	3
+	TestFailed	3
 
 ;test preserve
 test_02_preserve:
@@ -66,10 +65,9 @@ test_02_preserve:
 	lda	l
 	cp	7 ; verify l
 	jr	nz, .failed02
-	TestResult	2
+	TestPassed	2
 .failed02
-	lda	0
-	TestResult	2
+	TestFailed	2
 
 
 ; test the if_ syntax
@@ -124,10 +122,9 @@ test_08_truefalse:
 	ret_false
 .tf2
 	jr	c, .failed08
-	TestResult	8
+	TestPassed	8
 .failed08
-	ld	a, 0
-	TestResult	8
+	TestFailed	8
 
 ; test ifa macro (which compares numbers to register a)
 test_09_ifa:
@@ -171,10 +168,9 @@ test_09_ifa:
 	ifa	!=, 4, jp .ifa9		; test !=
 	jp	.failed
 .ifa9
-	TestResult	9
+	TestPassed	9
 .failed
-	lda	0
-	TestResult	9
+	TestFailed	9
 
 ; test if_flags and if_not_flags syntax
 test_0A_if_flags:
@@ -197,10 +193,9 @@ test_0A_if_flags:
 	if_not_flags	nc, nz, jp .ifflags1
 	jp .failed_0A
 .ifflags1
-	TestResult	10
+	TestPassed	10
 .failed_0A
-	lda	0
-	TestResult	10
+	TestFailed	10
 
 
 ; shift_left and shift_right should shift one register into the next,
@@ -228,10 +223,9 @@ test_0B_shifts:
 	ifa	>, 0, jr	.failed_0B
 	lda	c
 	ifa	<>, %11000000, jr	.failed_0B
-	TestResult	11	; will print B if a >0
+	TestPassed	11
 .failed_0B
-	ld	a, 0
-	TestResult	11	; will print B if a > 0
+	TestFailed	11	; will print B if a > 0
 
 
 ; test increment and decrement. Pretty obvious. This macro is designed to
@@ -294,18 +288,20 @@ test_0C_increment_decrement:
 	test_decrement	$F3A9
 	test_decrement	$FE10
 	test_decrement	$0001, $0000
-.passed
-	lda	1
-	TestResult	12
+.passed_0C
+	TestPassed	12
 .failed
-	lda	0
-	TestResult	12
+	TestFailed	12
 
 
 ; test that ifa_not works as expected.
 test_0D_ifa_not:
 	; test failing matches first (where A IS >=2, but we're testing that
 	; ifa_not will reverse that logic)
+	jp .skip
+.passed_0D
+	TestPassed	13
+.skip
 	lda	1
 	ifa_not	<=, 2, jp .failed
 	ifa_not	>=, 0, jp .failed
@@ -342,14 +338,9 @@ test_0D_ifa_not:
 	ifa_not	<, 4, jp .ifa7		; test <
 	jp	.failed
 .ifa7
-	ifa_not	!=, 5, jp .passed	; test !=
-	jp	.failed
+	ifa_not	!=, 5, jp .passed_0D
 .failed
-	lda	0
-	TestResult	13
-.passed
-	lda	1
-	TestResult	13
+	TestFailed	13
 
 
 ; call with register, and value to load then negate
@@ -359,7 +350,7 @@ test_negate: MACRO
 		ld	\1, \2
 		negate	\1
 		ld	a, \1
-		ifa	<>, \3, jp .failed
+		ifa	<>, \3, jp .failed_0E
 		PRINTT	"\1"
 	ELSE
 		IF STRIN("BCDEHL",STRUPR("\1")) == 0
@@ -379,9 +370,9 @@ test_negate: MACRO
 		ld	hl, \3
 		; now DE, HL should be equal
 		ld	a, d
-		ifa	<>,h, jp .failed
+		ifa	<>,h, jp .failed_0E
 		ld	a, e
-		ifa	<>,l, jp .failed
+		ifa	<>,l, jp .failed_0E
 	ENDC
 	ENDM
 
@@ -404,20 +395,20 @@ test_0E_negate:
 	ld	a, 0
 	ld	b, 88
 	negate	b, trash AF
-	ifa	==, 0, jp .failed	; a should not be preserved
+	ifa	==, 0, jp .failed_0E	; a should not be preserved
 	ld	a, 0
 	negate	b
-	ifa	<>, 0, jp .failed	; a is preserved
+	ifa	<>, 0, jp .failed_0E	; a is preserved
 	; test "trash AF" arg when negating register pair
 	ld	a, 0
 	ld	hl, $F92F
 	negate	hl, trash AF
-	ifa	==, 0, jp .failed
+	ifa	==, 0, jp .failed_0E
 	ld	a, 0
 	negate	hl
-	ifa	<>, 0, jp .failed
-.passed
+	ifa	<>, 0, jp .failed_0E
+.passed_0E
 	TestPassed	14
-.failed
+.failed_0E
 	TestFailed	14
 

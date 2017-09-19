@@ -36,11 +36,9 @@ test_11_math_MultiplyAC:
 	math_MultiplyAC_Test	127, 40
 	math_MultiplyAC_Test	255, 255
 .passed_0C
-	ld	a, 1	; so that test passes
-	TestResult	1, 1
+	TestPassed	1, 1
 .failed_0C
-	ld	a, 0	; so that test fails
-	TestResult	1, 1
+	TestFailed	1, 1
 
 
 ; calls math_Mult macro with first two arguments.
@@ -103,11 +101,9 @@ test_12_math_Mult_Shortcuts:
 	math_Mult_Test	50, 144
 	math_Mult_Test	50, 160
 .passed_0D
-	ld	a, 1
-	TestResult	1, 2
+	TestPassed	1, 2
 .failed_0D
-	ld	a, 0
-	TestResult	1, 2
+	TestFailed	1, 2
 
 
 
@@ -170,8 +166,6 @@ test_13_math_Divide_A_by_C:
 	; test optional 3rd argument (result)
 	math_Div_Test	32, 16, 2
 .passed_13
-	ld	a, 1
-	TestResult	1, 3
+	TestPassed	1, 3
 .failed_13
-	ld	a, 0
-	TestResult	1, 3
+	TestFailed	1, 3
