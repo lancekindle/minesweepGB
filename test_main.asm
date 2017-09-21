@@ -59,6 +59,7 @@ begin:
 	call	test_11_math_MultiplyAC		; begin test_math.asm
 	call	test_12_math_Mult_Shortcuts
 	call	test_13_math_Divide_A_by_C
+	call	test_14_math_Mod
 	call	test_21_matrix_DeclareInit	; begin test_matrix.asm
 	call	test_22_matrix_IterDeclareInit
 	call	test_23_matrix_SubmatrixIter

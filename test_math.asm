@@ -169,3 +169,59 @@ test_13_math_Divide_A_by_C:
 	TestPassed	1, 3
 .failed_13
 	TestFailed	1, 3
+
+
+math_Mod_Test: MACRO
+	lda	\1
+	math_Mod	A, \2
+	IF _NARG == 3
+		ifa	<>, \3, jp .failed_14
+	ELSE
+		ifa	<>, \1 % \2, jp .failed_14
+	ENDC
+	ENDM
+
+; test that modulo works as expected.
+; remainder / modulus result in A. If the number is not hard-coded, or
+; not a power-of-two number, then B should hold the division result
+test_14_math_Mod:
+.test_fast_modulo
+	ld	b, 40	; to check that remainder has not been calculated
+	ld	c, 40
+	ld	d, 40
+	math_Mod_Test	3, 2, 1
+	ifa	<>, 1, jp .failed_14
+	math_Mod_Test	5, 2
+	math_Mod_Test	10, 4, 2
+	math_Mod_Test	56, 8
+	math_Mod_Test	34, 16
+	math_Mod_Test	130, 32
+	math_Mod_Test	208, 64
+	math_Mod_Test	199, 128
+	lda	40
+	ifa	<>, b, jp .failed_14	; verify that B has not been overwrote
+	ifa	<>, c, jp .failed_14	; verify that C has not been overwrote
+	ifa	<>, d, jp .failed_14	; verify that D has not been overwrote
+.test_slow_modulo
+	; now we calculate modulo where long division must occur
+	math_Mod_Test	5, 5
+	; remainder 0, division result 1
+	lda	1
+	ifa	<>, b, jp .failed_14
+	math_Mod_Test	99, 1
+	math_Mod_Test	9, 3
+	math_Mod_Test	10, 7
+	math_Mod_Test	19, 13
+	math_Mod_Test	123, 18
+	math_Mod_Test	38, 23
+	math_Mod_Test	93, 41
+	math_Mod_Test	148, 77
+	math_Mod_Test	37, 59
+	math_Mod_Test	109, 101
+	math_Mod_Test	233, 150
+	math_Mod_Test	233, 201
+	math_Mod_Test	233, 255
+.passed_14
+	TestPassed	1, 4
+.failed_14
+	TestFailed	1, 4

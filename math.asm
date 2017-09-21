@@ -37,6 +37,84 @@ math_MultiplyAC:
 	add	hl, bc
 	ret
 
+
+; if you want to calculate register A % 2,
+; simply 'AND math_Mod2' to get the result
+; A % 32? 'AND math_Mod32'
+math_Mod2	=	%00000001
+math_Mod4	=	%00000011
+math_Mod8	=	%00000111
+math_Mod16	=	%00001111
+math_Mod32	=	%00011111
+math_Mod64	=	%00111111
+math_Mod128	=	%01111111
+; this macro does the modding, and if required, performs division to get
+; the mod result. If it does division, the remainder (result after modulo)
+; will reside in A, and the result of the division in B
+; AF will be used when modulo "power-of-2" used. BC and DE will be used if
+; modulo is NOT a power of 2 number.
+math_Mod: MACRO
+mod_done\@	=	0
+	IF _NARG != 2
+		FAIL "2 arguments required for math_Mod"
+	ENDC
+	load	A, \1, "register A must be recipient of math_Mod"
+	IF STRIN("AFBCDEHL", STRUPR("\2")) >= 1
+		PRINTT "expensive modulo: \1 % \2"
+		ld	c, \2
+		call	math_Divide_A_by_C
+		ld	c, a	; store division result
+		ld	a, b	; A = remainder, aka modulo result
+		ld	b, c	; B = division result
+mod_done\@	=	1
+	ENDC
+	IF mod_done\@ == 0
+		IF (2 == \2)
+			AND	math_Mod2
+		ENDC
+		IF (4 == \2)
+			AND	math_Mod4
+		ENDC
+		IF (8 == \2)
+			AND	math_Mod8
+		ENDC
+		IF (16 == \2)
+			AND	math_Mod16
+		ENDC
+		IF (32 == \2)
+			AND	math_Mod32
+		ENDC
+		IF (64 == \2)
+			AND	math_Mod64
+		ENDC
+		IF (128 == \2)
+			AND	math_Mod128
+		ENDC
+		; set mod_done\@ if it matched any of the simple #'s
+		IF (2 == \2) || (4 == \2) || (8 == \2) || (16 == \2)
+mod_done\@	=	1
+		ENDC
+		IF (32 == \2) || (64 == \2) || (128 == \2)
+mod_done\@	=	1
+		ENDC
+	ENDC	; end mod_done check
+	; no shortcuts used in modulus. Now it has to done expensively
+	IF mod_done\@ == 0
+		PRINTT "expensive modulo: \1 % \2"
+		; now we have a number that actually needs division. This is
+		; expensive, computationally
+		; it overwrites AF, BC, DE
+		ldhard	C, \2, "2nd arg to math_Mod is a #. Performing div..."
+		call	math_Divide_A_by_C
+		ld	c, a	; store division result
+		ld	a, b	; A = remainder, aka modulo result
+		ld	b, c	; B = division result
+mod_done\@	=	1
+	ENDC	; end mod_done check
+	
+
+	ENDM
+
 ; A is number to multiply by a power of 2
 ; C is the power. The result (in HL) will be A * 2^C
 ; TO BE CLEAR: if C = 8, the result will be A * 2^8, or A * 256
@@ -527,9 +605,9 @@ math_Div: MACRO
 		call	math_Divide_A_by_C
 	ELSE
 	; check if \2 is a divisor that can be done fast computationallly
-	; these divisors are in the form 2^C
+	; these divisors are a power of 2
 	; basically, check if \2 is one of these numbers:
-	; 2, 4, 8 (yep that's all for now)
+	; 2, 4, 8, 16, 32, 64, 128
 	IF (\2 == 2) || (\2 == 4) || (\2 == 8) || (\2 == 16) || (\2 == 32) || (\2 == 64) || (\2 == 128)
 		PRINTT "\nUsing fast division for \1 / \2\n"
 		math_DivFast	a, \2
