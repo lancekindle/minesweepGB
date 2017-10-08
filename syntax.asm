@@ -577,22 +577,25 @@ ldpair: MACRO
 negate_pair: MACRO
 	xor	a	; zero out A
 	sub	\2	; subtract LSB of register pair (sets Carry if \2 > 0)
-	; A = -LSB
+	; A = -LSB   (aka two's complement of LSB)
 	ld	\2, a
-	ld	a, 0
-	sbc	\1	; A = -MSB - Carry  (aka A = complement(MSB) if CY = 1)
+	sbc	a, a	; if CY==1 (and \2 > 0), A = 255
+			; if CY==0 (and \2 == 0), A = 0
+	sub	\1	; A = -MSB - Carry  (aka A = complement(MSB) if CY = 1)
+			; A = two's complement of MSB if CY = 0
 	; they say that the easiest way to calculate two's complement of a
 	; register (aka negate a register) is to complement, then increment.
 	; so if A = %0000,0001. (01), then we complement: A = %1111,1110 (FE)
 	; & increment: A = %1111,1111 (FF).    FF is two's complement to 01.
-	; when negating a register pair, we complement and store each register,
+	; Or subtracting the value from zero is same as two's complement:
+	; xor a
+	; sub b		; gets two's complement of b.
+	; When negating a register pair, we complement and store each register,
 	; then increment the register pair as a whole. Meaning: increment LSB
 	; and only increment MSB if LSB overflowed. And LSB only overflows if
 	; it increments from FF to 0. LSB only increments to 0 if it's original
 	; value (before complement) was 0. So in other words, we only
 	; increment MSB if LSB == 0.
-	; The above SBC \1 increments MSB (by omission) if LSB == 0.
-	; Because the prior SUB \2 only sets the carry flag if LSB > 0
 	ld	\1, a
 	ENDM
 
