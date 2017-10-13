@@ -498,18 +498,6 @@ ldhard: MACRO
 ; ldpair_explicit	b,c,	h,l	; for example
 ; parameters are dest1, dest2,     src1, src2
 ; where dest1 & 2 must combine to form a register pair, and same with src1 & 2
-ldpair_old: MACRO
-	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
-		PRINTT "\nldpair only takes register pairs separated by commas"
-		FAIL ".Got \1,\2 as first two arguments instead."
-	ENDC
-	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\3","\4"))) == 0
-		PRINTT "\nldpair only takes register pairs separated by commas"
-		FAIL ".Got \3,\4 as last two arguments instead."
-	ENDC
-	ld	\1, \3
-	ld	\2, \4
-	ENDM
 ldpair_explicit: MACRO
 	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
 		PRINTT "\nldpair only takes register pairs separated by commas"
