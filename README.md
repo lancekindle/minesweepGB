@@ -1,6 +1,7 @@
 ## Minesweeper *For the Gameboy*
 
-![screenshot from bgb](screenshot.png)
+| ![screenshot from bgb](screenshot.png) | ![gameplay from bgb](screenplay.gif)|
+| --- | --- |
 
 Built mostly ground up in assembly, my take on the classic game of minesweeper.
 I followed the excellent ["hello world" examples](http://cratel.wichita.edu/cratel/ECE238Spr08) by Witchita State University. These begin with displaying a set of tiles on the Gameboy's screen and include moving a character on the screen and working with noise / music. They also include an introduction (by example) of RGBDS's asm and macro syntax.
