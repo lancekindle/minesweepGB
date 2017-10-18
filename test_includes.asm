@@ -117,7 +117,7 @@ TestFailed: MACRO
 	push	bc
 	push	de
 	push	hl
-	call	briefly_skip\@	; set this as return address after
+	call	.briefly_skip\@	; set this as return address after
 				; TestResult writes '-' and returns
 	pop	hl
 	pop	de
@@ -127,7 +127,7 @@ TestFailed: MACRO
 	; halts the cpu (but continue to display graphics) until an interrupt
 	; occurs. In this case, a button press. Allows us to debug in BGB
 	; what the register currently holds and why this is happening
-briefly_skip\@:
+.briefly_skip\@
 	; technically this part gets run twice
 	lda	0
 	IF _NARG == 2

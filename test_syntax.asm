@@ -299,8 +299,6 @@ test_0D_ifa_not:
 	; test failing matches first (where A IS >=2, but we're testing that
 	; ifa_not will reverse that logic)
 	jp .skip
-.passed_0D
-	TestPassed	13
 .skip
 	lda	1
 	ifa_not	<=, 2, jp .failed
@@ -341,6 +339,8 @@ test_0D_ifa_not:
 	ifa_not	!=, 5, jp .passed_0D
 .failed
 	TestFailed	13
+.passed_0D
+	TestPassed	13
 
 
 ; call with register, and value to load then negate
