@@ -28,6 +28,7 @@
 	IF	!DEF(SYNTAX_ASM)
 SYNTAX_ASM	SET	1
 
+include "if_conditionals.inc"
 
 ; simple macros to set/return true or false. Use these everywhere!
 ; can include a conditional (C, NC, Z, NZ) as 1st arg. If the conditional
@@ -422,12 +423,12 @@ popall: MACRO
 ; If it does error-out, a default error message is always included that
 ; tells the user which register should have been used
 load:	MACRO
-	IF STRIN("ABCDEHL",STRUPR("\1"))==0
+	IF arg1_IS_NUMBER
 		PRINTT "\n====================================\n"
-		PRINTT	"first argument must be register (a, b, c...)"
+		PRINTT	"first argument must be register or pair (a, b, hl,... )"
 		FAIL	"\n====================================\n"
 	ENDC
-	IF STRIN("ABCDEHL",STRUPR("\2"))>=1
+	IF arg2_NOT_NUMBER
 		IF STRCMP(STRUPR("\1"), STRUPR("\2")) != 0
 			PRINTT "\n====================================\n"
 			IF _NARG == 3
@@ -437,18 +438,10 @@ load:	MACRO
 			FAIL	"\n====================================\n"
 		ENDC
 	ENDC
-	IF STRIN("[HL]",STRUPR("\2")) && STRIN("\2", "[") && STRIN("\2", "]")
+	IF STRIN("\2", "[") && STRIN("\2", "]") && STRIN("[BC][DE][HL][C][$FF00+C][$FF00 +C][$FF00+ C][$FF00 + C]",STRUPR("\2"))
 		; this means the user did something like `load b, [hl]`
-		; which would be way cool to support. BUUUUT. What if prior
-		; to this, user did: `load h, 55`
-		; then [hl] definitely points to something different
-		; I REALLY FEEL LIKE WE SHOULD FAIL, RATHER THAN JUST WARN
-		; because user can very easily `ld b, [HL]` prior to this.
-		; Not failing gives an increased possibility of a bug forming.
-		IF STRLEN("\1") == 2	; user is attempting ld RP, [hl]. Fail.
-			FAIL	"ld \1, \2 will NOT work"	;RP==reg. pair
-		ENDC
-		WARN	"I don't think ld \1, \2 will work"
+		; NOTE THAT WE STILL ALLOW load a, [$FFFF]
+		FAIL	"ld \1, \2 will NOT work"
 	ENDC
 	IF STRCMP(STRUPR("\1"), STRUPR("\2")) != 0 ; only load register / value
 		ld	\1, \2		; IF register 1 != register 2
@@ -474,7 +467,7 @@ load:	MACRO
 ; be unable to compile if he passes in a register where you've specified
 ; a hard-coded # must be supplied
 ldhard: MACRO
-	IF STRIN("AFBCDEHL",STRUPR("\1")) == 0
+	IF arg1_IS_NUMBER
 		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
@@ -482,7 +475,7 @@ ldhard: MACRO
 		PRINTT	"arg1 should be a register / pair. Got \1 instead"
 		FAIL	"\n====================================\n"
 	ENDC
-	IF STRIN("AFBCDEHL",STRUPR("\2")) >= 1
+	IF arg2_IS_REGISTER || arg2_IS_REG_PAIR
 		PRINTT	"\n====================================\n"
 		IF _NARG == 3
 			PRINTT	"\3"
@@ -497,27 +490,17 @@ ldhard: MACRO
 ; load a register pair from another register pair
 ; ldpair_explicit	b,c,	h,l	; for example
 ; parameters are dest1, dest2,     src1, src2
-; where dest1 & 2 must combine to form a register pair, and same with src1 & 2
+; this is used only by the macro ldpair as its backend
 ldpair_explicit: MACRO
-	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\1","\2"))) == 0
-		PRINTT "\nldpair only takes register pairs separated by commas"
-		FAIL ".Got \1,\2 as first two arguments instead."
-	ENDC
-	IF STRIN("AFBCDEHL",STRUPR(STRCAT("\3","\4"))) == 0
-		PRINTT "\nldpair only takes register pairs separated by commas"
-		FAIL ".Got \3,\4 as last two arguments instead."
-	ENDC
 	ld	\1, \3
 	ld	\2, \4
 	ENDM
 
+; load a register pair from another register pair, for example:
+; ldpair	bc, hl
 ldpair: MACRO
-	IF STRIN("BC,DE,HL",STRUPR("\1")) == 0	; no match...
-		FAIL	"must supply register pair as arg1"
-	ENDC
-	IF STRIN("BC,DE,HL",STRUPR("\2")) == 0	; no match...
-		FAIL	"must supply register pair as arg2"
-	ENDC
+	ASSERT_IS_REG_PAIR \1, "must supply register pair as arg1. Got \1."
+	ASSERT_IS_REG_PAIR \2, "must supply register pair as arg2. Got \2."
 	IF STRCMP("BC", STRUPR("\1")) == 0
 		IF STRCMP("DE", STRUPR("\2")) == 0
 			ldpair_explicit	b,c,	d,e
@@ -612,7 +595,7 @@ trash\@	set	1
 			FAIL "2nd arg to negate should be `trash AF` only\n"
 		ENDC
 	ENDC
-	IF STRLEN("\1") == 1	; it's a single register to negate
+	IF arg1_IS_REGISTER	; it's a single register to negate
 		IF STRCMP("A", STRUPR("\1")) == 0
 			; negate a only
 			cpl
@@ -629,7 +612,7 @@ trash\@	set	1
 			ENDC
 		ENDC
 	ENDC
-	IF STRLEN("\1") == 2
+	IF arg1_IS_REG_PAIR
 		IF (trash\@ == 0)
 			push	af
 		ENDC
@@ -652,13 +635,20 @@ trash\@	set	1
 ; exchange register_pair1 with register_pair2
 ; allows functionality similar to what you might see in normal Z80 opcodes,
 ; (but with any registers) with one exception: cannot exchange with AF
-; example:	exch	b,c,	h,l
+; example:	exch	bc, hl
 ; COST:	9/4
 exch: MACRO
-	push	\1\2
-	ld	\1, \3
-	ld	\2, \4
-	pop	\3\4
+	ASSERT_IS_REG_PAIR \1, "arg1 should be register pair. Got \1 instead."
+	ASSERT_IS_REG_PAIR \2, "arg2 should be register pair. Got \2 instead."
+	IF STRCMP(STRUPR("\1"),STRUPR("\2")) == 0
+		WARN	"exch requested for the same register pair. Won't do"
+	ELSE
+	; recent RGBDS addition is the HIGH() and LOW() functions
+	push	\1
+	ld	HIGH(\1), HIGH(\2)
+	ld	LOW(\1), LOW(\2)
+	pop	\2
+	ENDC
 	ENDM
 
 
@@ -715,6 +705,7 @@ shift_right: MACRO
 	ENDC
 	ENDM
 
+; this is mostly used by other macros to ensure fast rotation
 ; used to call RL [register], but calls RLA (faster) if it's just register A
 RLfast: MACRO
 	IF _NARG != 1
@@ -748,24 +739,24 @@ RRfast: MACRO
 ; increment sets the flags in the same fashion as INC
 ; (Zero flag is set if register = 0, and doesn't change the carry-flag)
 increment: MACRO
-	IF STRIN("ABFCDHEL",STRUPR("\1")) >= 1	; it's just a single register
+	IF arg1_IS_REGISTER
 		FAIL "\nincrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("AF",STRUPR("\1")) >= 1 && STRLEN("\1") == 2
+	IF STRCMP("AF",STRUPR("\1")) == 0
 		FAIL "\nincrement requires register pair, but NOT AF\n"
 	ENDC
-	IF STRIN("BCDEHL",STRUPR("\1")) == 0	; didn't get a register pair
+	IF arg1_NOT_REG_PAIR
 		FAIL "\nincrement requires register pair. Got \1, a single\n"
 	ENDC
-	IF STRIN("BC",STRUPR("\1")) >= 1
+	IF STRCMP("BC",STRUPR("\1")) == 0
 		inc	C
 		if_flag	z, inc	B
 	ENDC
-	IF STRIN("DE",STRUPR("\1")) >= 1
+	IF STRCMP("DE",STRUPR("\1")) == 0
 		inc	E
 		if_flag	z, inc	D
 	ENDC
-	IF STRIN("HL",STRUPR("\1")) >= 1
+	IF STRCMP("HL",STRUPR("\1")) == 0
 		inc	L
 		if_flag	z, inc	H
 	ENDC
@@ -783,28 +774,28 @@ increment: MACRO
 ; decrement sets the flags in the same fashion as DEC
 ; (Zero flag is set if register = 0, and doesn't change the carry-flag)
 decrement: MACRO
-	IF STRIN("ABFCDHEL",STRUPR("\1")) >= 1	; it's just a single register
+	IF arg1_IS_REGISTER
 		FAIL "\ndecrement requires register pair. Got \1\n"
 	ENDC
-	IF STRIN("AF",STRUPR("\1")) >= 1 && STRLEN("\1") == 2
+	IF STRCMP("AF",STRUPR("\1")) == 0
 		FAIL "\ndecrement requires register pair, but NOT AF\n"
 	ENDC
-	IF STRIN("BCDEHL",STRUPR("\1")) == 0	; didn't get a register pair
+	IF arg1_NOT_REG_PAIR
 		FAIL "\ndecrement requires register pair. Got \1, a single\n"
 	ENDC
-	IF STRIN("BC",STRUPR("\1")) >= 1
+	IF STRCMP("BC",STRUPR("\1")) == 0
 		inc	C
 		dec	C ; check to see if we are about to decrement from 0
 		if_flag	z, dec	B
 		dec	C
 	ENDC
-	IF STRIN("DE",STRUPR("\1")) >= 1
+	IF STRCMP("DE",STRUPR("\1")) == 0
 		inc	E
 		dec	E ; check to see if we are about to decrement from 0
 		if_flag	z, dec	D
 		dec	E
 	ENDC
-	IF STRIN("HL",STRUPR("\1")) >= 1
+	IF STRCMP("HL",STRUPR("\1")) == 0
 		inc	L
 		dec	L ; check to see if we are about to decrement from 0
 		if_flag	z, dec	H

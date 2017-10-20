@@ -75,7 +75,7 @@ mat_Init: MACRO
 		; make pre-compile checks only
 		; if passed argument 3 isn't a dynamic value in a register pair
 		PRINTT "\n[===     \1, \2, \3     ===]\n"
-		IF STRIN("AFBCDEHL", STRUPR("\3")) == 0
+		IF arg3_IS_NUMBER
 		; verify matrix will be fully filled by supplied values
 		IF (\3) != (\1_H * \1_W)
 			PRINTT	"\nfilling matrix requires all values to be "

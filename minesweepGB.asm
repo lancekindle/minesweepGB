@@ -332,7 +332,7 @@ reset:		; also called after player loses and is resetting
 
 
 ; a macro that gets called in the middle of reading from the toReveal stack
-; the rules here are we must preserve HL from start to end,
+; the rules here are we must preserve HL & DE from start to end,
 ; and in this case, A & BC are loaded with values.
 ; BC contains the Index of tile, and A contains the # to print
 writeColorCells2VRAM: MACRO
