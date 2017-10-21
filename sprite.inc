@@ -3,7 +3,7 @@
 ; updates:
 ;  2008-03-23: added conditional so it is not interpreted by the assembler 2x
 
-include "syntax.asm"
+include "syntax.inc"
 
         IF      !DEF(HELLO_SPRITE_INC)
 HELLO_SPRITE_INC  SET  1

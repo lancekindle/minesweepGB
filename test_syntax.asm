@@ -6,7 +6,7 @@
 ; Newest Test is on bottom of file
 
 include "test_includes.asm"
-include "syntax.asm"
+include "syntax.inc"
 
 
 

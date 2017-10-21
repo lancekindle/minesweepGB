@@ -24,7 +24,7 @@ section "start", HOME[$0100]
 ; include .asm files here (asm includes actual code. inc just defines stuff)
 ; we need to add it here after all the critical address-specific code
 ; has been laid out
-include "syntax.asm"
+include "syntax.inc"
 ; write the rom header
 
 

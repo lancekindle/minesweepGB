@@ -18,7 +18,7 @@ TEST_INCLUDES_ASM	SET	1
 
 
 include "memory.asm"
-include "syntax.asm"
+include "syntax.inc"
 
 
 get_true:

@@ -5,7 +5,7 @@
 ;---------------------------------------------------------------------------
 include "test_includes.asm"
 include "vars.asm"
-include "syntax.asm"
+include "syntax.inc"
 include "stack.asm"
 
 ; verify that pointer Inited in ram points to the stack

@@ -48,7 +48,7 @@ section "start", HOME[$0100]
 ; we need to add it here after all the critical address-specific code
 ; has been laid out
 
-include "syntax.asm"
+include "syntax.inc"
 include "irq.asm"
 include "memory.asm"
 include "vars.asm"

@@ -3,7 +3,7 @@
 ;   Original from <github.com/lancekindle/minesweepGB>
 ;   Licensed under GNU GPL v3 <http://www.gnu.org/licenses/>
 ;---------------------------------------------------------------------------
-include "syntax.asm"
+include "syntax.inc"
 include "vars.asm"
 include "math.asm"
 

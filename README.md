@@ -25,7 +25,7 @@ rm play_minesweep.obj
 
 #### Macros
 
-Freakin' awesome macros. I've seen it said that RGBDS has amazing macro support. And it's true, but its syntax is very terse. Minesweep contains some powerful macros that make reading assembly MUCH easier. Check out [syntax.asm](syntax.asm)  to see some excellent macros that make readable assembly. My Favorite: IFA
+Freakin' awesome macros. I've seen it said that RGBDS has amazing macro support. And it's true, but its syntax is very terse. Minesweep contains some powerful macros that make reading assembly MUCH easier. Check out [syntax.inc](syntax.inc)  to see some excellent macros that make readable assembly. My Favorite: IFA
 ```
 ifa	<, 32,	ld a, 32
 ```
@@ -41,6 +41,23 @@ ld	a, 32
 .skip
 ```
 [A nice, short article on writing readable assembly through macros](http://www.drdobbs.com/parallel/assembly-language-macros/184408512)
+
+In addition, I've built several macros designed for making other macros more readable. Both [if_conditionals.inc](if_conditionals.inc) and [assert_macro_args.inc](assert_macro_args.inc) are built to enable the developer to test the type of inputs (register, register-pair, or number) each argument is. It's a readable way to fail (and let the developer know) if an argument is incorrectly supplied. (Because with macros, not checking arguments can lead to lots of silent bugs). An example of asserting an argument is a single register:
+```
+    IF STRIN("A.B.C.D.E.H.L", STRUPR("\2")) == 0
+        FAIL    "arg2 needs to be a register. Got \2."
+    ENDC
+```
+We can improve it using a string expansion macro from [if_conditionals.inc](if_conditionals.inc):
+```
+    IF arg2_NOT_REGISTER
+        FAIL    "arg2 needs to be a register. Got \2."
+    ENDC
+```
+or we can improve it further using an assertion from [assert_macro_args.inc](assert_macro_args.inc)
+```
+ASSERT_IS_REGISTER \2, "arg2 needs to be a register. Got \2."
+```
 #### Responsive, silky-smooth gameplay
 
 Minesweep uses hardware interrupts and careful state management to number crunch and reveal areas on the minefield without sacrificing player-input response time. The effect is split-second minefield reveal with no lag to keypresses. It's as "multi-threaded" as possible on a single-core cpu. The cursor remains responsive throughout and features smooth scrolling between locations.
@@ -51,7 +68,7 @@ Minesweeper is all about matrix-operations. The [matrix.asm](matrix.asm) module 
 
 #### Tests
 
-A Test-Suite built to test the code and features I've written. Extensive (but not 100% coverage) testing of matrix operations, stack operations, math operations, and syntax.asm / macro features. I test some well-used macros such as *negate*, *ifa*, *increment*/*decrement*, and *math_Mult* to name a few.
+A Test-Suite built to test the code and features I've written. Extensive (but not 100% coverage) testing of matrix operations, stack operations, math operations, and syntax.inc / macro features. I test some well-used macros such as *negate*, *ifa*, *increment*/*decrement*, and *math_Mult* to name a few.
 
 **To run the tests yourself, compile test_main.asm** just like you would do with minesweepGB.asm, and then run within bgb. Once run, if all tests pass, you should see a screen partially-filled with #'s and letters indicating specific tests passed. If you should see a '-', then a test has failed, and the game has paused testing until a button is pressed (a gameboy-button, not just a random keyboard key. [Enter] ought to work).
 

@@ -6,7 +6,7 @@
 	IF !DEF(SMOKE_ASM)
 SMOKE_ASM	SET	1
 
-include	"syntax.asm"
+include	"syntax.inc"
 include "tileGraphics.asm"
 include "memory.asm"
 include "sprite.inc"

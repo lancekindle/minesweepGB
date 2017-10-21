@@ -4,7 +4,7 @@
 ;   Licensed under GNU GPL v3 <http://www.gnu.org/licenses/>
 ;---------------------------------------------------------------------------
 ; holds interrupt routines
-include	"syntax.asm"
+include	"syntax.inc"
 include "vars.asm"
 
 	IF !DEF(IRQ_ASM)

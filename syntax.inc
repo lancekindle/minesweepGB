@@ -25,8 +25,8 @@
 ; fxn = function
 
 
-	IF	!DEF(SYNTAX_ASM)
-SYNTAX_ASM	SET	1
+	IF	!DEF(SYNTAX_INC)
+SYNTAX_INC	SET	1
 
 include "if_conditionals.inc"
 

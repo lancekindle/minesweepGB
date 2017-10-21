@@ -3,7 +3,7 @@ RGB_ASM	SET	1
 
 include "gbhw.inc"
 include "cgbhw.inc"
-include "syntax.asm"
+include "syntax.inc"
 include "memory.asm"
 
 ; library to help with colors on the gameboy color

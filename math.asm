@@ -6,7 +6,7 @@
 ; module to hold math procedures. Included macros are to help set up registers
 ; and call the procedure.
 
-include "syntax.asm"
+include "syntax.inc"
 include "if_conditionals.inc"
 include "assert_macro_args.inc"
 

@@ -2,7 +2,7 @@
 
 include "gbhw.inc"
 include "vars.asm"	; for setting jpad variables
-include "syntax.asm"
+include "syntax.inc"
 
 	IF  !DEF(JOYPAD_INC)
 JOYPAD_INC  SET     1

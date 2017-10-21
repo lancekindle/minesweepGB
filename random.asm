@@ -2,7 +2,7 @@
 random_asm	SET	1
 
 
-include "syntax.asm"
+include "syntax.inc"
 include "vars.asm"
 
 	var_LowRamByte	random_LoByte1	; declare holding space for random#

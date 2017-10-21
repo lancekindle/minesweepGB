@@ -31,7 +31,7 @@ section "start", HOME[$0100]
 include "joypad.asm"
 include "memory.asm"
 include "lcd.asm"
-include "syntax.asm"
+include "syntax.inc"
 include "test_includes.asm"
 include "test_syntax.asm"
 include "test_math.asm"

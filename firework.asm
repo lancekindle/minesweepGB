@@ -6,7 +6,7 @@
 	IF !DEF(FIREWORK_ASM)
 FIREWORK_ASM	SET	1
 
-include "syntax.asm"
+include "syntax.inc"
 include "gbhw.inc"
 include "cgbhw.inc"
 include "vars.asm"
