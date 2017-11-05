@@ -16,24 +16,24 @@ dma_Copy2HRAM: MACRO
 ; This is important because DMACODELOC is referenced before we can load the
 ; actual dmacode. So we must use only macros & defines in this file
 include "memory.asm"
-.copy_dma_into_memory\@
-	ld	de, DMACODELOC
-	ld	hl, dmacode\@
-	ld	bc, dmaend\@ - dmacode\@
-	call	mem_CopyVRAM
-	jr	dmaend\@
-dmacode\@:
+	jr	.dmaend\@
+.dmacode\@
 	push	af
 	ld	a, OAMDATALOCBANK	; OAMDATA... from sprite.inc
 	ldh	[rDMA], a
 	ld	a, $28 ; countdown until DMA is finishes, then exit
-dma_wait\@:			;<-|
+.dma_wait\@			;<-|
 	dec	a		;  |	keep looping until DMA finishes
-	jr	nz, dma_wait\@  ; _|
+	jr	nz, .dma_wait\@ ; _|
 	pop	af
 	ret	; if this were jumped to by the v-blank interrupt, we'd
 		; want to reti (re-enable interrupts) instead.
-dmaend\@:
+.dmaend\@
+.copy_dma_into_memory\@
+	ld	de, DMACODELOC
+	ld	hl, .dmacode\@
+	ld	bc, .dmaend\@ - .dmacode\@
+	call	mem_Copy
 	ENDM
 ; =============================================================
 ; ----------- (In Depth) So what does DMA do? -----------------
