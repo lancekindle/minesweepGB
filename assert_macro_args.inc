@@ -81,5 +81,32 @@ ASSERT_NOT_NUMBER: MACRO
 	ENDC
 	ENDM
 
+ASSERT_EQUAL: MACRO
+; assert that two passed arguments are equal
+	IF _NARG <= 1
+		FAIL "ASSERT_EQUAL requires 2 arguments"
+	ENDC
+	IF STRCMP(STRUPR("\1"), STRUPR("\2")) != 0
+		IF _NARG == 3
+			FAIL "\3"
+		ENDC
+		FAIL "Arguments should be equal. Got \1\nand\n\2\n"
+	ENDC
+	ENDM
+
+ASSERT_NOT_EQUAL: MACRO
+; assert that two passed arguments are NOT equal
+	IF _NARG <= 1
+		FAIL "ASSERT_NOT_EQUAL requires 2 arguments"
+	ENDC
+	IF STRCMP(STRUPR("\1"), STRUPR("\2")) == 0
+		IF _NARG == 3
+			FAIL "\3"
+		ENDC
+		FAIL "Arguments should not be equal. Got \1\nand\n\2\n"
+	ENDC
+	ENDM
+
+
 
 	ENDC	; end assertions.inc define

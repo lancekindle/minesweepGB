@@ -28,6 +28,7 @@
 	IF	!DEF(SYNTAX_INC)
 SYNTAX_INC	SET	1
 
+include "assert_macro_args.inc"
 include "if_conditionals.inc"
 
 ; simple macros to set/return true or false. Use these everywhere!
