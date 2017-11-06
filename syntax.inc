@@ -32,6 +32,12 @@ include "macro_syntax.inc"
 include "assert_macro_args.inc"
 include "if_conditionals.inc"
 
+
+lda: MACRO
+	ld	a, \1
+	ENDM
+
+
 ; simple macros to set/return true or false. Use these everywhere!
 ; can include a conditional (C, NC, Z, NZ) as 1st arg. If the conditional
 ; does not pass, then the true/false portion of (re)setting the carry-flag
@@ -70,16 +76,14 @@ ret_false: MACRO
 .skip_ret_false\@
 	ENDM
 
+
 set_true: MACRO
 	SCF     ; set carry flag
 	ENDM
+
 set_false: MACRO
 	SCF
 	CCF     ; compliment carry flag. (toggle it's value)
-	ENDM
-
-lda: MACRO
-	ld	a, \1
 	ENDM
 
 ; if_* MACROs take 2 arguments.
@@ -112,7 +116,6 @@ if_not: MACRO
 ; those instructions. So it's a sleek, fast and readable way to compare #s
 ; just remember that ifa doesn't work with negative #'s or those >= 256
 ifa: MACRO
-blahblah\@	= STRSUB("\2",1,1)
 	cp	\2
 	IF (STRCMP("\1", "==") == 0) ; Z=1
 	jr	nz, .skip_ifa\@
@@ -259,7 +262,6 @@ if_bits: MACRO
 .end_if_bits\@
 	ENDM
 
-
 if_not_bits: MACRO
 	bit	\1, \3
 	jr	nz, .end_if_not_bits\@
@@ -270,10 +272,7 @@ if_not_bits: MACRO
 	ENDM
 
 
-
-
 ; pushall   pushes all registers
-; popall    pops all registers (in the right order to undo pushall)
 pushall: MACRO
 	push	AF
 	push	BC
@@ -281,6 +280,7 @@ pushall: MACRO
 	push	HL
 	ENDM
 
+; popall    pops all registers (in the right order to undo pushall)
 popall: MACRO
 	pop	HL
 	pop	DE
@@ -289,57 +289,14 @@ popall: MACRO
 	ENDM
 
 
-; load a register pair from another register pair
-; ldpair_explicit	b,c,	h,l	; for example
-; parameters are dest1, dest2,     src1, src2
-; this is used only by the macro ldpair as its backend
-ldpair_explicit: MACRO
-	ld	\1, \3
-	ld	\2, \4
-	ENDM
-
 ; load a register pair from another register pair, for example:
 ; ldpair	bc, hl
 ldpair: MACRO
 	ASSERT_IS_REG_PAIR \1, "must supply register pair as arg1. Got \1."
 	ASSERT_IS_REG_PAIR \2, "must supply register pair as arg2. Got \2."
-	IF STRCMP("BC", STRUPR("\1")) == 0
-		IF STRCMP("DE", STRUPR("\2")) == 0
-			ldpair_explicit	b,c,	d,e
-		ELSE
-		IF STRCMP("HL", STRUPR("\2")) == 0
-			ldpair_explicit	b,c,	h,l
-		ELSE
-		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC ; end arg2 == HL
-		ENDC ; end arg2 == DE
-	ELSE
-	IF STRCMP("DE", STRUPR("\1")) == 0
-		IF STRCMP("BC", STRUPR("\2")) == 0
-			ldpair_explicit	d,e,	b,c
-		ELSE
-		IF STRCMP("HL", STRUPR("\2")) == 0
-			ldpair_explicit	d,e,	h,l
-		ELSE
-		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC ; end arg2 == HL
-		ENDC ; end arg2 == BC
-	ELSE
-	IF STRCMP("HL", STRUPR("\1")) == 0
-		IF STRCMP("BC", STRUPR("\2")) == 0
-			ldpair_explicit	h,l,	b,c
-		ELSE
-		IF STRCMP("DE", STRUPR("\2")) == 0
-			ldpair_explicit	h,l,	d,e
-		ELSE
-		FAIL	"arg2 must be a register pair not equal to arg1 (\1). Got \2"
-		ENDC ; end arg2 == BC
-		ENDC ; end arg2 == DE
-	ELSE
-		FAIL	"expected arg1 and arg2 to be two register pairs. Got \1, \2"
-	ENDC	; end arg1 == DE
-	ENDC	; end arg1 == HL
-	ENDC	; end arg1 == BC
+	ASSERT_NOT_EQUAL \1, \2, "ldpair requires two different register pairs"
+	ld	LOW(\1), LOW(\2)
+	ld	HIGH(\1), HIGH(\2)
 	ENDM
 
 
@@ -484,6 +441,7 @@ shift_left: MACRO
 		SLA	\1
 	ENDC
 	ENDM
+
 
 ; same thing as shift left, just in the opposite direction
 ; register 1 overflows into register 2, which overflows into register 3, etc.

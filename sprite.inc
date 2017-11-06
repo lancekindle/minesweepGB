@@ -8,15 +8,13 @@ include "syntax.inc"
         IF      !DEF(HELLO_SPRITE_INC)
 HELLO_SPRITE_INC  SET  1
 
-SPEED		EQU	$0fff
-
 OAMDATALOC	EQU	_RAM				; must be multiple of $100
 OAMDATALOCBANK	EQU	OAMDATALOC/$100 
 OAMDATALENGTH	EQU	$A0
 
 		printt  "From Sprite.inc\n"
 		printv	OAMDATALOCBANK
-		printt	"TEXT!!!!\n"
+		printt	"\n"
 		
 		RSSET	OAMDATALOC
 sprite_RS	SET OAMDATALOC
