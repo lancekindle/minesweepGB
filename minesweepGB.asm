@@ -42,6 +42,7 @@ section "start", HOME[$0100]
 ; UGH. After any macro call / command, DO NOT INCLUDE A COMMA! Commas only
 ; separate 2+ arguments. First argument doesn't have a comma separating it.
 ; write the rom header
+	NINTENDO_LOGO
 	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT, COLOR_COMPATIBLE
 
 ; include .asm files here (asm includes actual code. inc just defines stuff)

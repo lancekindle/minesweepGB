@@ -636,15 +636,14 @@ NINTENDO_LOGO:   MACRO
         ENDM
 
 ROM_HEADER:   MACRO
-;* Create the ROM header, including logo. Arguments 1, 2, & 3 specify
+;* Create the ROM header, excluding logo. Need to call NINTENDO_LOG just
+;* before calling ROM_HEADER macro. Arguments 1, 2, & 3 specify
 ;* MBC type, ROM size, & RAM size respectively. (see "Cart Related" section)
 ;* call this macro after a nop & jp @ address $0100 (example below)
 ;* SECTION "start", HOME[$0100]
 ;* nop
 ;* jp begin
 ;*      ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
-
-    NINTENDO_LOGO  ; add nintendo logo  (idk why macro calls must be indented)
 
  DB "EXAMPLE",0,0,0,0,0,0,0,0 ; Cart name - 15bytes
     ; set GBC compatibility. If not set, GBC features are disabled
@@ -659,9 +658,21 @@ ROM_HEADER:   MACRO
     ENDC
  DB 0,0                       ; $144 - Licensee code (not important)
  DB 0                         ; $146 - SGB Support indicator
+ 	IF _NARG >= 1
  DB \1                        ; $147 - Cart type
+	ELSE
+ DB 0	; default NOMBC
+	ENDC
+	IF _NARG >= 2
  DB \2                        ; $148 - ROM Size
+	ELSE
+ DB 0	; default 32KB ROM size
+	ENDC
+	IF _NARG >= 3
  DB \3                        ; $149 - RAM Size
+	ELSE
+ DB 0	; default 0KB RAM size
+	ENDC
  DB 1                         ; $14a - Destination code
  DB $33                       ; $14b - Old licensee code
  DB 0                         ; $14c - Mask ROM version

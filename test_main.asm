@@ -26,6 +26,7 @@ section "start", HOME[$0100]
 	nop
 	jp begin
 
+	NINTENDO_LOGO
 	ROM_HEADER ROM_NOMBC, ROM_SIZE_32KBYTE, RAM_SIZE_0KBIT
 
 include "joypad.asm"
