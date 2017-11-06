@@ -58,9 +58,17 @@ firework_create_particles:
 	ld	bc, TILE_SIZE
 	ld	hl, mine_gfx + 4 * TILE_SIZE
 	ld	de, rFW_horizontal
-	preserve2 HL, BC,	call	mem_Copy	; copy to ram
+	push	bc
+	push	hl
+	call	mem_Copy	; copy to ram
+	pop	hl
+	pop	bc
 	ld	de,rFW_vertical
-	preserve2 HL, BC,	call	mem_Copy	; copy to ram
+	push	bc
+	push	hl
+	call	mem_Copy	; copy to ram
+	pop	hl
+	pop	bc
 	ld	de, rFW_corner
 	call	mem_Copy	; copy to ram
 	; setup sprite images so that they point to particle

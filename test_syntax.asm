@@ -23,59 +23,14 @@ test_01_lda:
 	lda	1  ; test if macro will load a with 1
 	TestResult	1
 
-; test preserve2
-test_03_preserve2:
-	ld	a, 1
-	ld	b, 3
-	preserve2	af, bc, call TrashRegs
-	cp	1
-	jp	nz, .failed03
-	lda	b
-	cp 3
-	jp	nz, .failed03
-	TestPassed	3
-.failed03
-	TestFailed	3
 
-;test preserve
-test_02_preserve:
 	ld	a, 1
-	preserve	af, ld a, 0
-	cp	1
-	jp	nz, .failed02
-	call	SetRegs		; sets a,b,c,d,e,h,l   to    1,2,3,4,5,6,7
-	preserve	all, call TrashRegs
-	cp	1  ; verify a
-	jr	nz, .failed02
-	lda	b
-	cp	2 ; verify b
-	jr	nz, .failed02
-	lda	c
-	cp	3 ; verify c
-	jr	nz, .failed02
-	lda	d
-	cp	4 ; verify d
-	jr	nz, .failed02
-	lda	e
-	cp	5 ; verify e
-	jr	nz, .failed02
-	lda	h
-	cp	6 ; verify h
-	jr	nz, .failed02
-	lda	l
-	cp	7 ; verify l
-	jr	nz, .failed02
-	TestPassed	2
-.failed02
-	TestFailed	2
-
 
 ; test the if_ syntax
 test_04_if:
 	ld	a, 0
 	if_	get_true, ld a, 1
 	if_	get_false, ld a, 0
-	if_	get_true, preserve af, preserve bc, call TrashRegs  ; test arg unpacking
 	TestResult	4
 
 ; test the if_not syntax
@@ -83,7 +38,6 @@ test_05_if_not:
 	ld	a, 0
 	if_not	get_false, ld a, 1
 	if_not	get_true, ld a, 0
-	if_not	get_false, preserve af, preserve bc, call TrashRegs  ; test arg unpacking
 	TestResult	5
 
 

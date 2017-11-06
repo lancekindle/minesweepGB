@@ -30,9 +30,17 @@ create_smoke_particles:
 	ld	de, rSmokeTile1
 	ld	bc, smoke_font_end - smoke_font
 	ld	hl, smoke_font
-	preserve2 HL, BC,	call	mem_Copy	; copy to ram
+	push	bc
+	push	hl
+	call	mem_Copy  ; copy to ram
+	pop	hl
+	pop	bc
 	ld	de, rSmokeTile2
-	preserve2 HL, BC,	call	mem_Copy	; copy to ram
+	push	bc
+	push	hl
+	call	mem_Copy  ; copy to ram
+	pop	hl
+	pop	bc
 	ld	de, rSmokeTile3
 	push	bc
 	call	mem_Copy	; copy to ram

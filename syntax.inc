@@ -359,38 +359,6 @@ jr_inverse: MACRO
 	ENDM
 
 
-; preserve & restore register pair after cmd. \1 can be: af, bc, de, hl, or all
-; if \1 is "all", then all registers will be preserved
-; \2 is FULL command. such as CALL xyz or a macro. 
-preserve: MACRO
-	IF (STRCMP("ALL", STRUPR("\1")) == 0)
-		push af
-		push bc
-		push de
-		push hl
-	ELSE
-		push \1
-	ENDC
-	unpack_arg2_cmd
-	IF (STRCMP("ALL", STRUPR("\1")) == 0)
-		pop hl
-		pop de
-		pop bc
-		pop af
-	ELSE
-		pop \1
-	ENDC
-	ENDM
-
-preserve2: MACRO
-	push \1
-	push \2
-	unpack_arg3_cmd
-	pop \2
-	pop \1
-	ENDM
-
-
 ; pushall   pushes all registers
 ; popall    pops all registers (in the right order to undo pushall)
 pushall: MACRO
