@@ -23,8 +23,26 @@ test_01_lda:
 	lda	1  ; test if macro will load a with 1
 	TestResult	1
 
+test_02_arg_unpacking:	; don't have a test for this yet
 
+test_03_ldpair:
+	ld	BC, $0101
+	ld	DE, $BBCC
+	ldpair	bc, de
+	; bc should contain $ABCD
+	ld	a, b
+	cp	$BB
+	jp	nz, .test_03_fail
+	ld	a, c
+	cp	$CC
+	jr	nz, .test_03_fail
+.test_03_pass
 	ld	a, 1
+	jp	.test_03_end
+.test_03_fail
+	ld	a, 0
+.test_03_end
+	TestResult	3
 
 ; test the if_ syntax
 test_04_if:
@@ -63,7 +81,7 @@ test_07_if_not_flag:
 	TestResult	7
 
 
-; test true/false macros for setting and returning
+; test true/false macros for setting CY and returning
 test_08_truefalse:
 	ld	a, 1
 	ld	hl, .tf1

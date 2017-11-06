@@ -44,6 +44,7 @@ begin:
 	ld	sp, $ffff  ; init stack pointer to be at top of memory
 	call	SetupGameboy
 	call	test_01_lda			; begin test_syntax.asm
+	call	test_03_ldpair
 	call	test_04_if
 	call	test_05_if_not
 	call	test_06_if_flag
