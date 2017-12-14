@@ -20,13 +20,19 @@ include "memory.asm"
 rgb_PALETTE_MASK	=	%00000111
 
 
-;	This RGBSet Macro uses RGB values from 0 to 255.
-; Even though this is a greater color range than the
-; GBC supports it allows you to directly read color
-; values from your favorite paint program using the
-; eye dropper tool and drop them directly into your
-; program.
+; This RGBSet Macro uses RGB values from 0 to 255. It then reduces the range
+; to 0-32. With a range 0-32, each color component is represented by 5 bits,
+; and a full 3-tuple color is represented by 15 bits. (aka 2 bytes)
+; Blue:  bits 14-10		(note that bit 15 is not used)
+; Green: bits 9-5
+; Red:   bits 4-0
+; Example: rgb_Set 255, 0, 0  ; RED
 rgb_Set: MACRO
+	; DW (define-word) stores LSB then MSB in-memory
+	; meaning that passing rgb_Set a tuple of the form RRR, GGG, BBB
+	; will be stored in-rom as two successive bytes: %GGGRRRRR, %xBBBBBGG
+	; yet the 16-bit value (before writing to rom) is %xBBBBBGG %GGGRRRRR
+	; This is the exact order (LSB first) that the GBC expects in rBCPD
 	DW	((\3 >> 3) << 10) + ((\2 >> 3) << 5) + (\1 >> 3)
 	ENDM
 
@@ -94,18 +100,20 @@ rgb_SetSingleBGP:
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
 	ldh	[rBCPS],a
-	ld	bc,$0869	; b = 8, c = rBCPD
+	ld	bc, $0800 | (rBCPD & $00FF)	; b = $08, c = rBCPD
+	; aka B holds # of bytes to copy (8 per palette)
+	; C holds LSB of rBCPD pointer. Works with ld [$FF00+c], a
 .loop1:
 	di
 .loop2:
 	ldh	a,[rSTAT]
-	and	2
-	jr	nz,.loop2
+	and	STATF_BUSY
+	jr	nz, .loop2
 	ld	a,[hl+]
-	ld	[c],a
+	ld	[$FF00+c],a
 	ei
 	dec	b
-	jr	nz,.loop1
+	jr	nz, .loop1
 	ret
 
 
@@ -114,18 +122,19 @@ rgb_SetSingleBGP:
 rgb_SetAllBGP:
 	ld	a,%10000000	; bit 7 = auto-increment. Bits 0-6 = index 0
 	ldh	[rBCPS],a
-	ld	bc,$4069	; b = 64, c = rBCPD	(when using ld [c], a)
+	ld	bc, $4000 | (rBCPD & $00FF)
+	; b = 64, c = rBCPD	(when using ld [c], a)
 .loop1:
 	di
 .loop2:
 	ldh	a,[rSTAT]
-	and	2
-	jr	nz,.loop2
+	and	STATF_BUSY
+	jr	nz, .loop2
 	ld	a,[hl+]
-	ld	[c],a
+	ld	[$FF00+c],a
 	ei
 	dec	b
-	jr	nz,.loop1
+	jr	nz, .loop1
 	ret
 
 
@@ -138,18 +147,18 @@ rgb_SetSingleOBJP:
 	add	a,a		; a = pal # * 8
 	set	7, a		; enable auto-increment
 	ldh	[rOCPS],a
-	ld	bc,$086b	; b = 8, c = rOCPD
+	ld	bc,$0800 | (rOCPD & $00FF); b = 8, c = rOCPD
 .loop1:
 	di
 .loop2:
 	ldh	a,[rSTAT]
-	and	2
-	jr	nz,.loop2
+	and	STATF_BUSY
+	jr	nz, .loop2
 	ld	a,[hl+]
-	ld	[c],a
+	ld	[$FF00+c],a
 	ei
 	dec	b
-	jr	nz,.loop1
+	jr	nz, .loop1
 	ret
 
 
@@ -158,18 +167,18 @@ rgb_SetSingleOBJP:
 rgb_SetAllOBJP:
 	ld	a,$80
 	ldh	[rOCPS],a
-	ld	bc,$406b	; b = 64, c = rOCPD
+	ld	bc,$4000 | (rOCPD & $00FF); b = 64, c = rOCPD
 .loop1:
 	di
 .loop2:
 	ldh	a,[rSTAT]
-	and	2
-	jr	nz,.loop2
+	and	STATF_BUSY
+	jr	nz, .loop2
 	ld	a,[hl+]
-	ld	[c],a
+	ld	[$FF00+c],a
 	ei
 	dec	b
-	jr	nz,.loop1
+	jr	nz, .loop1
 	ret
 
 ; ** Example colo(u)r palettes **

@@ -85,6 +85,8 @@ rRP	EQU $FF56
 ; -- Bits 5-3 - specify the palette #
 ; -- Bits 2-1 - Specifies the palette data/color #
 ; -- Bit 0 - Specifies H/L (H:1, L:0) of Red, Green, or Blue data
+; -- Low-byte contains	%GGGRRRRR
+; -- High-byte contains %xBBBBBGG
 ; --
 ; -- So... There are a total of 8 palettes. Specify which one you'd like
 ;	to R/W by setting bits 5-3 appropriately.
@@ -101,7 +103,8 @@ rBCPS	EQU $FF68
 ; -- Background Color Palette Data (R/W)
 ; -- R/W the color(s) of a palette (index) specified by rBCPS.
 ; -- To write a full palette, write 1 color at a time, 2 bytes per color
-; -- in this format: %xBBBBBGG GGGRRRRR, where you write the low byte first.
+; -- in this format: %xBBBBBGG GGGRRRRR, where you write the low byte first
+; -- (low-byte, in this case, refers to %xBBBBBGG).
 ; -- after you've written 4 colors (8 bytes), a full palette has been
 ; -- specified. To use these colors, you'll have to set the color-pointer in
 ; -- VRAM bank 1 at the same location as the corresponding tile in VRAM Bank 0
