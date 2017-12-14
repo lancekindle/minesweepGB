@@ -315,7 +315,8 @@ IEF_VBLANK  EQU  %00000001 ; V-Blank
 ; -- AUDVOL/NR50 ($FF24)
 ; -- Channel control / ON-OFF / Volume (R/W)
 ; --
-; -- Bit 7   - Vin->SO2 ON/OFF (Vin??)
+; -- Bit 7   - Vin->SO2 ON/OFF (Vin??) (Vin is from Cart pin31 - before GND)
+;            (supposedly you can pipe in sound from on-board cartridge chips)
 ; -- Bit 6-4 - SO2 output level (volume) (# 0-7)
 ; -- Bit 3   - Vin->SO1 ON/OFF (Vin??)
 ; -- Bit 2-0 - SO1 output level (volume) (# 0-7)
@@ -524,6 +525,12 @@ rAUD3LOW	EQU rNR33
 rNR34 EQU $FF1E
 rAUD3HIGH	EQU rNR34
 
+
+;***************************************************************************
+;*
+;* SoundChannel #4 registers
+;*
+;***************************************************************************
 
 ; --
 ; -- AUD4LEN/NR41 ($FF20)
